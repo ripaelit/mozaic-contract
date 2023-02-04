@@ -7,7 +7,7 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./LPTokenERC20.sol";
-import "../interfaces/IStargateFeeLibrary.sol";
+import "../../interfaces/IStargateFeeLibrary.sol";
 
 // libraries
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";

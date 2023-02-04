@@ -12,8 +12,8 @@ import "./Bridge.sol";
 
 // interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IStargateRouter.sol";
-import "../interfaces/IStargateReceiver.sol";
+import "../../interfaces/IStargateRouter.sol";
+import "../../interfaces/IStargateReceiver.sol";
 
 // libraries
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";

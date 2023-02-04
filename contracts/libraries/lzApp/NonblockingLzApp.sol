@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./LzApp.sol";
-import "../util/ExcessivelySafeCall.sol";
+import "../../util/ExcessivelySafeCall.sol";
 
 /*
  * the default LayerZero messaging behaviour is blocking, i.e. any failed message will block the channel
