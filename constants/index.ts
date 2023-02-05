@@ -2,6 +2,10 @@ import {BigNumber} from 'ethers';
 import {parseEther} from 'ethers/lib/utils';
 
 const localTestConstants = {
+  chainIds: [
+    101,
+    102,
+  ],
   stablecoins: [
     {
       name: 'USDC',
