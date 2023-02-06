@@ -6,11 +6,10 @@ const localTestConstants = {
     101,
     102,
   ],
-  stablecoins: [
-    {
-      name: 'USDC',
-    },
-  ],
+  stablecoins: new Map<number, Array<string>>([
+    [101, new Array<string>('USDC', 'USDT')],
+    [101, new Array<string>('USDC', 'USDT')],
+  ])
 };
 
 const contractConstants = {};

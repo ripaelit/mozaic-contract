@@ -10,7 +10,7 @@ import { deployStablecoins, deployLzEndpoints } from './TestUtils';
 describe('OrderTaker', () => {
   let orderTaker: OrderTaker;
   let owner: SignerWithAddress;
-  let coinContracts: ERC20[];
+  let coinContracts: Map<number, Map<string, ERC20>>;
   let lzEndpoints = new Map<number, LZEndpointMock>();
 
   beforeEach(async () => {

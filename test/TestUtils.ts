@@ -1,18 +1,23 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import {ERC20, ERC20__factory} from '../types/typechain';
+import {contracts, ERC20, ERC20__factory} from '../types/typechain';
 import { LZEndpointMock, LZEndpointMock__factory } from '../types/typechain';
 
 import consts from '../constants';
 
 
 export const deployStablecoins = async (owner: SignerWithAddress) => {
-  let coinContracts : ERC20[] = [];
-  for (const stablecoin of consts.localTestConstants.stablecoins) {
-    const coinFactory = (await ethers.getContractFactory('ERC20', owner)) as ERC20__factory;
-    const coin = await coinFactory.deploy(stablecoin.name, stablecoin.name);
-    await coin.deployed();
-    coinContracts.push(coin);
+  let coinContracts = new Map<number, Map<string, ERC20>>([]);
+
+  for (const chainId of consts.localTestConstants.stablecoins.keys()) {
+    let contractsInChain = new Map<string, ERC20>([]);
+    for (const stablecoinname of consts.localTestConstants.stablecoins.get(chainId) || []) {
+      const coinFactory = (await ethers.getContractFactory('ERC20', owner)) as ERC20__factory;
+      const coin = await coinFactory.deploy(stablecoinname, stablecoinname);
+      await coin.deployed();
+      contractsInChain.set(stablecoinname, coin);
+    }
+    coinContracts.set(chainId, contractsInChain);
   }
   return coinContracts;
 }
