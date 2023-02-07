@@ -4,7 +4,7 @@ import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Fact
 import { LZEndpointMock, LZEndpointMock__factory } from '../types/typechain';
 
 import consts from '../constants';
-
+import { BigNumber } from 'ethers';
 
 export interface StargateDeploymentOnchain {
   routerContract: Router,
@@ -94,7 +94,7 @@ export const deployStargate = async (owner: SignerWithAddress, stablecoinDeploym
       'STG', 
       layerzeroDeployments.get(chainId)!.address, 
       stgMainChainId, 
-      1000000000000000000000000000 // 10 ** 9 (total supply) ** 18 (decimals)
+      BigNumber.from("1000000000000000000000000000") // 10 ** 9 (total supply) ** 18 (decimals)
     );
     await stargateToken.deployed();
     stargateDeploymentOnchain.stargateToken = stargateToken;
