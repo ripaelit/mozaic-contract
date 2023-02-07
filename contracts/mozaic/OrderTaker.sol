@@ -59,7 +59,7 @@ contract OrderTaker is Ownable {
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
     }
-    function executeOrders(Order[] memory orders) public {
+    function executeOrders(Order[] memory orders) public onlyOwner{
         for (uint i = 0; i < orders.length; i++ ) {
             {
                 Order memory order = orders[i];
