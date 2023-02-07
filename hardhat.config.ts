@@ -3,7 +3,6 @@ dotEnvConfig();
 
 import type {HardhatUserConfig} from 'hardhat/types';
 
-import '@nomiclabs/hardhat-waffle';
 import '@typechain/hardhat';
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-solhint';
