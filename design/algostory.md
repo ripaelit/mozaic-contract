@@ -38,18 +38,18 @@ YOU CAN SKIP NOW
 
 ### 2. Sync Snapshot
 
-Control Center calls `Vault.PrepareSyncReponse()` on each (Secondary) Vault
+Control Center calls `Vault.snapshotAndReport()` on each (Secondary) Vault
 
 Each (Secondary Vault) does the following:
 
 - Take snapshot of the asset amounts (YOU CAN SKIP NOW)
     This means turn pending deposits/Withdraws into processing state.
-- Prepare sync response, which basically says
+- Prepare snapshot report, which basically says
     How much stable coin assets are there (in stable coin) - `syncResponse.totalStablecoin`
     How much pending rewards (in STG) - `syncResponse.totalInmoz`
     How many pending depositements (in stable Coin)  - `syncResponse.totalPendingDeposits`
     <!-- How mnay pending Withdraws (in INMOZ)  -->
-- Send sync reponse to primary vault
+- Send snapshot report to primary vault
 
 ### 3. Sync Determine
 
@@ -60,15 +60,11 @@ inmozPerStablecoin = totalInmoz / (totalStablecoin + totalStargate*stargatePrice
 This means that we want to give out INMOZ in a fair way to new depositors.
 (And also be fair to Withdrawors)
 
-### 4. Sync Execute
+### 4. Execute Asset Transition Orders
 
-Use inmozPerStablecoin to give out INMOZ for pending deposits.
-Use inmozPerStablecoin to give out stable coin for pending Withdraws.
-(Vault.executeSync())
-
-## Asset Transition Session
-
-Asset Transision Sessions usually run before Sync Session for two purposes:
+Asset Transition decision depends on snapshot reports.
+And thus Asset Transision Subsession starts after all snapshot reports arrive primary vault.
+Asset Transision Subsession runs before Sync execution for two purposes:
 
 - Have enough stablecoin to return, in order to satisfy Withdraw request
 - Update Staking Assets to maximize profit rate
@@ -76,3 +72,11 @@ Asset Transision Sessions usually run before Sync Session for two purposes:
 The control center call each vault's `executeOrders()` method with asset transition orders.
 
 Each asset transition order should guarantee that no value slip out of Mozaic.
+
+### 5. Sync Execute
+
+When asset transitions are all executed successfully, the control center calls executeSync on each vault.
+
+Use inmozPerStablecoin to give out INMOZ for pending deposits.
+Use inmozPerStablecoin to give out stable coin for pending Withdraws.
+(Vault.executeSync())
