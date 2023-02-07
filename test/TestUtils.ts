@@ -80,7 +80,7 @@ export const deployStargate = async (owner: SignerWithAddress, stablecoinDeploym
     const stablecoins = stablecoinDeployments.get(chainId)!
     const pools = new Map<string, Pool>();
     for (const [coinname, coincontract] of stablecoins) {
-      await factory.createPool(poolIds.get(coinname)!, coincontract.address, 6, 18, coinname, coinname);
+      await router.createPool(poolIds.get(coinname)!, coincontract.address, 6, 18, coinname, coinname);
       const poolAddress = await factory.getPool(poolIds.get(coinname)!);
       const pool = poolFactory.attach(poolAddress);
       pools.set(coinname, pool);
