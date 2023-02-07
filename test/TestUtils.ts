@@ -101,7 +101,8 @@ export const deployStargate = async (owner: SignerWithAddress, stablecoinDeploym
 
     // Deploy LPStaking contract
     const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-    const lpStaking = await lpStakingFactory.deploy(stargateToken.address, 1000000, 0,0);
+    const latestBlockNumber = await ethers.provider.getBlockNumber();
+    const lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("1000000"), latestBlockNumber + 3, latestBlockNumber + 3); // 
     await lpStaking.deployed();
     stargateDeploymentOnchain.lpStakingContract = lpStaking;
     stargateDeployments.set(chainId, stargateDeploymentOnchain);
