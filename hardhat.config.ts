@@ -7,6 +7,7 @@ import '@typechain/hardhat';
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-solhint';
 import '@nomicfoundation/hardhat-chai-matchers';
+import '@nomiclabs/hardhat-ethers';
 
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
