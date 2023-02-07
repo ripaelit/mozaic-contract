@@ -70,6 +70,7 @@ contract OrderTaker is Ownable {
         }
     }
     function stake(uint256 _amount, uint256 _poolId ) private{
+        require (_amount > 0, "Cannot stake zero amount");
         Pool pool = getPool(_poolId);
         // 1. Deposit
         uint256 balancePre = pool.balanceOf(address(this));
@@ -79,7 +80,7 @@ contract OrderTaker is Ownable {
         // 2. Stake LP
         // 2-1. Find the Liquidity Pool's index in the Farming Pool.
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
-        require(found, "The LP token not accepted.");
+        require(found, "The LP token not acceptable.");
         LPStaking(stargateLpStaking).deposit(stkPoolIndex, balanceDelta);
     }
     

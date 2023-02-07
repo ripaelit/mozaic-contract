@@ -51,4 +51,41 @@ describe('OrderTaker', () => {
       }
     })
   });
+  describe('stake', async () => {
+    it ('reverts when staking zero amount', async () => {
+      for (const chainId of orderTakerDeployments.keys()) {
+        const orderTaker = orderTakerDeployments.get(chainId)!
+        const firstPoolCoinname = stablecoinDeployments.get(chainId)!.keys().next().value;
+        const firstPoolId = consts.localTestConstants.poolIds.get(firstPoolCoinname);
+        // const stakeOrder = new OrderTaker.OrderStruct()
+        let order: OrderTaker.OrderStruct = {
+          orderType: ethers.BigNumber.from("0"), // OrderType.Swap
+          amount: ethers.BigNumber.from("0"),
+          arg1: ethers.BigNumber.from(""+firstPoolId),
+          arg2: ethers.BigNumber.from("0"),
+          arg3: ethers.BigNumber.from("0"),
+        };
+        await expect(orderTaker.connect(owner).executeOrders([order])).to.be.revertedWith("Cannot stake zero amount");
+      }
+    });
+    it ('fails when asked by other than owner', async () => {
+
+    })
+    it ('succeeds when possitive amount by owner', async () => {
+      for (const chainId of orderTakerDeployments.keys()) {
+        const orderTaker = orderTakerDeployments.get(chainId)!
+        const firstPoolCoinname = stablecoinDeployments.get(chainId)!.keys().next().value;
+        const firstPoolId = consts.localTestConstants.poolIds.get(firstPoolCoinname);
+        // const stakeOrder = new OrderTaker.OrderStruct()
+        let order: OrderTaker.OrderStruct = {
+          orderType: ethers.BigNumber.from("0"), // OrderType.Swap
+          amount: ethers.BigNumber.from("100_000_000_000_000_000_000"),
+          arg1: ethers.BigNumber.from(""+firstPoolId),
+          arg2: ethers.BigNumber.from("0"),
+          arg3: ethers.BigNumber.from("0"),
+        };
+        await orderTaker.connect(owner).executeOrders([order]);
+      }
+    })
+  })
 });
