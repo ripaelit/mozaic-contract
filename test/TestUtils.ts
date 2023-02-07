@@ -6,7 +6,7 @@ import { LZEndpointMock, LZEndpointMock__factory } from '../types/typechain';
 import consts from '../constants';
 
 
-interface StargateDeploymentOnchain {
+export interface StargateDeploymentOnchain {
   routerContract: Router,
   factoryContract: Factory,
   bridgeContract: Bridge,
@@ -15,11 +15,11 @@ interface StargateDeploymentOnchain {
   stargateToken: StargateToken,
 }
 
-type StargateDeployments = Map<number, StargateDeploymentOnchain>;
+export type StargateDeployments = Map<number, StargateDeploymentOnchain>;
 
-type LayerZeroDeployments = Map<number, LZEndpointMock>;
+export type LayerZeroDeployments = Map<number, LZEndpointMock>;
 
-type StableCoinDeployments = Map<number, Map<string, ERC20>>;
+export type StableCoinDeployments = Map<number, Map<string, ERC20>>;
 
 export const deployStablecoins = async (owner: SignerWithAddress) => {
   let coinContracts : StableCoinDeployments = new Map<number, Map<string, ERC20>>([]);
