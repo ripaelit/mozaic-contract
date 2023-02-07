@@ -79,7 +79,7 @@ describe('OrderTaker', () => {
         // const stakeOrder = new OrderTaker.OrderStruct()
         let order: OrderTaker.OrderStruct = {
           orderType: ethers.BigNumber.from("0"), // OrderType.Swap
-          amount: ethers.BigNumber.from("100_000_000_000_000_000_000"),
+          amount: ethers.BigNumber.from("100000000000000000000"),
           arg1: ethers.BigNumber.from(""+firstPoolId),
           arg2: ethers.BigNumber.from("0"),
           arg3: ethers.BigNumber.from("0"),
