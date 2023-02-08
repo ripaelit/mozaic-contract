@@ -264,7 +264,7 @@ contract SecondaryVault is MozLP, OrderTaker {
     }
 
     /// Take snapshot and report to primary vault
-    function snapshotAndReport() public payable onlyOwner {
+    function snapshotAndReport() public virtual payable onlyOwner {
         require(primaryChainId > 0, "main chain is not set");
         // Processing Amount Should be Zero!
         require(getProcessingTotalDepositRequestAmountLD()==0, "Still has processing requests");
