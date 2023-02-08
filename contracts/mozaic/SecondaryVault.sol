@@ -20,7 +20,7 @@ contract SecondaryVault is MozLP, OrderTaker {
     // STRUCTS
     struct SnapshotReport {
         uint256 depositRequestAmountLD;
-        uint256 withdrawRequestAmountIM;
+        uint256 withdrawRequestAmountMLP;
         uint256 totalStargate;
         uint256 totalStablecoin;
         uint256 totalInmoz; // INMOZ = Mozaic "LP"
@@ -29,23 +29,23 @@ contract SecondaryVault is MozLP, OrderTaker {
     //---------------------------------------------------------------------------
     // VARIABLES
     uint16 public primaryChainId=0;
-    bool public bucketFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
-    // Pending | Processing Requests - Bucket Left
+    bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
+    // Pending | Processing Requests - Left Buffer
     mapping(address => mapping(uint256 => uint256)) public depositRequestLeft;
     uint256 public totalDepositRequestAmountLDLeft;
     mapping(address => mapping(uint256 => uint256)) public withdrawRequestLeft;
-    mapping(address => uint256) public withdrawRequestAmountIMLeft;
-    uint256 public totalWithdrawRequestAmountIMLeft;
+    mapping(address => uint256) public withdrawRequestAmountMLPLeft;
+    uint256 public totalWithdrawRequestAmountMLPLeft;
 
-    // Pending | Processing Requests - Bucket Right
+    // Pending | Processing Requests - Right Buffer
     mapping(address => mapping(uint256 => uint256)) public depositRequestRight;
     uint256 public totalDepositRequestAmountLDRight;
     mapping(address => mapping(uint256 => uint256)) public withdrawRequestRight;
-    mapping(address => uint256) public withdrawRequestAmountIMRight;
-    uint256 public totalWithdrawRequestAmountIMRight;
+    mapping(address => uint256) public withdrawRequestAmountMLPRight;
+    uint256 public totalWithdrawRequestAmountMLPRight;
 
     function getPendingDepositRequest(address _user, uint256 _pid) private view returns (uint256) {
-        if (bucketFlag) {
+        if (bufferFlag) {
             return depositRequestRight[_user][_pid];
         }
         else {
@@ -53,7 +53,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function setPendingDepositRequest(address _user, uint256 _pid, uint256 _amountLD) private {
-        if (bucketFlag) {
+        if (bufferFlag) {
             depositRequestRight[_user][_pid] = _amountLD;
         }
         else {
@@ -61,7 +61,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function getProcessingDepositRequest(address _user, uint256 _pid) public view returns (uint256) {
-        if (!bucketFlag) {
+        if (!bufferFlag) {
             return depositRequestRight[_user][_pid];
         }
         else {
@@ -69,7 +69,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function setProcessingDepositRequest(address _user, uint256 _pid, uint256 _amountLD) private {
-        if (!bucketFlag) {
+        if (!bufferFlag) {
             depositRequestRight[_user][_pid] = _amountLD;
         }
         else {
@@ -77,7 +77,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function getPendingWithdrawRequest(address _user, uint256 _pid) private view returns (uint256) {
-        if (bucketFlag) {
+        if (bufferFlag) {
             return withdrawRequestRight[_user][_pid];
         }
         else {
@@ -85,7 +85,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function setPendingWithdrawRequest(address _user, uint256 _pid, uint256 _amountLD) private {
-        if (bucketFlag) {
+        if (bufferFlag) {
             withdrawRequestRight[_user][_pid] = _amountLD;
         }
         else {
@@ -93,7 +93,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function getProcessingWithdrawRequest(address _user, uint256 _pid) public view returns (uint256) {
-        if (!bucketFlag) {
+        if (!bufferFlag) {
             return withdrawRequestRight[_user][_pid];
         }
         else {
@@ -101,48 +101,48 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function setProcessingWithdrawRequest(address _user, uint256 _pid, uint256 _amountLD) private {
-        if (!bucketFlag) {
+        if (!bufferFlag) {
             withdrawRequestRight[_user][_pid] = _amountLD;
         }
         else {
             withdrawRequestLeft[_user][_pid] = _amountLD;
         }
     }
-    function getPendingWithdrawRequestAmountIM(address _user) private view returns (uint256) {
-        if (bucketFlag) {
-            return withdrawRequestAmountIMRight[_user];
+    function getPendingWithdrawRequestAmountMLP(address _user) private view returns (uint256) {
+        if (bufferFlag) {
+            return withdrawRequestAmountMLPRight[_user];
         }
         else {
-            return withdrawRequestAmountIMLeft[_user];
+            return withdrawRequestAmountMLPLeft[_user];
         }
     }
-    function setPendingWithdrawRequestAmountIM(address _user, uint256 _amountIM) private {
-        if (bucketFlag) {
-            withdrawRequestAmountIMRight[_user] = _amountIM;
+    function setPendingWithdrawRequestAmountMLP(address _user, uint256 _amountMLP) private {
+        if (bufferFlag) {
+            withdrawRequestAmountMLPRight[_user] = _amountMLP;
         }
         else {
-            withdrawRequestAmountIMLeft[_user] = _amountIM;
+            withdrawRequestAmountMLPLeft[_user] = _amountMLP;
         }
     }
-    function getProcessingWithdrawRequestAmountIM(address _user) private view returns (uint256) {
-        if (!bucketFlag) {
-            return withdrawRequestAmountIMRight[_user];
+    function getProcessingWithdrawRequestAmountMLP(address _user) private view returns (uint256) {
+        if (!bufferFlag) {
+            return withdrawRequestAmountMLPRight[_user];
         }
         else {
-            return withdrawRequestAmountIMLeft[_user];
+            return withdrawRequestAmountMLPLeft[_user];
         }
     }
-    function setProcessingWithdrawRequestAmountIM(address _user, uint256 _amountIM) private {
-        if (!bucketFlag) {
-            withdrawRequestAmountIMRight[_user] = _amountIM;
+    function setProcessingWithdrawRequestAmountMLP(address _user, uint256 _amountMLP) private {
+        if (!bufferFlag) {
+            withdrawRequestAmountMLPRight[_user] = _amountMLP;
         }
         else {
-            withdrawRequestAmountIMLeft[_user] = _amountIM;
+            withdrawRequestAmountMLPLeft[_user] = _amountMLP;
         }
     }
     
     function getPendingTotalDepositRequestAmountLD() public view returns (uint256) {
-        if (bucketFlag) {
+        if (bufferFlag) {
             return totalDepositRequestAmountLDRight;
         }
         else {
@@ -150,7 +150,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function setPendingTotalDepositRequestAmountLD(uint256 _value) public {
-        if (bucketFlag) {
+        if (bufferFlag) {
             totalDepositRequestAmountLDRight = _value;
         }
         else {
@@ -158,7 +158,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function getProcessingTotalDepositRequestAmountLD() public view returns (uint256) {
-        if (!bucketFlag) {
+        if (!bufferFlag) {
             return totalDepositRequestAmountLDRight;
         }
         else {
@@ -166,43 +166,43 @@ contract SecondaryVault is MozLP, OrderTaker {
         }
     }
     function setProcessingTotalDepositRequestAmountLD(uint256 _value) public {
-        if (!bucketFlag) {
+        if (!bufferFlag) {
             totalDepositRequestAmountLDRight = _value;
         }
         else {
             totalDepositRequestAmountLDLeft = _value;
         }
     }
-    function getPendingTotalWithdrawRequestAmountIM() public view returns (uint256) {
-        if (bucketFlag) {
-            return totalWithdrawRequestAmountIMRight;
+    function getPendingTotalWithdrawRequestAmountMLP() public view returns (uint256) {
+        if (bufferFlag) {
+            return totalWithdrawRequestAmountMLPRight;
         }
         else {
-            return totalWithdrawRequestAmountIMLeft;
+            return totalWithdrawRequestAmountMLPLeft;
         }
     }
-    function setPendingTotalWithdrawRequestAmountIM(uint256 _value) public {
-        if (bucketFlag) {
-            totalWithdrawRequestAmountIMRight = _value;
+    function setPendingTotalWithdrawRequestAmountMLP(uint256 _value) public {
+        if (bufferFlag) {
+            totalWithdrawRequestAmountMLPRight = _value;
         }
         else {
-            totalWithdrawRequestAmountIMLeft = _value;
+            totalWithdrawRequestAmountMLPLeft = _value;
         }
     }
-    function getProcessingTotalWithdrawRequestAmountIM() public view returns (uint256) {
-        if (!bucketFlag) {
-            return totalWithdrawRequestAmountIMRight;
+    function getProcessingTotalWithdrawRequestAmountMLP() public view returns (uint256) {
+        if (!bufferFlag) {
+            return totalWithdrawRequestAmountMLPRight;
         }
         else {
-            return totalWithdrawRequestAmountIMLeft;
+            return totalWithdrawRequestAmountMLPLeft;
         }
     }
-    function setProcessingTotalWithdrawRequestAmountIM(uint256 _value) public {
-        if (!bucketFlag) {
-            totalWithdrawRequestAmountIMRight = _value;
+    function setProcessingTotalWithdrawRequestAmountMLP(uint256 _value) public {
+        if (!bufferFlag) {
+            totalWithdrawRequestAmountMLPRight = _value;
         }
         else {
-            totalWithdrawRequestAmountIMLeft = _value;
+            totalWithdrawRequestAmountMLPLeft = _value;
         }
     }
     
@@ -218,7 +218,7 @@ contract SecondaryVault is MozLP, OrderTaker {
     event WithdrawRequestAdded (
         address indexed requestor,
         uint256 indexed poolId,
-        uint256 amountIM
+        uint256 amountMLP
     );
 
     // Constructor and Public Functions
@@ -252,15 +252,15 @@ contract SecondaryVault is MozLP, OrderTaker {
         emit DepositRequestAdded(msg.sender, _poolId, _amountLD);
     }
 
-    function addWithdrawRequest(uint256 _poolId, uint256 _amountIM) public {
+    function addWithdrawRequest(uint256 _poolId, uint256 _amountMLP) public {
         require(primaryChainId > 0, "main chain is not set");
         // check if the user has enough balance
-        require (getPendingWithdrawRequestAmountIM(msg.sender).add(getProcessingWithdrawRequestAmountIM(msg.sender)).add(_amountIM) <= balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
+        require (getPendingWithdrawRequestAmountMLP(msg.sender).add(getProcessingWithdrawRequestAmountMLP(msg.sender)).add(_amountMLP) <= balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
         // book request
-        setPendingWithdrawRequest(msg.sender, _poolId, getPendingWithdrawRequest(msg.sender, _poolId).add(_amountIM));
-        setPendingWithdrawRequestAmountIM(msg.sender, getPendingWithdrawRequestAmountIM(msg.sender).add(_amountIM));
-        setPendingTotalWithdrawRequestAmountIM(getPendingTotalWithdrawRequestAmountIM().add(_amountIM));
-        emit WithdrawRequestAdded(msg.sender, _poolId, _amountIM);
+        setPendingWithdrawRequest(msg.sender, _poolId, getPendingWithdrawRequest(msg.sender, _poolId).add(_amountMLP));
+        setPendingWithdrawRequestAmountMLP(msg.sender, getPendingWithdrawRequestAmountMLP(msg.sender).add(_amountMLP));
+        setPendingTotalWithdrawRequestAmountMLP(getPendingTotalWithdrawRequestAmountMLP().add(_amountMLP));
+        emit WithdrawRequestAdded(msg.sender, _poolId, _amountMLP);
     }
 
     /// Take snapshot and report to primary vault
@@ -268,10 +268,10 @@ contract SecondaryVault is MozLP, OrderTaker {
         require(primaryChainId > 0, "main chain is not set");
         // Processing Amount Should be Zero!
         require(getProcessingTotalDepositRequestAmountLD()==0, "Still has processing requests");
-        require(getProcessingTotalWithdrawRequestAmountIM()==0, "Still has processing requests");
+        require(getProcessingTotalWithdrawRequestAmountMLP()==0, "Still has processing requests");
         
         // Take Snapshot: Pending --> Processing
-        bucketFlag = !bucketFlag;
+        bufferFlag = !bufferFlag;
 
         // Make Report
         SnapshotReport memory report;
@@ -288,7 +288,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
         report.totalStablecoin = _totalStablecoin;
         report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD();
-        report.withdrawRequestAmountIM = getProcessingTotalWithdrawRequestAmountIM();
+        report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
         report.totalInmoz = this.totalSupply();
         
         // Send Report
