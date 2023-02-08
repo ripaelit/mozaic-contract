@@ -1,17 +1,21 @@
 pragma solidity ^0.8.0;
 
 // imports
-import "../libraries/oft/OFT.sol";
+import "../libraries/oft/OFTCore.sol";
 import "../libraries/stargate/Router.sol";
 import "../libraries/stargate/Pool.sol";
 import "./OrderTaker.sol";
+import "./MozLP.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract SecondaryVault is OFT, OrderTaker {
+contract SecondaryVault is MozLP, OrderTaker {
     using SafeMath for uint256;
+    //--------------------------------------------------------------------------
+    // CONSTANTS
+    uint16 public constant PT_REPORTSNAPSHOT = 10001;
     //---------------------------------------------------------------------------
     // STRUCTS
     struct SnapshotReport {
@@ -24,6 +28,7 @@ contract SecondaryVault is OFT, OrderTaker {
 
     //---------------------------------------------------------------------------
     // VARIABLES
+    uint16 public primaryChainId=0;
     bool public bucketFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     // Pending | Processing Requests - Bucket Left
     mapping(address => mapping(uint256 => uint256)) public depositRequestLeft;
@@ -39,7 +44,7 @@ contract SecondaryVault is OFT, OrderTaker {
     mapping(address => uint256) public withdrawRequestAmountIMRight;
     uint256 public totalWithdrawRequestAmountIMRight;
 
-    function getPendingDepositRequest(address _user, uint256 _pid) private returns (uint256) {
+    function getPendingDepositRequest(address _user, uint256 _pid) private view returns (uint256) {
         if (bucketFlag) {
             return depositRequestRight[_user][_pid];
         }
@@ -49,13 +54,13 @@ contract SecondaryVault is OFT, OrderTaker {
     }
     function setPendingDepositRequest(address _user, uint256 _pid, uint256 _amountLD) private {
         if (bucketFlag) {
-            return depositRequestRight[_user][_pid] = _amountLD;
+            depositRequestRight[_user][_pid] = _amountLD;
         }
         else {
-            return depositRequestLeft[_user][_pid] = _amountLD;
+            depositRequestLeft[_user][_pid] = _amountLD;
         }
     }
-    function getProcessingDepositRequest(address _user, uint256 _pid) public returns (uint256) {
+    function getProcessingDepositRequest(address _user, uint256 _pid) public view returns (uint256) {
         if (!bucketFlag) {
             return depositRequestRight[_user][_pid];
         }
@@ -65,13 +70,13 @@ contract SecondaryVault is OFT, OrderTaker {
     }
     function setProcessingDepositRequest(address _user, uint256 _pid, uint256 _amountLD) private {
         if (!bucketFlag) {
-            return depositRequestRight[_user][_pid] = _amountLD;
+            depositRequestRight[_user][_pid] = _amountLD;
         }
         else {
-            return depositRequestLeft[_user][_pid] = _amountLD;
+            depositRequestLeft[_user][_pid] = _amountLD;
         }
     }
-    function getPendingWithdrawRequest(address _user, uint256 _pid) private returns (uint256) {
+    function getPendingWithdrawRequest(address _user, uint256 _pid) private view returns (uint256) {
         if (bucketFlag) {
             return withdrawRequestRight[_user][_pid];
         }
@@ -81,13 +86,13 @@ contract SecondaryVault is OFT, OrderTaker {
     }
     function setPendingWithdrawRequest(address _user, uint256 _pid, uint256 _amountLD) private {
         if (bucketFlag) {
-            return withdrawRequestRight[_user][_pid] = _amountLD;
+            withdrawRequestRight[_user][_pid] = _amountLD;
         }
         else {
-            return withdrawRequestLeft[_user][_pid] = _amountLD;
+            withdrawRequestLeft[_user][_pid] = _amountLD;
         }
     }
-    function getProcessingWithdrawRequest(address _user, uint256 _pid) public returns (uint256) {
+    function getProcessingWithdrawRequest(address _user, uint256 _pid) public view returns (uint256) {
         if (!bucketFlag) {
             return withdrawRequestRight[_user][_pid];
         }
@@ -97,13 +102,13 @@ contract SecondaryVault is OFT, OrderTaker {
     }
     function setProcessingWithdrawRequest(address _user, uint256 _pid, uint256 _amountLD) private {
         if (!bucketFlag) {
-            return withdrawRequestRight[_user][_pid] = _amountLD;
+            withdrawRequestRight[_user][_pid] = _amountLD;
         }
         else {
-            return withdrawRequestLeft[_user][_pid] = _amountLD;
+            withdrawRequestLeft[_user][_pid] = _amountLD;
         }
     }
-    function getPendingWithdrawRequestAmountIM(address _user) private returns (uint256) {
+    function getPendingWithdrawRequestAmountIM(address _user) private view returns (uint256) {
         if (bucketFlag) {
             return withdrawRequestAmountIMRight[_user];
         }
@@ -111,7 +116,7 @@ contract SecondaryVault is OFT, OrderTaker {
             return withdrawRequestAmountIMLeft[_user];
         }
     }
-    function setPendingWithdrawRequestAmountIM(address _user, uint256 _amountIM) private returns (uint256) {
+    function setPendingWithdrawRequestAmountIM(address _user, uint256 _amountIM) private {
         if (bucketFlag) {
             withdrawRequestAmountIMRight[_user] = _amountIM;
         }
@@ -119,7 +124,7 @@ contract SecondaryVault is OFT, OrderTaker {
             withdrawRequestAmountIMLeft[_user] = _amountIM;
         }
     }
-    function getProcessingWithdrawRequestAmountIM(address _user) private returns (uint256) {
+    function getProcessingWithdrawRequestAmountIM(address _user) private view returns (uint256) {
         if (!bucketFlag) {
             return withdrawRequestAmountIMRight[_user];
         }
@@ -127,7 +132,7 @@ contract SecondaryVault is OFT, OrderTaker {
             return withdrawRequestAmountIMLeft[_user];
         }
     }
-    function setProcessingWithdrawRequestAmountIM(address _user, uint256 _amountIM) private returns (uint256) {
+    function setProcessingWithdrawRequestAmountIM(address _user, uint256 _amountIM) private {
         if (!bucketFlag) {
             withdrawRequestAmountIMRight[_user] = _amountIM;
         }
@@ -221,19 +226,22 @@ contract SecondaryVault is OFT, OrderTaker {
         string memory _name,
         string memory _symbol,
         address _lzEndpoint,
-        uint _initialSupply,
         uint16 _chainId,
         address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken
-    ) OFT(_name, _symbol, _lzEndpoint, _initialSupply) OrderTaker(_chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
+    ) MozLP(_name, _symbol, _lzEndpoint) OrderTaker(_chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
 
+    }
+    function setMainChainId(uint16 _chainId) public onlyOwner {
+        primaryChainId = _chainId;
     }
 
     /**
      * Add Deposit Request
      */
     function addDepositRequest(uint256 _poolId, uint256 _amountLD) public {
+        require(primaryChainId > 0, "main chain is not set");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
         address _token = Router(stargateRouter).factory().getPool(_poolId).token();
         // transfer stablecoin
@@ -245,6 +253,7 @@ contract SecondaryVault is OFT, OrderTaker {
     }
 
     function addWithdrawRequest(uint256 _poolId, uint256 _amountIM) public {
+        require(primaryChainId > 0, "main chain is not set");
         // check if the user has enough balance
         require (getPendingWithdrawRequestAmountIM(msg.sender).add(getProcessingWithdrawRequestAmountIM(msg.sender)).add(_amountIM) <= balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
         // book request
@@ -255,7 +264,8 @@ contract SecondaryVault is OFT, OrderTaker {
     }
 
     /// Take snapshot and report to primary vault
-    function snapshotAndReport() external onlyOwner {
+    function snapshotAndReport() public payable onlyOwner {
+        require(primaryChainId > 0, "main chain is not set");
         // Processing Amount Should be Zero!
         require(getProcessingTotalDepositRequestAmountLD()==0, "Still has processing requests");
         require(getProcessingTotalWithdrawRequestAmountIM()==0, "Still has processing requests");
@@ -282,7 +292,8 @@ contract SecondaryVault is OFT, OrderTaker {
         report.totalInmoz = this.totalSupply();
         
         // Send Report
-        
+        bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
+        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
     }
 
     //---------------------------------------------------------------------------
