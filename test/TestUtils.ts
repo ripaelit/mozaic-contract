@@ -1,9 +1,8 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory } from '../types/typechain';
-// import { LZEndpointMock, LZEndpointMock__factory } from '../types/typechain';
-import { ERC20Mock } from '../types/typechain/contracts/mocks';
-import { ERC20Mock__factory } from '../types/typechain/factories/contracts/mocks';
+import { ERC20Mock } from '../types/typechain';
+import { ERC20Mock__factory } from '../types/typechain';
 // import consts from '../constants';
 import { ChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
