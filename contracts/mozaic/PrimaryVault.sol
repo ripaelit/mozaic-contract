@@ -108,4 +108,18 @@ contract PrimaryVault is SecondaryVault {
         snapshotReport[_srcChainId] = _report;
         snapshotReportFlag[_srcChainId] = true;
     }
+    function checkAllSnapshotReportReady() public view returns (bool) {
+        if (!snapshotReportFlag[chainId]) {
+            return false;
+        }
+        for (uint i = 0; i < secondaryChainIds.length ; i++) {
+            if (!snapshotReportFlag[secondaryChainIds[i]]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    //---------------------------------------------------------------------------
+    // INTERNAL
 }
