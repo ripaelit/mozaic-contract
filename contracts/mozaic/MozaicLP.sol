@@ -7,7 +7,7 @@ import "../interfaces/IOFT.sol";
 import "../libraries/oft/OFTCore.sol";
 import "hardhat/console.sol";
 
-contract MozLP is OFTCore, ERC20, IOFT {
+contract MozaicLP is OFTCore, ERC20, IOFT {
     constructor(
         string memory _name,
         string memory _symbol,
