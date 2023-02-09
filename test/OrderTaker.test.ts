@@ -14,7 +14,7 @@ describe('OrderTaker', () => {
   let orderTakerDeployments = new Map<number, OrderTaker>();
 
   beforeEach(async () => {
-    [owner] = await ethers.getSigners();
+    [owner] = await ethers.getSigners();  // owner is control center
     // Deploy Stablecoins
     stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
 
@@ -74,15 +74,23 @@ describe('OrderTaker', () => {
         const orderTaker = orderTakerDeployments.get(chainId)!;
         const firstPoolCoinname = stablecoinDeployments.get(chainId)!.keys().next().value;
         const firstPoolId = exportData.localTestConstants.poolIds.get(firstPoolCoinname);
-        // const stakeOrder = new OrderTaker.OrderStruct()
-        let order: OrderTaker.OrderStruct = {
+        let order: OrderTaker.OrderStruct = {   // Order to stake 10**2 * 10 ** 18 from OrderTaker to USDC pool
           orderType: ethers.BigNumber.from("0"), // OrderType.Stake
-          amount: ethers.BigNumber.from("10000"),
+          amount: ethers.BigNumber.from("100000000000000000000"), // 10**2 * 10**18
           arg1: ethers.BigNumber.from(""+firstPoolId),
           arg2: ethers.BigNumber.from("0"),
           arg3: ethers.BigNumber.from("0"),
         };
+        // give enough stablecoin to OrderTaker
+        const usdcContract = stablecoinDeployments.get(chainId)!.get(firstPoolCoinname)!;
+        await usdcContract.connect(owner).transfer(orderTaker.address, ethers.BigNumber.from("100000000000000000000000"));  // 10**5 * 10**18
+        
         await orderTaker.connect(owner).executeOrders([order]);
+
+        // check amount that user has staked to LPStaking
+        const lpStaking = stargateDeployments.get(chainId)!.lpStakingContract;
+        const userInfo = await lpStaking.userInfo(ethers.BigNumber.from("0"), orderTaker.address);
+        expect(userInfo.amount).gt(0);
       }
     })
   })

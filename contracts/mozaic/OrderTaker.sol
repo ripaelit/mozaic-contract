@@ -69,11 +69,13 @@ contract OrderTaker is Ownable {
             }
         }
     }
-    function stake(uint256 _amount, uint256 _poolId ) private{
+    function stake(uint256 _amount, uint256 _poolId ) private {
         require (_amount > 0, "Cannot stake zero amount");
         Pool pool = getPool(_poolId);
         // 1. Deposit
         uint256 balancePre = pool.balanceOf(address(this));
+        IERC20 coinContract = IERC20(pool.token());
+        coinContract.approve(stargateRouter, _amount);
         Router(stargateRouter).addLiquidity(_poolId, _amount, address(this));
         uint256 balanceAfter = pool.balanceOf(address(this));
         uint256 balanceDelta = balanceAfter - balancePre;
@@ -81,15 +83,17 @@ contract OrderTaker is Ownable {
         // 2-1. Find the Liquidity Pool's index in the Farming Pool.
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
+        pool.approve(stargateLpStaking, balanceDelta);
         LPStaking(stargateLpStaking).deposit(stkPoolIndex, balanceDelta);
     }
-    
+
     function getPool(uint256 _poolId) public view returns (Pool) {
         return Router(stargateRouter).factory().getPool(_poolId);
     }
 
     function getPoolIndexInFarming(uint256 _poolId)public view returns (bool, uint256) {
         Pool pool = getPool(_poolId);
+        
         for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++ ) {
             if (address(LPStaking(stargateLpStaking).getPoolInfo(i)) == address(pool)) {
                 return (true, i);
