@@ -35,7 +35,7 @@ abstract contract PrimaryVault is SecondaryVault {
     mapping (uint16 => SnapshotReport) public snapshotReport; // chainId -> SnapshotReport
     mapping (uint16 => bool) public snapshotReportFlag; // true - arrived false - not arrived
 
-    uint256 public mozLpPerStablecoinKK; // mozLP/stablecoinSD*1_000_000
+    uint256 public mozLpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
     
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
@@ -108,6 +108,22 @@ abstract contract PrimaryVault is SecondaryVault {
         require(!snapshotReportFlag[_srcChainId], "Report is already ready");
         snapshotReport[_srcChainId] = _report;
         snapshotReportFlag[_srcChainId] = true;
+        if (checkAllSnapshotReportReady()) {
+            calculateMozLpPerStablecoinMil();
+        }
+    }
+    function calculateMozLpPerStablecoinMil() public {
+        require(checkAllSnapshotReportReady(), "Some SnapshotReports not reached");
+        uint256 _stargatePriceMil = getStargatePrice();
+        uint256 _totalStablecoinValue = 0;
+        uint256 _mintedMozLp = 0;
+        // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
+        for (uint i = 0; i < secondaryChainIds.length ; i++) {
+            SnapshotReport memory report = snapshotReport[secondaryChainIds[i]];
+            _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
+            _mintedMozLp = _mintedMozLp.add(report.totalMozLp);
+        }
+        mozLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
     }
     function checkAllSnapshotReportReady() public view returns (bool) {
         if (!snapshotReportFlag[chainId]) {
