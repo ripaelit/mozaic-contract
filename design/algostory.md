@@ -5,6 +5,9 @@
 The terminology maybe different from official architectural doc, which aims for product quality.
 The terminology here stick to the original terminology we coined for quick-and-dirty demo coding.
 
+Terminology Update:
+INMOZ --> MozaicLP = mLP
+
 ## Features
 
 User can Book Deposit.
@@ -43,7 +46,7 @@ Control Center calls `Vault.snapshotAndReport()` on each (Secondary) Vault
 Each (Secondary Vault) does the following:
 
 - Take snapshot of the asset amounts (YOU CAN SKIP NOW)
-    This means turn pending deposits/Withdraws into processing state.
+    This means turn pending deposits/Withdraws into `processing state`.
 - Prepare snapshot report, which basically says
     How much stable coin assets are there (in stable coin) - `syncResponse.totalStablecoin`
     How much pending rewards (in STG) - `syncResponse.totalInmoz`
@@ -73,10 +76,28 @@ The control center call each vault's `executeOrders()` method with asset transit
 
 Each asset transition order should guarantee that no value slip out of Mozaic.
 
-### 5. Sync Execute
+### Special Note: The deposit/withdraw requests made while syncing are booked as `pending requests`.
+
+Every deposit/withdraw request goes through the following lifecycle.
+Pending --> Processing --> Accepted
+
+### 5. Accept Requests
 
 When asset transitions are all executed successfully, the control center calls executeSync on each vault.
 
 Use inmozPerStablecoin to give out INMOZ for pending deposits.
 Use inmozPerStablecoin to give out stable coin for pending Withdraws.
 (Vault.executeSync())
+
+----
+Then
+The requests are accepted. And the users mLP amount gets updated.
+
+# At every moment, User state is composed of
+
+pending deposit requests (amount in USDC, USDT, ...)
+pending withdraw requests (amount in mLP)
+processing deposit requests (amount in USDC, USDT, ...)
+processing withdraw requests (amount in mLP)
+owned amount in mLP
+the owned mLP assessed as stablecoin (USDC)
