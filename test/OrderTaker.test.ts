@@ -8,13 +8,14 @@ import exportData from '../constants/index';
 
 describe('OrderTaker', () => {
   let owner: SignerWithAddress;
+  let alice: SignerWithAddress;
   let stablecoinDeployments: StableCoinDeployments;
   let layerzeroDeployments: LayerZeroDeployments;
   let stargateDeployments: StargateDeployments;
   let orderTakerDeployments = new Map<number, OrderTaker>();
 
   beforeEach(async () => {
-    [owner] = await ethers.getSigners();  // owner is control center
+    [owner, alice] = await ethers.getSigners();  // owner is control center
     // Deploy Stablecoins
     stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
 
@@ -55,7 +56,6 @@ describe('OrderTaker', () => {
         const orderTaker = orderTakerDeployments.get(chainId)!;
         const firstPoolCoinname = stablecoinDeployments.get(chainId)!.keys().next().value;
         const firstPoolId = exportData.localTestConstants.poolIds.get(firstPoolCoinname);
-        // const stakeOrder = new OrderTaker.OrderStruct()
         let order: OrderTaker.OrderStruct = {
           orderType: ethers.BigNumber.from("0"), // OrderType.Stake
           amount: ethers.BigNumber.from("0"),
@@ -67,7 +67,23 @@ describe('OrderTaker', () => {
       }
     });
     it ('fails when asked by other than owner', async () => {
-
+      for (const chainId of orderTakerDeployments.keys()) {
+        const orderTaker = orderTakerDeployments.get(chainId)!;
+        const firstPoolCoinname = stablecoinDeployments.get(chainId)!.keys().next().value;
+        const firstPoolId = exportData.localTestConstants.poolIds.get(firstPoolCoinname);
+        let order: OrderTaker.OrderStruct = {   // Order to stake 10**2 * 10 ** 18 from OrderTaker to USDC pool
+          orderType: ethers.BigNumber.from("0"), // OrderType.Stake
+          amount: ethers.BigNumber.from("100000000000000000000"), // 10**2 * 10**18
+          arg1: ethers.BigNumber.from(""+firstPoolId),
+          arg2: ethers.BigNumber.from("0"),
+          arg3: ethers.BigNumber.from("0"),
+        };
+        // give enough stablecoin to OrderTaker
+        const usdcContract = stablecoinDeployments.get(chainId)!.get(firstPoolCoinname)!;
+        await usdcContract.connect(owner).transfer(orderTaker.address, ethers.BigNumber.from("100000000000000000000000"));  // 10**5 * 10**18
+        
+        await expect(orderTaker.connect(alice).executeOrders([order])).to.be.revertedWith("Ownable: caller is not the owner");
+      }
     })
     it ('succeeds when positive amount by owner', async () => {
       for (const chainId of orderTakerDeployments.keys()) {
