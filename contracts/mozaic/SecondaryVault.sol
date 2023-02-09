@@ -5,7 +5,7 @@ import "../libraries/lzApp/NonblockingLzApp.sol";
 import "../libraries/stargate/Router.sol";
 import "../libraries/stargate/Pool.sol";
 import "./OrderTaker.sol";
-import "./MozLP.sol";
+import "./MozaicLP.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -49,7 +49,7 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
     mapping(address => uint256) public withdrawRequestAmountMLPRight;
     uint256 public totalWithdrawRequestAmountMLPRight;
 
-    function getPendingDepositRequest(address _user, uint256 _pid) private view returns (uint256) {
+    function getPendingDepositRequest(address _user, uint256 _pid) public view returns (uint256) {
         if (bufferFlag) {
             return depositRequestRight[_user][_pid];
         }
@@ -81,7 +81,7 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
             depositRequestLeft[_user][_pid] = _amountLD;
         }
     }
-    function getPendingWithdrawRequest(address _user, uint256 _pid) private view returns (uint256) {
+    function getPendingWithdrawRequest(address _user, uint256 _pid) public view returns (uint256) {
         if (bufferFlag) {
             return withdrawRequestRight[_user][_pid];
         }
@@ -113,7 +113,7 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
             withdrawRequestLeft[_user][_pid] = _amountLD;
         }
     }
-    function getPendingWithdrawRequestAmountMLP(address _user) private view returns (uint256) {
+    function getPendingWithdrawRequestAmountMLP(address _user) public view returns (uint256) {
         if (bufferFlag) {
             return withdrawRequestAmountMLPRight[_user];
         }
@@ -129,7 +129,7 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
             withdrawRequestAmountMLPLeft[_user] = _amountMLP;
         }
     }
-    function getProcessingWithdrawRequestAmountMLP(address _user) private view returns (uint256) {
+    function getProcessingWithdrawRequestAmountMLP(address _user) public view returns (uint256) {
         if (!bufferFlag) {
             return withdrawRequestAmountMLPRight[_user];
         }
@@ -170,7 +170,7 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
             return totalDepositRequestAmountLDLeft;
         }
     }
-    function setProcessingTotalDepositRequestAmountLD(uint256 _value) public {
+    function setProcessingTotalDepositRequestAmountLD(uint256 _value) internal {
         if (!bufferFlag) {
             totalDepositRequestAmountLDRight = _value;
         }
@@ -261,7 +261,7 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
     function addWithdrawRequest(uint256 _poolId, uint256 _amountMLP) public {
         require(primaryChainId > 0, "main chain is not set");
         // check if the user has enough balance
-        require (getPendingWithdrawRequestAmountMLP(msg.sender).add(getProcessingWithdrawRequestAmountMLP(msg.sender)).add(_amountMLP) <= MozLP(mozLp).balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
+        require (getPendingWithdrawRequestAmountMLP(msg.sender).add(getProcessingWithdrawRequestAmountMLP(msg.sender)).add(_amountMLP) <= MozaicLP(mozLp).balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
         // book request
         setPendingWithdrawRequest(msg.sender, _poolId, getPendingWithdrawRequest(msg.sender, _poolId).add(_amountMLP));
         setPendingWithdrawRequestAmountMLP(msg.sender, getPendingWithdrawRequestAmountMLP(msg.sender).add(_amountMLP));
@@ -295,7 +295,7 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
         report.totalStablecoin = _totalStablecoin;
         report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD();
         report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
-        report.totalMozLp = MozLP(mozLp).totalSupply();
+        report.totalMozLp = MozaicLP(mozLp).totalSupply();
         
         // Send Report
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
