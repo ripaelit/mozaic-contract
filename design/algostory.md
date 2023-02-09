@@ -26,7 +26,7 @@ This adds to `totalDeposits` and `pendingDeposits[depositeraddress]`
 
 ## Book Withdraw
 
-User call `requestWithdraw(amountIM, poolIndex)`
+User call `addWithdrawRequest(amountIM, poolIndex)`
 `amountIM` - INMOZ amount to return to get back stable coin.
 `poolInfos[poolIndex].coinAddress` indicates the stablecoin he wants to receive
 
@@ -37,7 +37,9 @@ Guard condition: overburning should be prevented. Meaning pending INMOZ to retur
 
 ### 1. Sync Start
 
-YOU CAN SKIP NOW
+- Control Center calls PrimaryVault.initSyncSession()
+    initSyncSession() check .
+    
 
 ### 2. Sync Snapshot
 
@@ -99,5 +101,5 @@ pending deposit requests (amount in USDC, USDT, ...)
 pending withdraw requests (amount in mLP)
 processing deposit requests (amount in USDC, USDT, ...)
 processing withdraw requests (amount in mLP)
-owned amount in mLP
+owned amount in mLP (=mLP balance)
 the owned mLP assessed as stablecoin (USDC)
