@@ -37,9 +37,11 @@ Guard condition: overburning should be prevented. Meaning pending INMOZ to retur
 
 ### 1. Sync Start
 
-- Control Center calls PrimaryVault.initSyncSession()
-    initSyncSession() check .
-    
+Control Center calls PrimaryVault.initSyncSession()
+
+PrimaryVault.initSyncSession()
+- Check if current protocol status is idle. Otherwise reject.
+- Clear snapshotReports. (flag and struct values) Getting ready to accept new SnapshotReports.
 
 ### 2. Sync Snapshot
 
@@ -59,10 +61,10 @@ Each (Secondary Vault) does the following:
 ### 3. Sync Determine
 
 When all sync responses reach to primary vault, it determines the following
-inmozPerStablecoin = totalInmoz / (totalStablecoin + totalStargate*stargatePrice)
+mozLpPerStablecoin = totalMozLp / (totalStablecoin + totalStargate*stargatePrice)
 (Check out onSyncResponse() and _syncVaults() in psudocode)
 
-This means that we want to give out INMOZ in a fair way to new depositors.
+This means that we want to give out mLP in a fair way to new depositors.
 (And also be fair to Withdrawors)
 
 ### 4. Execute Asset Transition Orders
@@ -85,14 +87,16 @@ Pending --> Processing --> Accepted
 
 ### 5. Accept Requests
 
-When asset transitions are all executed successfully, the control center calls executeSync on each vault.
+Control Center calls primaryVault.acceptRequestsAllVaults()
 
-Use inmozPerStablecoin to give out INMOZ for pending deposits.
-Use inmozPerStablecoin to give out stable coin for pending Withdraws.
-(Vault.executeSync())
+primaryVault.acceptRequestsAllVaults() send LayerZero message to secondary vaults with mozLpPerStablecoin value, which will in turn,
+call secondaryVault.acceptRequests(mozLpPerStablecoin)
 
+secondaryVault.acceptRequests(mozLpPerStablecoin) accept deposit and withdraw requests
+- Accept deposit request by giving mLP as mozLpPerStablecoin rate.
+- Accept withdraw request by burning the mLP and giving the stablecoin as mozLpPerStablecoin rate.
 ----
-Then
+And thus
 The requests are accepted. And the users mLP amount gets updated.
 
 # At every moment, User state is composed of
