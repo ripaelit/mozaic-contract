@@ -59,17 +59,31 @@ contract OrderTaker is Ownable {
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
     }
+
     function executeOrders(Order[] memory orders) public onlyOwner{
         for (uint i = 0; i < orders.length; i++ ) {
             {
                 Order memory order = orders[i];
                 if (order.orderType == OrderType.Stake) {
-                    stake(order.amount, order.arg1);
+                    _stake(order.amount, order.arg1);
+                }
+                else if (order.orderType == OrderType.Unstake) {
+                    _unstake(order.amount, order.arg1);
+                }
+                else if (order.orderType == OrderType.Sell) {
+                    _sell(order.amount, order.arg1);
+                }
+                else if (order.orderType == OrderType.Swap) {
+                    _swap(order.amount, order.arg1, order.arg2);
+                }
+                else if (order.orderType == OrderType.SwapRemote) {
+                    _swapRemote(order.amount, order.arg1, order.arg2, order.arg3);
                 }
             }
         }
     }
-    function stake(uint256 _amount, uint256 _poolId ) private {
+    
+    function _stake(uint256 _amount, uint256 _poolId ) private{
         require (_amount > 0, "Cannot stake zero amount");
         Pool pool = getPool(_poolId);
         // 1. Deposit
@@ -86,7 +100,22 @@ contract OrderTaker is Ownable {
         pool.approve(stargateLpStaking, balanceDelta);
         LPStaking(stargateLpStaking).deposit(stkPoolIndex, balanceDelta);
     }
+    function _unstake(uint256 _amount, uint256 _poolId) private {
+        
+    }
 
+    function _sell(uint256 _amount, uint256 _poolId) internal virtual {
+        
+    }
+
+    function _swap(uint256 _amount, uint256 _srcPoolId, uint256 _dstPoolId) internal virtual {
+
+    }
+
+    function _swapRemote(uint256 _amount, uint256 _srcPoolId, uint256 _dstChainId, uint256 _dstPoolId) internal virtual {
+
+    }
+    
     function getPool(uint256 _poolId) public view returns (Pool) {
         return Router(stargateRouter).factory().getPool(_poolId);
     }
