@@ -71,7 +71,13 @@ contract OrderTaker is Ownable {
                     _unstake(order.amount, order.arg1);
                 }
                 else if (order.orderType == OrderType.Sell) {
-
+                    _sell(order.amount, order.arg1);
+                }
+                else if (order.orderType == OrderType.Swap) {
+                    _swap(order.amount, order.arg1, order.arg2);
+                }
+                else if (order.orderType == OrderType.SwapRemote) {
+                    _swapRemote(order.amount, order.arg1, order.arg2, order.arg3);
                 }
             }
         }
@@ -92,7 +98,19 @@ contract OrderTaker is Ownable {
         LPStaking(stargateLpStaking).deposit(stkPoolIndex, balanceDelta);
     }
     function _unstake(uint256 _amount, uint256 _poolId) private {
-        // TODO: For Kevin
+        
+    }
+
+    function _sell(uint256 _amount, uint256 _poolId) internal virtual {
+        
+    }
+
+    function _swap(uint256 _amount, uint256 _srcPoolId, uint256 _dstPoolId) internal virtual {
+
+    }
+
+    function _swapRemote(uint256 _amount, uint256 _srcPoolId, uint256 _dstChainId, uint256 _dstPoolId) internal virtual {
+
     }
     
     function getPool(uint256 _poolId) public view returns (Pool) {
