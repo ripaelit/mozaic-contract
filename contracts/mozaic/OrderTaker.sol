@@ -59,17 +59,25 @@ contract OrderTaker is Ownable {
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
     }
+
     function executeOrders(Order[] memory orders) public onlyOwner{
         for (uint i = 0; i < orders.length; i++ ) {
             {
                 Order memory order = orders[i];
                 if (order.orderType == OrderType.Stake) {
-                    stake(order.amount, order.arg1);
+                    _stake(order.amount, order.arg1);
+                }
+                else if (order.orderType == OrderType.Unstake) {
+                    _unstake(order.amount, order.arg1);
+                }
+                else if (order.orderType == OrderType.Sell) {
+
                 }
             }
         }
     }
-    function stake(uint256 _amount, uint256 _poolId ) private{
+    
+    function _stake(uint256 _amount, uint256 _poolId ) private{
         require (_amount > 0, "Cannot stake zero amount");
         Pool pool = getPool(_poolId);
         // 1. Deposit
@@ -82,6 +90,9 @@ contract OrderTaker is Ownable {
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
         LPStaking(stargateLpStaking).deposit(stkPoolIndex, balanceDelta);
+    }
+    function _unstake(uint256 _amount, uint256 _poolId) private {
+        // TODO: For Kevin
     }
     
     function getPool(uint256 _poolId) public view returns (Pool) {

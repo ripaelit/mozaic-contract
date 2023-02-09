@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0;
 
 // imports
-import "../libraries/oft/OFTCore.sol";
+import "../libraries/lzApp/NonblockingLzApp.sol";
 import "../libraries/stargate/Router.sol";
 import "../libraries/stargate/Pool.sol";
 import "./OrderTaker.sol";
@@ -11,11 +11,15 @@ import "./MozLP.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract SecondaryVault is MozLP, OrderTaker {
+contract SecondaryVault is OrderTaker, NonblockingLzApp {
     using SafeMath for uint256;
+    //--------------------------------------------------------------------------
+    // EVENTS
+    event UnexpectedLzMessage(uint16 packetType, bytes payload);
     //--------------------------------------------------------------------------
     // CONSTANTS
     uint16 public constant PT_REPORTSNAPSHOT = 10001;
+    uint16 public constant PT_ACCEPTREQUESTS = 10002;
     //---------------------------------------------------------------------------
     // STRUCTS
     struct SnapshotReport {
@@ -23,11 +27,12 @@ contract SecondaryVault is MozLP, OrderTaker {
         uint256 withdrawRequestAmountMLP;
         uint256 totalStargate;
         uint256 totalStablecoin;
-        uint256 totalInmoz; // INMOZ = Mozaic "LP"
+        uint256 totalMozLp; // Mozaic "LP"
     }
 
     //---------------------------------------------------------------------------
     // VARIABLES
+    address public mozLp;
     uint16 public primaryChainId=0;
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     // Pending | Processing Requests - Left Buffer
@@ -223,15 +228,16 @@ contract SecondaryVault is MozLP, OrderTaker {
 
     // Constructor and Public Functions
     constructor(
-        string memory _name,
-        string memory _symbol,
         address _lzEndpoint,
         uint16 _chainId,
         address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken
-    ) MozLP(_name, _symbol, _lzEndpoint) OrderTaker(_chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
-
+    ) NonblockingLzApp(_lzEndpoint) OrderTaker(_chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
+    }
+    function setMozLp(address _mozLp) public onlyOwner {
+        // TODO: contract type check
+        mozLp = _mozLp;
     }
     function setMainChainId(uint16 _chainId) public onlyOwner {
         primaryChainId = _chainId;
@@ -255,7 +261,7 @@ contract SecondaryVault is MozLP, OrderTaker {
     function addWithdrawRequest(uint256 _poolId, uint256 _amountMLP) public {
         require(primaryChainId > 0, "main chain is not set");
         // check if the user has enough balance
-        require (getPendingWithdrawRequestAmountMLP(msg.sender).add(getProcessingWithdrawRequestAmountMLP(msg.sender)).add(_amountMLP) <= balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
+        require (getPendingWithdrawRequestAmountMLP(msg.sender).add(getProcessingWithdrawRequestAmountMLP(msg.sender)).add(_amountMLP) <= MozLP(mozLp).balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
         // book request
         setPendingWithdrawRequest(msg.sender, _poolId, getPendingWithdrawRequest(msg.sender, _poolId).add(_amountMLP));
         setPendingWithdrawRequestAmountMLP(msg.sender, getPendingWithdrawRequestAmountMLP(msg.sender).add(_amountMLP));
@@ -289,7 +295,7 @@ contract SecondaryVault is MozLP, OrderTaker {
         report.totalStablecoin = _totalStablecoin;
         report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD();
         report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
-        report.totalInmoz = this.totalSupply();
+        report.totalMozLp = MozLP(mozLp).totalSupply();
         
         // Send Report
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
@@ -310,5 +316,18 @@ contract SecondaryVault is MozLP, OrderTaker {
         // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
         (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0x23b872dd, _from, _to, _value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), "Stargate: TRANSFER_FROM_FAILED");
+    }
+    
+    function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
+        uint16 packetType;
+        assembly {
+            packetType := mload(add(_payload, 32))
+        }
+
+        if (packetType == PT_ACCEPTREQUESTS) {
+            // TODO: 
+        } else {
+            emit UnexpectedLzMessage(packetType, _payload);
+        }
     }
 }

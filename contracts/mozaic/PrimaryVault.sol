@@ -12,11 +12,11 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "hardhat/console.sol";
 
-contract PrimaryVault is SecondaryVault {
+abstract contract PrimaryVault is SecondaryVault {
     using SafeMath for uint256;
     //---------------------------------------------------------------------------
     // EVENTS
-
+    
     //--------------------------------------------------------------------------
     // STRUCTS
     struct VaultDescriptor {
@@ -34,18 +34,18 @@ contract PrimaryVault is SecondaryVault {
 
     mapping (uint16 => SnapshotReport) public snapshotReport; // chainId -> SnapshotReport
     mapping (uint16 => bool) public snapshotReportFlag; // true - arrived false - not arrived
+
+    uint256 public mozLpPerStablecoinKK; // mozLP/stablecoinSD*1_000_000
     
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
     constructor(
-        string memory _name,
-        string memory _symbol,
         address _lzEndpoint,
         uint16 _chainId,
         address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken
-    ) SecondaryVault(_name, _symbol, _lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
+    ) SecondaryVault(_lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
     }
     function addSecondaryVault(uint16 _chainId, address _vaultAddress) public onlyOwner {
         // TODO: prevent duplicate of (chainId)
@@ -85,7 +85,7 @@ contract PrimaryVault is SecondaryVault {
         report.totalStablecoin = _totalStablecoin;
         report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD();
         report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
-        report.totalInmoz = this.totalSupply();
+        report.totalMozLp = MozLP(mozLp).totalSupply();
         
         // Send Report
         _acceptSnapshotReport(chainId, report);
@@ -100,7 +100,8 @@ contract PrimaryVault is SecondaryVault {
             (, SnapshotReport memory _report) = abi.decode(_payload, (uint16, SnapshotReport));
             _acceptSnapshotReport(_srcChainId, _report);
         } else {
-            super._nonblockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
+            emit UnexpectedLzMessage(packetType, _payload);
+            // super._nonblockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
         }
     }
     function _acceptSnapshotReport(uint16 _srcChainId, SnapshotReport memory _report) internal {
@@ -119,6 +120,8 @@ contract PrimaryVault is SecondaryVault {
         }
         return true;
     }
+
+    function getStargatePrice() public virtual view returns (uint256);
 
     //---------------------------------------------------------------------------
     // INTERNAL
