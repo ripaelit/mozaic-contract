@@ -101,9 +101,9 @@ The requests are accepted. And the users mLP amount gets updated.
 
 # At every moment, User state is composed of
 
-pending deposit requests (amount in USDC, USDT, ...)
-pending withdraw requests (amount in mLP)
-processing deposit requests (amount in USDC, USDT, ...)
-processing withdraw requests (amount in mLP)
-owned amount in mLP (=mLP balance)
-the owned mLP assessed as stablecoin (USDC)
+- pending deposit requests (amount in USDC, USDT, ...)
+- pending withdraw requests (amount in mLP)
+- processing deposit requests (amount in USDC, USDT, ...)
+- processing withdraw requests (amount in mLP)
+- owned amount in mLP (=mLP balance)
+- the owned mLP assessed as stablecoin (USDC)
