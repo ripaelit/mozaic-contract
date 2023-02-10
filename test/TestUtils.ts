@@ -35,7 +35,14 @@ export const deployLzEndpoints = async (owner: SignerWithAddress, chainIds: numb
   return lzEndpointMocks;
 }
 
-export const deployStargate = async (owner: SignerWithAddress, stablecoinDeployments: StableCoinDeployments, layerzeroDeployments: LayerZeroDeployments, poolIds: Map<string, number>, stgMainChainId: number, stargateChainPaths: Array<ChainPath>) => {
+export const deployStargate = async (
+  owner: SignerWithAddress, 
+  stablecoinDeployments: StableCoinDeployments, 
+  layerzeroDeployments: LayerZeroDeployments, 
+  poolIds: Map<string, number>, 
+  stgMainChainId: number, 
+  stargateChainPaths: Array<ChainPath>
+  ) => {
   let stargateDeployments : StargateDeployments = new Map<number, StargateDeploymentOnchain>();
   let lzEndpointMocks = new Map<number, LZEndpointMock>();
   for (const chainId of stablecoinDeployments.keys()!) {
@@ -98,6 +105,12 @@ export const deployStargate = async (owner: SignerWithAddress, stablecoinDeploym
     const latestBlockNumber = await ethers.provider.getBlockNumber();
     const lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("1000000"), latestBlockNumber + 3, latestBlockNumber + 3); // 
     await lpStaking.deployed();
+    
+    // Add Stargate Liquidity Pools
+    for (const [poolId, pool] of pools) {
+      await lpStaking.add(BigNumber.from("10000"), pool.address);
+    }
+
     stargateDeploymentOnchain.lpStakingContract = lpStaking;
     stargateDeployments.set(chainId, stargateDeploymentOnchain);
   }

@@ -17,8 +17,8 @@ export interface StargateDeploymentOnchain {
   stargateToken: StargateToken,
 };
 
-export type StargateDeployments = Map<number, StargateDeploymentOnchain>;
+export type StargateDeployments = Map<number, StargateDeploymentOnchain>; // Map<chainId, StargateDeploymentOnchain>
 
-export type LayerZeroDeployments = Map<number, LZEndpointMock>;
+export type LayerZeroDeployments = Map<number, LZEndpointMock>;           // Map<chainId, LZEndpointMock>
 
-export type StableCoinDeployments = Map<number, Map<string, ERC20>>;
+export type StableCoinDeployments = Map<number, Map<string, ERC20>>;      // Map<chainId, Map<coinname, coincontract>>
