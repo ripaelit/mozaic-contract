@@ -4,8 +4,9 @@ import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Fact
 import { ERC20Mock } from '../types/typechain';
 import { ERC20Mock__factory } from '../types/typechain';
 // import consts from '../constants';
-import { ChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments } from '../constants/types';
+import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
+import exportData from '../constants';
 
 
 export const deployStablecoins = async (owner: SignerWithAddress, stablecoins: Map<number, Array<string>>) => {
@@ -16,7 +17,7 @@ export const deployStablecoins = async (owner: SignerWithAddress, stablecoins: M
       const coinFactory = (await ethers.getContractFactory('ERC20Mock', owner)) as ERC20Mock__factory;
       const coin = await coinFactory.deploy(stablecoinname, stablecoinname, BigNumber.from("18"));
       await coin.deployed();
-      coin.connect(owner).mint(owner.address, BigNumber.from("1000000000000000000000000000")); // 10 ** 9 (total supply) ** 18 (decimals)
+      coin.connect(owner).mint(owner.address, exportData.localTestConstants.coinTotal); // 10 ** 9 (total supply) ** 18 (decimals)
       contractsInChain.set(stablecoinname, coin);
     }
     coinContracts.set(chainId, contractsInChain);
@@ -35,13 +36,22 @@ export const deployLzEndpoints = async (owner: SignerWithAddress, chainIds: numb
   return lzEndpointMocks;
 }
 
+export const registerLzApp = async (owner: SignerWithAddress, lzEndpointMocks: Map<number, LZEndpointMock>, dstChainId: number, dstLzAppAddress: string) => {
+  let lzEndpointAddr = lzEndpointMocks.get(dstChainId)!.address;
+  for (const chainId of lzEndpointMocks.keys() || []) {
+    if (chainId == dstChainId) continue;
+    let lzEndpointMock = lzEndpointMocks.get(chainId)!;
+    await lzEndpointMock.setDestLzEndpoint(dstLzAppAddress, lzEndpointAddr);
+  }
+}
+
 export const deployStargate = async (
   owner: SignerWithAddress, 
   stablecoinDeployments: StableCoinDeployments, 
   layerzeroDeployments: LayerZeroDeployments, 
   poolIds: Map<string, number>, 
   stgMainChainId: number, 
-  stargateChainPaths: Array<ChainPath>
+  stargateChainPaths: Array<StargateChainPath>
   ) => {
   let stargateDeployments : StargateDeployments = new Map<number, StargateDeploymentOnchain>();
   let lzEndpointMocks = new Map<number, LZEndpointMock>();
@@ -95,7 +105,7 @@ export const deployStargate = async (
       'STG', 
       layerzeroDeployments.get(chainId)!.address, 
       stgMainChainId, 
-      BigNumber.from("1000000000000000000000000000") // 10 ** 9 (total supply) ** 18 (decimals)
+      exportData.localTestConstants.STGs // 10**9 (total supply) 10** 18 (decimals)
     );
     await stargateToken.deployed();
     stargateDeploymentOnchain.stargateToken = stargateToken;
