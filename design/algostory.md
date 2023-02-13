@@ -50,7 +50,7 @@ Control Center calls `Vault.snapshotAndReport()` on each (Secondary) Vault
 Each (Secondary Vault) does the following:
 
 - Take snapshot of the asset amounts (YOU CAN SKIP NOW)
-    This means turn pending deposits/Withdraws into `processing state`.
+    This means turn pending deposits/Withdraws into `staged state`.
 - Prepare snapshot report, which basically says
     How much stable coin assets are there (in stable coin) - `syncResponse.totalStablecoin`
     How much pending rewards (in STG) - `syncResponse.totalInmoz`
@@ -61,7 +61,7 @@ Each (Secondary Vault) does the following:
 ### 3. Sync Determine
 
 When all sync responses reach to primary vault, it determines the following
-mozLpPerStablecoin = totalMozLp / (totalStablecoin + totalStargate*stargatePrice)
+mozaicLpPerStablecoin = totalMozLp / (totalStablecoin + totalStargate*stargatePrice)
 (Check out onSyncResponse() and _syncVaults() in psudocode)
 
 This means that we want to give out mLP in a fair way to new depositors.
@@ -83,18 +83,20 @@ Each asset transition order should guarantee that no value slip out of Mozaic.
 ### Special Note: The deposit/withdraw requests made while syncing are booked as `pending requests`.
 
 Every deposit/withdraw request goes through the following lifecycle.
-Pending --> Processing --> Accepted
+Pending --> Staged --> Accepted
 
 ### 5. Accept Requests
 
 Control Center calls primaryVault.acceptRequestsAllVaults()
 
-primaryVault.acceptRequestsAllVaults() send LayerZero message to secondary vaults with mozLpPerStablecoin value, which will in turn,
-call secondaryVault.acceptRequests(mozLpPerStablecoin)
+primaryVault.acceptRequestsAllVaults() send LayerZero message to secondary vaults with mozaicLpPerStablecoin value, which will in turn,
+call secondaryVault.acceptRequests(mozaicLpPerStablecoin)
 
-secondaryVault.acceptRequests(mozLpPerStablecoin) accept deposit and withdraw requests
-- Accept deposit request by giving mLP as mozLpPerStablecoin rate.
-- Accept withdraw request by burning the mLP and giving the stablecoin as mozLpPerStablecoin rate.
+secondaryVault.acceptRequests(mozaicLpPerStablecoin) accept deposit and withdraw requests
+
+- Accept deposit request by giving mLP as mozaicLpPerStablecoin rate.
+- Accept withdraw request by burning the mLP and giving the stablecoin as mozaicLpPerStablecoin rate.
+
 ----
 And thus
 The requests are accepted. And the users mLP amount gets updated.
@@ -103,7 +105,7 @@ The requests are accepted. And the users mLP amount gets updated.
 
 - pending deposit requests (amount in USDC, USDT, ...)
 - pending withdraw requests (amount in mLP)
-- processing deposit requests (amount in USDC, USDT, ...)
-- processing withdraw requests (amount in mLP)
+- staged deposit requests (amount in USDC, USDT, ...)
+- staged withdraw requests (amount in mLP)
 - owned amount in mLP (=mLP balance)
 - the owned mLP assessed as stablecoin (USDC)
