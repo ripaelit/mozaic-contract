@@ -9,6 +9,7 @@ export type StargateChainPath = {
 };
 
 export interface StargateDeploymentOnchain {
+  lzEndpoint: LZEndpointMock,
   routerContract: Router,
   factoryContract: Factory,
   bridgeContract: Bridge,

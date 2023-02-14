@@ -92,14 +92,6 @@ contract OrderTaker is Ownable {
         IERC20 coinContract = IERC20(pool.token());
         coinContract.approve(stargateRouter, _amountLD);
         // Stake coin from OrderTaker to STG.Pool
-        // // kevin
-        // bool _batched = true;
-        // uint256 _swapDeltaBP = pool.BP_DENOMINATOR();
-        // uint256 _lpDeltaBP = pool.BP_DENOMINATOR();
-        // bool _defaultSwapMode = true;
-        // bool _defaultLPMode = true;
-        // pool.setDeltaParam(_batched, _swapDeltaBP, _lpDeltaBP, _defaultSwapMode, _defaultLPMode);
-        // //
         uint256 balancePre = pool.balanceOf(address(this));
         Router(stargateRouter).addLiquidity(_poolId, _amountLD, address(this));
         uint256 balanceAfter = pool.balanceOf(address(this));
@@ -119,13 +111,11 @@ contract OrderTaker is Ownable {
         // Find the Liquidity Pool's index in the Farming Pool.
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
-        // Approve LPToken transfer from LPStaking to OrderTaker
 
         // Unstake LPToken from LPStaking to OrderTaker
         console.log("   LPTokens in LPStaking before withdraw", LPStaking(stargateLpStaking).lpBalances(stkPoolIndex));
         LPStaking(stargateLpStaking).withdraw(stkPoolIndex, _amountLPToken);
         console.log("   LPTokens in LPStaking after withdraw", LPStaking(stargateLpStaking).lpBalances(stkPoolIndex));
-        // Approve coin transfer from STG.Pool to OrderTaker
         
         // Unstake coin from STG.Pool to OrderTaker
         Router(stargateRouter).instantRedeemLocal(uint16(_poolId), _amountLPToken, address(this));
@@ -144,8 +134,13 @@ contract OrderTaker is Ownable {
 
     }
 
-    function _swapRemote(uint256 _amount, uint256 _srcPoolId, uint256 _dstChainId, uint256 _dstPoolId) internal virtual {
-
+    function _swapRemote(uint256 _amountLD, uint256 _srcPoolId, uint256 _dstChainId, uint256 _dstPoolId) internal virtual {
+        require (_amountLD > 0, "Cannot stake zero amount");
+        Pool pool = getPool(_srcPoolId);
+        // Approve coin transfer from OrderTaker to STG.Pool
+        IERC20 coinContract = IERC20(pool.token());
+        coinContract.approve(stargateRouter, _amountLD);
+        Router(stargateRouter).swap(uint16(_dstChainId), _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
     }
     
     function getPool(uint256 _poolId) public view returns (Pool) {
