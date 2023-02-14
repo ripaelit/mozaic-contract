@@ -61,6 +61,9 @@ abstract contract PrimaryVault is SecondaryVault {
         // reset
         mozaicLpPerStablecoinMil = 0;
         // TODO: reset snapshotReport, snapshotReportFlag;
+        // Check staged ...
+        require(_stagedReqs().totalWithdrawRequestMLP == 0, "Staged request should be all processessed");
+        require(_stagedReqs().totalDepositRequestSD == 0, "Staged request should be all processessed");
     }
 
     /**
