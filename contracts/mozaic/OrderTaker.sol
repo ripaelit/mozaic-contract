@@ -60,6 +60,9 @@ contract OrderTaker is Ownable {
         stargateToken = _stargateToken;
     }
 
+    function getStargatePriceMil() public virtual view returns (uint256) {
+        return 0;
+    }
     function executeOrders(Order[] memory orders) public onlyOwner{
         for (uint i = 0; i < orders.length; i++ ) {
             {

@@ -11,7 +11,7 @@ import "./MozaicLP.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract SecondaryVault is OrderTaker, NonblockingLzApp {
+contract SecondaryVault is NonblockingLzApp {
     using SafeMath for uint256;
     //--------------------------------------------------------------------------
     // EVENTS
@@ -32,8 +32,13 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
+    OrderTaker public orderTaker;
+    address public stargateRouter;
+    address public stargateLpStaking;
+    address public stargateToken;
     address public mozLp;
     uint16 public primaryChainId=0;
+    uint16 public chainId=0;
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     // Pending | Processing Requests - Left Buffer
     mapping(address => mapping(uint256 => uint256)) public depositRequestLeft;
@@ -233,7 +238,15 @@ contract SecondaryVault is OrderTaker, NonblockingLzApp {
         address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken
-    ) NonblockingLzApp(_lzEndpoint) OrderTaker(_chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
+    ) NonblockingLzApp(_lzEndpoint) {
+        chainId = _chainId;
+        stargateRouter = _stargateRouter;
+        stargateLpStaking = _stargateLpStaking;
+        stargateToken = _stargateToken;
+    }
+    function setOrderTaker(OrderTaker _orderTaker) external onlyOwner {
+        // TODO: contract type check
+        orderTaker = _orderTaker;
     }
     function setMozLp(address _mozLp) public onlyOwner {
         // TODO: contract type check

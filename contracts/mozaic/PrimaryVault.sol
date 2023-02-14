@@ -5,7 +5,8 @@ import "../libraries/oft/OFTCore.sol";
 import "../libraries/stargate/Router.sol";
 import "../libraries/stargate/Pool.sol";
 import "./SecondaryVault.sol";
-import "./MozLP.sol";
+import "./MozaicLP.sol";
+import "./OrderTaker.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -26,7 +27,6 @@ abstract contract PrimaryVault is SecondaryVault {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-
     uint16[] public secondaryChainIds;
     
     VaultDescriptor[] public secondaryVaults;
@@ -47,15 +47,10 @@ abstract contract PrimaryVault is SecondaryVault {
         address _stargateToken
     ) SecondaryVault(_lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
     }
-    function addSecondaryVault(uint16 _chainId, address _vaultAddress) public onlyOwner {
+    function addSecondaryVaults(VaultDescriptor calldata _vault) external onlyOwner {
         // TODO: prevent duplicate of (chainId)
         // TODO: prevent duplicate of (chainId, vaultAddress)
-        secondaryChainIds.push(_chainId);
-        VaultDescriptor memory newVault;
-        newVault.chainId = _chainId;
-        newVault.vaultAddress = _vaultAddress;
-        secondaryVaultIndex[_chainId] = secondaryVaults.length;
-        secondaryVaults.push(newVault);
+        secondaryVaults.push(_vault);
     }
 
     /**
@@ -83,14 +78,14 @@ abstract contract PrimaryVault is SecondaryVault {
         }
         report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
         report.totalStablecoin = _totalStablecoin;
-        report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD();
+        report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD(); 
         report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
-        report.totalMozLp = MozLP(mozLp).totalSupply();
+        report.totalMozLp = MozaicLP(mozLp).totalSupply();
         
         // Send Report
         _acceptSnapshotReport(chainId, report);
     }
-    function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
+        function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
         uint16 packetType;
         assembly {
             packetType := mload(add(_payload, 32))
@@ -114,7 +109,7 @@ abstract contract PrimaryVault is SecondaryVault {
     }
     function calculateMozLpPerStablecoinMil() public {
         require(checkAllSnapshotReportReady(), "Some SnapshotReports not reached");
-        uint256 _stargatePriceMil = getStargatePrice();
+        uint256 _stargatePriceMil = orderTaker.getStargatePriceMil();
         uint256 _totalStablecoinValue = 0;
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
@@ -136,8 +131,6 @@ abstract contract PrimaryVault is SecondaryVault {
         }
         return true;
     }
-
-    function getStargatePrice() public virtual view returns (uint256);
 
     //---------------------------------------------------------------------------
     // INTERNAL
