@@ -338,9 +338,15 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         if (packetType == PT_ACCEPTREQUESTS) {
-            // TODO: 
+            (, uint256 _smozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
+            acceptRequests(_smozaicLpPerStablecoinMil);
         } else {
             emit UnexpectedLzMessage(packetType, _payload);
         }
+    }
+    
+    function acceptRequests(uint256 _smozaicLpPerStablecoinMil) public {
+        // TODO: for all dpeposit requests, mint MozaicLp
+        // TODO: for all withdraw reuqests, burn MozaicLp and give stablecoin.
     }
 }

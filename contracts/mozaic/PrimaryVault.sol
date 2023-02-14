@@ -30,12 +30,15 @@ abstract contract PrimaryVault is SecondaryVault {
     uint16[] public secondaryChainIds;
     
     VaultDescriptor[] public secondaryVaults;
+    function secondaryVaultsLength() public view returns (uint256) {
+        return secondaryVaults.length;
+    }
     mapping (uint16 => uint256) public secondaryVaultIndex; // chainId -> index in secondaryVaults
 
     mapping (uint16 => SnapshotReport) public snapshotReport; // chainId -> SnapshotReport
     mapping (uint16 => bool) public snapshotReportFlag; // true - arrived false - not arrived
 
-    uint256 public mozLpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
+    uint256 public mozaicLpPerStablecoinMil=0; // mozLP/stablecoinSD*1_000_000
     
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
@@ -51,6 +54,12 @@ abstract contract PrimaryVault is SecondaryVault {
         // TODO: prevent duplicate of (chainId)
         // TODO: prevent duplicate of (chainId, vaultAddress)
         secondaryVaults.push(_vault);
+    }
+
+    function initSyncSession() public onlyOwner {
+        // reset
+        mozaicLpPerStablecoinMil = 0;
+        // TODO: reset snapshotReport, snapshotReportFlag;
     }
 
     /**
@@ -85,7 +94,7 @@ abstract contract PrimaryVault is SecondaryVault {
         // Send Report
         _acceptSnapshotReport(chainId, report);
     }
-        function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
+    function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
         uint16 packetType;
         assembly {
             packetType := mload(add(_payload, 32))
@@ -118,7 +127,7 @@ abstract contract PrimaryVault is SecondaryVault {
             _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozLp);
         }
-        mozLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
+        mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
     }
     function checkAllSnapshotReportReady() public view returns (bool) {
         if (!snapshotReportFlag[chainId]) {
@@ -130,6 +139,16 @@ abstract contract PrimaryVault is SecondaryVault {
             }
         }
         return true;
+    }
+
+    function acceptRequestsAllVaults() public payable {
+        require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
+        acceptRequests(mozaicLpPerStablecoinMil);
+        for (uint i = 0; i < secondaryVaults.length; i++) {
+            VaultDescriptor memory vd = secondaryVaults[i];
+            bytes memory lzPayload = abi.encode(PT_ACCEPTREQUESTS, mozaicLpPerStablecoinMil);
+            _lzSend(vd.chainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+        }
     }
 
     //---------------------------------------------------------------------------
