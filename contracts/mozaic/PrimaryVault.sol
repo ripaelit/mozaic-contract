@@ -89,7 +89,7 @@ abstract contract PrimaryVault is SecondaryVault {
         report.totalStablecoin = _totalStablecoin;
         report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD(); 
         report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
-        report.totalMozLp = MozaicLP(mozLp).totalSupply();
+        report.totalMozaicLp = MozaicLP(mozLp).totalSupply();
         
         // Send Report
         _acceptSnapshotReport(chainId, report);
@@ -125,7 +125,7 @@ abstract contract PrimaryVault is SecondaryVault {
         for (uint i = 0; i < secondaryChainIds.length ; i++) {
             SnapshotReport memory report = snapshotReport[secondaryChainIds[i]];
             _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
-            _mintedMozLp = _mintedMozLp.add(report.totalMozLp);
+            _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
         mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
     }

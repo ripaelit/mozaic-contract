@@ -27,7 +27,7 @@ contract SecondaryVault is NonblockingLzApp {
         uint256 withdrawRequestAmountMLP;
         uint256 totalStargate;
         uint256 totalStablecoin;
-        uint256 totalMozLp; // Mozaic "LP"
+        uint256 totalMozaicLp; // Mozaic "LP"
     }
 
     //---------------------------------------------------------------------------
@@ -310,7 +310,7 @@ contract SecondaryVault is NonblockingLzApp {
         report.totalStablecoin = _totalStablecoin;
         report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD();
         report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
-        report.totalMozLp = MozaicLP(mozLp).totalSupply();
+        report.totalMozaicLp = MozaicLP(mozLp).totalSupply();
         
         // Send Report
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
