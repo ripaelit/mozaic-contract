@@ -67,8 +67,9 @@ abstract contract PrimaryVault is SecondaryVault {
      */
     function snapshotAndReport() virtual override public payable onlyOwner {
         require(!snapshotReportFlag[chainId], "Report is already ready");
-        require(getProcessingTotalDepositRequestAmountLD()==0, "Still has processing requests");
-        require(getProcessingTotalWithdrawRequestAmountMLP()==0, "Still has processing requests");
+        // Processing Amount Should be Zero!
+        require(_getStagedRequestBuffer().totalDepositRequestSD==0, "Still has processing requests");
+        require(_getStagedRequestBuffer().totalWithdrawRequestMLP==0, "Still has processing requests");
 
         // Take Snapshot: Pending --> Processing
         bufferFlag = !bufferFlag;
@@ -87,9 +88,9 @@ abstract contract PrimaryVault is SecondaryVault {
         }
         report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
         report.totalStablecoin = _totalStablecoin;
-        report.depositRequestAmountLD = getProcessingTotalDepositRequestAmountLD(); 
-        report.withdrawRequestAmountMLP = getProcessingTotalWithdrawRequestAmountMLP();
-        report.totalMozaicLp = MozaicLP(mozLp).totalSupply();
+        report.depositRequestAmountSD = _getStagedRequestBuffer().totalDepositRequestSD;
+        report.withdrawRequestAmountMLP = _getStagedRequestBuffer().totalWithdrawRequestMLP;
+        report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
         
         // Send Report
         _acceptSnapshotReport(chainId, report);
