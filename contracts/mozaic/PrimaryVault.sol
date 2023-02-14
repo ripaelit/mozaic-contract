@@ -57,7 +57,7 @@ abstract contract PrimaryVault is SecondaryVault {
         secondaryVaults.push(_vault);
     }
 
-    function initSyncSession() public onlyOwner {
+    function initOptimizationSession() public onlyOwner {
         // reset
         mozaicLpPerStablecoinMil = 0;
         // TODO: reset snapshotReport, snapshotReportFlag;
