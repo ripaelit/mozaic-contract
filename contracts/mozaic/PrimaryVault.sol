@@ -72,7 +72,7 @@ abstract contract PrimaryVault is SecondaryVault {
         require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
 
-        // Take Snapshot: Pending --> Processing
+        // Take Snapshot: Pending --> Staged
         bufferFlag = !bufferFlag;
 
         // Make Report
