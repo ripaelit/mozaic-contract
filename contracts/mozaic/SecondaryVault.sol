@@ -259,10 +259,10 @@ contract SecondaryVault is NonblockingLzApp {
     /**
      * Add Deposit Request
      */
-    function addDepositRequest(uint256 _poolId, uint256 _amountLD) public {
+    function addDepositRequest(uint256 _amountLD, address _token) public {
         require(primaryChainId > 0, "main chain is not set");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
-        address _token = Router(stargateRouter).factory().getPool(_poolId).token();
+        uint256 _poolId = getStargatePoolId(_token);
         // transfer stablecoin
         _safeTransferFrom(_token, msg.sender, address(this), _amountLD);
         // book request
@@ -271,11 +271,13 @@ contract SecondaryVault is NonblockingLzApp {
         emit DepositRequestAdded(msg.sender, _poolId, _amountLD);
     }
 
-    function addWithdrawRequest(uint256 _poolId, uint256 _amountMLP) public {
+    function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
+        require(_chainId == chainId, "PoC restriction - withdraw onchain");
         require(primaryChainId > 0, "main chain is not set");
         // check if the user has enough balance
         require (getPendingWithdrawRequestAmountMLP(msg.sender).add(getProcessingWithdrawRequestAmountMLP(msg.sender)).add(_amountMLP) <= MozaicLP(mozLp).balanceOf(msg.sender), "Withdraw amount > owned INMOZ");
         // book request
+        uint256 _poolId = getStargatePoolId(_token);
         setPendingWithdrawRequest(msg.sender, _poolId, getPendingWithdrawRequest(msg.sender, _poolId).add(_amountMLP));
         setPendingWithdrawRequestAmountMLP(msg.sender, getPendingWithdrawRequestAmountMLP(msg.sender).add(_amountMLP));
         setPendingTotalWithdrawRequestAmountMLP(getPendingTotalWithdrawRequestAmountMLP().add(_amountMLP));
@@ -348,5 +350,15 @@ contract SecondaryVault is NonblockingLzApp {
     function acceptRequests(uint256 _smozaicLpPerStablecoinMil) public {
         // TODO: for all dpeposit requests, mint MozaicLp
         // TODO: for all withdraw reuqests, burn MozaicLp and give stablecoin.
+    }
+
+    /**
+     * This function convert stablecoin token address to Stargate liquidity pool ID.
+     * @dev marked as public view with concerns.
+     * @param _token stablecoin token contract address
+     * @return uint256 indicating Stargate Liquidity Pool
+     */
+    function getStargatePoolId(address _token) public view returns (uint256) {
+        // TODO: resolve stargate liquidity pool ID, using Stargate protocol
     }
 }
