@@ -47,17 +47,18 @@ contract SecondaryVault is NonblockingLzApp {
     struct DepositRequest {
         address user;
         address token;
+        uint16 chainId; // chain to receive mLP
     }
 
     struct WithdrawRequest {
         address user;
-        uint16 chainId;
-        address token;
+        uint16 chainId; // chain to receive stablecoin
+        address token; // stablecoin token address
     }
 
     struct RequestBuffer {
         // deposit
-        mapping (address => mapping (address => uint256)) depositRequestLookup; // [user][token] = amountSD
+        mapping (address => mapping (address => mapping (uint16 => uint256))) depositRequestLookup; // [user][token] = amountSD
         DepositRequest[] depositRequestList;
         uint256 totalDepositRequestSD;
         // withdraw
@@ -128,9 +129,10 @@ contract SecondaryVault is NonblockingLzApp {
     /**
      * Add Deposit Request
      */
-    function addDepositRequest(uint256 _amountLD, address _token) public {
+    function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) public {
         address _depositor = msg.sender;
         require(primaryChainId > 0, "main chain is not set");
+        require(_chainId == chainId, "only onchain mint in PoC");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
         uint256 _poolId = getStargatePoolId(_token);
         Pool pool = Factory(Router(stargateRouter).factory()).getPool(_poolId);
@@ -155,11 +157,12 @@ contract SecondaryVault is NonblockingLzApp {
             DepositRequest memory req;
             req.user = _depositor;
             req.token = _token;
+            req.chainId = _chainId;
             buffer.depositRequestList.push(req);
         }
 
         // 2. Update depositRequestLookup
-        buffer.depositRequestLookup[_depositor][_token] = buffer.depositRequestLookup[_depositor][_token].add(_amountSD);
+        buffer.depositRequestLookup[_depositor][_token][_chainId] = buffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountSD);
 
         // 3. Update totalDepositRequestSD
         buffer.totalDepositRequestSD = buffer.totalDepositRequestSD.add(_amountSD);
