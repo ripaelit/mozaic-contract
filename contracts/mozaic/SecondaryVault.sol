@@ -74,7 +74,7 @@ contract SecondaryVault is NonblockingLzApp {
     address public stargateRouter;
     address public stargateLpStaking;
     address public stargateToken;
-    address public mozaicLp;
+    MozaicLP public mozaicLp;
     uint16 public primaryChainId=0;
     uint16 public chainId=0;
     
@@ -82,7 +82,7 @@ contract SecondaryVault is NonblockingLzApp {
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
 
-    function _getPendingRequestBuffer() internal view returns (RequestBuffer storage) {
+    function _pendingReqs() internal view returns (RequestBuffer storage) {
         if (bufferFlag) {
             return leftBuffer;
         }
@@ -91,7 +91,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function _getStagedRequestBuffer() internal view returns (RequestBuffer storage) {
+    function _stagedReqs() internal view returns (RequestBuffer storage) {
         if (bufferFlag) {
             return rightBuffer;
         }
@@ -102,55 +102,55 @@ contract SecondaryVault is NonblockingLzApp {
 
     function getDepositRequestAmount(bool _staged, address _user, address _token, uint16 _chainId) public view returns (uint256) {
         if (_staged) {
-            return _getStagedRequestBuffer().depositRequestLookup[_user][_token][_chainId];
+            return _stagedReqs().depositRequestLookup[_user][_token][_chainId];
         }
         else {
-            return _getPendingRequestBuffer().depositRequestLookup[_user][_token][_chainId];
+            return _pendingReqs().depositRequestLookup[_user][_token][_chainId];
         }
     }
 
     function getDepositRequest(bool _staged, uint256 _index) public view returns (DepositRequest memory) {
         if (_staged) {
-            return _getStagedRequestBuffer().depositRequestList[_index];
+            return _stagedReqs().depositRequestList[_index];
         }
         else {
-            return _getPendingRequestBuffer().depositRequestList[_index];
+            return _pendingReqs().depositRequestList[_index];
         }
     }
 
     function getTotalDepositRequestSD(bool _staged) public view returns (uint256) {
         if (_staged) {
-            return _getStagedRequestBuffer().totalDepositRequestSD;
+            return _stagedReqs().totalDepositRequestSD;
         }
         else {
-            return _getPendingRequestBuffer().totalDepositRequestSD;
+            return _pendingReqs().totalDepositRequestSD;
         }
     }
 
     function getWithdrawRequestAmount(bool _staged, address _user, uint16 _chainId, address _token) public view returns (uint256) {
         if (_staged) {
-            return _getStagedRequestBuffer().withdrawRequestLookup[_user][_chainId][_token];
+            return _stagedReqs().withdrawRequestLookup[_user][_chainId][_token];
         }
         else {
-            return _getPendingRequestBuffer().withdrawRequestLookup[_user][_chainId][_token];
+            return _pendingReqs().withdrawRequestLookup[_user][_chainId][_token];
         }
     }
 
     function getWithdrawRequest(bool _staged, uint256 _index) public view returns (WithdrawRequest memory) {
         if (_staged) {
-            return _getStagedRequestBuffer().withdrawRequestList[_index];
+            return _stagedReqs().withdrawRequestList[_index];
         }
         else {
-            return _getPendingRequestBuffer().withdrawRequestList[_index];
+            return _pendingReqs().withdrawRequestList[_index];
         }
     }
 
     function getTotalWithdrawRequestMLP(bool _staged) public view returns (uint256) {
         if (_staged) {
-            return _getStagedRequestBuffer().totalWithdrawRequestMLP;
+            return _stagedReqs().totalWithdrawRequestMLP;
         }
         else {
-            return _getPendingRequestBuffer().totalWithdrawRequestMLP;
+            return _pendingReqs().totalWithdrawRequestMLP;
         }
     }
 
@@ -161,18 +161,20 @@ contract SecondaryVault is NonblockingLzApp {
         uint16 _chainId,
         address _stargateRouter,
         address _stargateLpStaking,
-        address _stargateToken
+        address _stargateToken,
+        address _mozaicLp
     ) NonblockingLzApp(_lzEndpoint) {
         chainId = _chainId;
         stargateRouter = _stargateRouter;
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
+        mozaicLp = MozaicLP(_mozaicLp);
     }
     function setOrderTaker(OrderTaker _orderTaker) external onlyOwner {
         // TODO: contract type check
         orderTaker = _orderTaker;
     }
-    function setMozLp(address _mozaicLp) public onlyOwner {
+    function setMozaicLp(MozaicLP _mozaicLp) public onlyOwner {
         // TODO: contract type check
         mozaicLp = _mozaicLp;
     }
@@ -190,12 +192,12 @@ contract SecondaryVault is NonblockingLzApp {
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
         uint256 _poolId = getStargatePoolId(_token);
         Pool pool = Factory(Router(stargateRouter).factory()).getPool(_poolId);
-        uint256 _amountSD =  _amountLD.div(pool.convertRate()); // pool.amountLDtoSD(_amountLD);
-        uint256 _amountLDAccept = _amountSD.mul(pool.convertRate()); // pool.amountSDToLD(_amountSD);
+        uint256 _amountSD =  _convertLDtoSD(_token, _amountLD);
+        uint256 _amountLDAccept = _convertSDtoLD(_token, _amountSD);
 
         // transfer stablecoin
         _safeTransferFrom(_token, msg.sender, address(this), _amountLDAccept);
-        RequestBuffer storage buffer = _getPendingRequestBuffer();
+        RequestBuffer storage buffer = _pendingReqs();
 
         // book request
         // 1. Update depositRequestList
@@ -229,7 +231,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(primaryChainId > 0, "main chain should be set");
         address _withdrawer = msg.sender;
         RequestBuffer storage buffer;
-        buffer = _getPendingRequestBuffer();
+        buffer = _pendingReqs();
         // check if the user has enough balance
         require (buffer.withdrawRequestLookup[_withdrawer][_chainId][_token].add(_amountMLP) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned INMOZ");
         // check token
@@ -266,8 +268,8 @@ contract SecondaryVault is NonblockingLzApp {
     function snapshotAndReport() public virtual payable onlyOwner {
         require(primaryChainId > 0, "main chain is not set");
         // Processing Amount Should be Zero!
-        require(_getStagedRequestBuffer().totalDepositRequestSD==0, "Still has processing requests");
-        require(_getStagedRequestBuffer().totalWithdrawRequestMLP==0, "Still has processing requests");
+        require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
+        require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
         
         // Take Snapshot: Pending --> Processing
         bufferFlag = !bufferFlag;
@@ -286,8 +288,8 @@ contract SecondaryVault is NonblockingLzApp {
         }
         report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
         report.totalStablecoin = _totalStablecoin;
-        report.depositRequestAmountSD = _getStagedRequestBuffer().totalDepositRequestSD;
-        report.withdrawRequestAmountMLP = _getStagedRequestBuffer().totalWithdrawRequestMLP;
+        report.depositRequestAmountSD = _stagedReqs().totalDepositRequestSD;
+        report.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
         report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
         
         // Send Report
@@ -318,16 +320,30 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         if (packetType == PT_ACCEPTREQUESTS) {
-            (, uint256 _smozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
-            acceptRequests(_smozaicLpPerStablecoinMil);
+            (, uint256 _mozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
+            acceptRequests(_mozaicLpPerStablecoinMil);
         } else {
             emit UnexpectedLzMessage(packetType, _payload);
         }
     }
     
-    function acceptRequests(uint256 _smozaicLpPerStablecoinMil) public {
-        // TODO: for all dpeposit requests, mint MozaicLp
+    function acceptRequests(uint256 _mozaicLpPerStablecoinMil) public {
+        // for all dpeposit requests, mint MozaicLp
+        // TODO: Consider gas fee reduction possible.
+        RequestBuffer storage reqs = _stagedReqs();
+        for (uint i = 0; i < reqs.depositRequestList.length; i++) {
+            DepositRequest memory request = reqs.depositRequestList[i];
+            uint256 _depositAmount = reqs.depositRequestLookup[request.user][request.token][request.chainId];
+            uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
+            mozaicLp.mint(request.user, _amountToMint);
+        }
         // TODO: for all withdraw reuqests, burn MozaicLp and give stablecoin.
+        for (uint i = 0; i < reqs.withdrawRequestList.length; i++) {
+            WithdrawRequest memory request = reqs.withdrawRequestList[i];
+            uint256 _withdrawAmountLP = reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
+            uint256 _coinToGiveLD = _convertSDtoLD(request.token, _withdrawAmountLP.div(_mozaicLpPerStablecoinMil).mul(1000000));
+            orderTaker.giveStablecoin(request.user, request.token, _coinToGiveLD);
+        }
     }
 
     /**
@@ -340,5 +356,19 @@ contract SecondaryVault is NonblockingLzApp {
     function getStargatePoolId(address _token) public view returns (uint256) {
         // TODO: resolve stargate liquidity pool ID, using Stargate protocol
         // TODO: revert when not found.
+    }
+
+    function _convertSDtoLD(address _token, uint256 _amountSD) internal view returns (uint256) {
+        // TODO: gas fee optimization by avoiding duplicate calculation.
+        uint256 _poolId = getStargatePoolId(_token);
+        Pool pool = Factory(Router(stargateRouter).factory()).getPool(_poolId);
+        return  _amountSD.mul(pool.convertRate()); // pool.amountSDtoLD(_amountSD);
+    }
+
+    function _convertLDtoSD(address _token, uint256 _amountLD) internal view returns (uint256) {
+        // TODO: gas fee optimization by avoiding duplicate calculation.
+        uint256 _poolId = getStargatePoolId(_token);
+        Pool pool = Factory(Router(stargateRouter).factory()).getPool(_poolId);
+        return  _amountLD.div(pool.convertRate()); // pool.amountLDtoSD(_amountLD);
     }
 }

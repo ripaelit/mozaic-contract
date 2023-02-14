@@ -6,13 +6,15 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "../interfaces/IOFT.sol";
 import "../libraries/oft/OFTCore.sol";
 import "hardhat/console.sol";
+import "./VaultControlled.sol";
 
-contract MozaicLP is OFTCore, ERC20, IOFT {
+contract MozaicLP is OFTCore, ERC20, IOFT, VaultControlled {
     constructor(
         string memory _name,
         string memory _symbol,
-        address _lzEndpoint
-    ) ERC20(_name, _symbol) OFTCore(_lzEndpoint) {
+        address _lzEndpoint,
+        address _vault
+    ) ERC20(_name, _symbol) OFTCore(_lzEndpoint) VaultControlled(_vault) {
     }
     function decimals() public view virtual override returns (uint8) {
         return 6;
@@ -67,5 +69,9 @@ contract MozaicLP is OFTCore, ERC20, IOFT {
             _mint(_toAddress, _amount);
         }
         return _amount;
+    }
+
+    function mint(address _account, uint256 _amount) public onlyVault {
+        _mint(_account, _amount);
     }
 }

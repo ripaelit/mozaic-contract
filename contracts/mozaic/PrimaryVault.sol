@@ -47,8 +47,9 @@ abstract contract PrimaryVault is SecondaryVault {
         uint16 _chainId,
         address _stargateRouter,
         address _stargateLpStaking,
-        address _stargateToken
-    ) SecondaryVault(_lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken) {
+        address _stargateToken,
+        address _mozaicLp
+    ) SecondaryVault(_lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken, _mozaicLp) {
     }
     function addSecondaryVaults(VaultDescriptor calldata _vault) external onlyOwner {
         // TODO: prevent duplicate of (chainId)
@@ -68,8 +69,8 @@ abstract contract PrimaryVault is SecondaryVault {
     function snapshotAndReport() virtual override public payable onlyOwner {
         require(!snapshotReportFlag[chainId], "Report is already ready");
         // Processing Amount Should be Zero!
-        require(_getStagedRequestBuffer().totalDepositRequestSD==0, "Still has processing requests");
-        require(_getStagedRequestBuffer().totalWithdrawRequestMLP==0, "Still has processing requests");
+        require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
+        require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
 
         // Take Snapshot: Pending --> Processing
         bufferFlag = !bufferFlag;
@@ -88,8 +89,8 @@ abstract contract PrimaryVault is SecondaryVault {
         }
         report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
         report.totalStablecoin = _totalStablecoin;
-        report.depositRequestAmountSD = _getStagedRequestBuffer().totalDepositRequestSD;
-        report.withdrawRequestAmountMLP = _getStagedRequestBuffer().totalWithdrawRequestMLP;
+        report.depositRequestAmountSD = _stagedReqs().totalDepositRequestSD;
+        report.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
         report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
         
         // Send Report

@@ -18,6 +18,10 @@ import "../libraries/stargate/Router.sol";
 
 contract OrderTaker is Ownable {
     using SafeMath for uint256;
+    modifier onlyVault() {
+        require(vault == msg.sender, "onlyVault: caller is not vault");
+        _;
+    }
 
     // data types
     enum OrderType {
@@ -48,6 +52,7 @@ contract OrderTaker is Ownable {
     address public stargateRouter; // Stargate Router Address. Used for DEX operations.
     address public stargateLpStaking; // Stargate Farming Pool Address.
     address public stargateToken; // Stargate Token Address.
+    address public vault;
     constructor(
         uint16 _chainId,
         address _stargateRouter,
@@ -134,4 +139,9 @@ contract OrderTaker is Ownable {
         // not found
         return (false, 0);
     }
+
+    function giveStablecoin(address _user, address _token, uint256 _amountLD) public onlyVault {
+        IERC20(_token).transfer(_user, _amountLD);
+    }
+
 }
