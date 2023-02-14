@@ -58,7 +58,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     struct RequestBuffer {
         // deposit
-        mapping (address => mapping (address => mapping (uint16 => uint256))) depositRequestLookup; // [user][token] = amountSD
+        mapping (address => mapping (address => mapping (uint16 => uint256))) depositRequestLookup; // [user][token][chainId] = amountSD
         DepositRequest[] depositRequestList;
         uint256 totalDepositRequestSD;
         // withdraw
@@ -97,6 +97,60 @@ contract SecondaryVault is NonblockingLzApp {
         }
         else {
             return leftBuffer;
+        }
+    }
+
+    function getDepositRequestAmount(bool _staged, address _user, address _token, uint16 _chainId) public view returns (uint256) {
+        if (_staged) {
+            return _getStagedRequestBuffer().depositRequestLookup[_user][_token][_chainId];
+        }
+        else {
+            return _getPendingRequestBuffer().depositRequestLookup[_user][_token][_chainId];
+        }
+    }
+
+    function getDepositRequest(bool _staged, uint256 _index) public view returns (DepositRequest memory) {
+        if (_staged) {
+            return _getStagedRequestBuffer().depositRequestList[_index];
+        }
+        else {
+            return _getPendingRequestBuffer().depositRequestList[_index];
+        }
+    }
+
+    function getTotalDepositRequestSD(bool _staged) public view returns (uint256) {
+        if (_staged) {
+            return _getStagedRequestBuffer().totalDepositRequestSD;
+        }
+        else {
+            return _getPendingRequestBuffer().totalDepositRequestSD;
+        }
+    }
+
+    function getWithdrawRequestAmount(bool _staged, address _user, uint16 _chainId, address _token) public view returns (uint256) {
+        if (_staged) {
+            return _getStagedRequestBuffer().withdrawRequestLookup[_user][_chainId][_token];
+        }
+        else {
+            return _getPendingRequestBuffer().withdrawRequestLookup[_user][_chainId][_token];
+        }
+    }
+
+    function getWithdrawRequest(bool _staged, uint256 _index) public view returns (WithdrawRequest memory) {
+        if (_staged) {
+            return _getStagedRequestBuffer().withdrawRequestList[_index];
+        }
+        else {
+            return _getPendingRequestBuffer().withdrawRequestList[_index];
+        }
+    }
+
+    function getTotalWithdrawRequestMLP(bool _staged) public view returns (uint256) {
+        if (_staged) {
+            return _getStagedRequestBuffer().totalWithdrawRequestMLP;
+        }
+        else {
+            return _getPendingRequestBuffer().totalWithdrawRequestMLP;
         }
     }
 
