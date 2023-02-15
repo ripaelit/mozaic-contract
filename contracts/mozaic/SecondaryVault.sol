@@ -190,8 +190,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(primaryChainId > 0, "main chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
-        uint256 _poolId = getStargatePoolId(_token);
-        Pool pool = Factory(Router(stargateRouter).factory()).getPool(_poolId);
+        Pool pool = stargatePoolFromToken(_token);
         uint256 _amountSD =  _convertLDtoSD(_token, _amountLD);
         uint256 _amountLDAccept = _convertSDtoLD(_token, _amountSD);
 
@@ -347,28 +346,32 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     /**
-     * This function convert stablecoin token address to Stargate liquidity pool ID.
-     * This function reverts when the pool ID is not found.
+     * This function return stargate Pool contract address for related stablecoin token address.
+     * This function reverts when the pool is not found.
      * @dev marked as public view with concerns.
      * @param _token stablecoin token contract address
      * @return uint256 indicating Stargate Liquidity Pool
      */
-    function getStargatePoolId(address _token) public view returns (uint256) {
-        // TODO: resolve stargate liquidity pool ID, using Stargate protocol
-        // TODO: revert when not found.
+    function stargatePoolFromToken(address _token) public view returns (Pool) {
+        for (uint i = 0; i < Factory(Router(stargateRouter).factory()).allPoolsLength(); i++) {
+            Pool _pool = Pool(Factory(Router(stargateRouter).factory()).allPools(i));
+            if (_pool.token() == _token) {
+                return _pool;
+            }
+        }
+        // revert when not found.
+        revert("Pool not found for token");
     }
 
     function _convertSDtoLD(address _token, uint256 _amountSD) internal view returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
-        uint256 _poolId = getStargatePoolId(_token);
-        Pool pool = Factory(Router(stargateRouter).factory()).getPool(_poolId);
+        Pool pool = stargatePoolFromToken(_token);
         return  _amountSD.mul(pool.convertRate()); // pool.amountSDtoLD(_amountSD);
     }
 
     function _convertLDtoSD(address _token, uint256 _amountLD) internal view returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
-        uint256 _poolId = getStargatePoolId(_token);
-        Pool pool = Factory(Router(stargateRouter).factory()).getPool(_poolId);
+        Pool pool = stargatePoolFromToken(_token);
         return  _amountLD.div(pool.convertRate()); // pool.amountLDtoSD(_amountLD);
     }
 }
