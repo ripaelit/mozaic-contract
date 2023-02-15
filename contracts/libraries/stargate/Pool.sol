@@ -12,6 +12,8 @@ import "../../interfaces/IStargateFeeLibrary.sol";
 // libraries
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+import "hardhat/console.sol";
+
 /// Pool contracts on other chains and managed by the Stargate protocol.
 contract Pool is LPTokenERC20, ReentrancyGuard {
     using SafeMath for uint256;
@@ -248,17 +250,21 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         uint256 _amountLP,
         address _to
     ) external nonReentrant onlyRouter returns (uint256 amountSD) {
+        console.log("Pool.instantRedeemLocal started: _from, _amountLP, _to:", _from, _amountLP, _to);
         require(_from != address(0x0), "Stargate: _from cannot be 0x0");
         uint256 _deltaCredit = deltaCredit; // sload optimization.
         uint256 _capAmountLP = _amountSDtoLP(_deltaCredit);
 
         if (_amountLP > _capAmountLP) _amountLP = _capAmountLP;
+        console.log("Pool.instantRedeemLocal: _deltaCredit, _amountLP, _capAmountLP:", _deltaCredit, _amountLP, _capAmountLP);
+        console.log("Pool.instantRedeemLocal: totalSupply, totalLiquidity:", totalSupply, totalLiquidity);
 
         amountSD = _burnLocal(_from, _amountLP);
         deltaCredit = _deltaCredit.sub(amountSD);
         uint256 amountLD = amountSDtoLD(amountSD);
         _safeTransfer(token, _to, amountLD);
         emit InstantRedeemLocal(_from, _amountLP, amountSD, _to);
+        console.log("Pool.instantRedeemLocal ended");
     }
 
     // Local                                    Remote
@@ -432,6 +438,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         batched = _batched;
         swapDeltaBP = _swapDeltaBP;
         lpDeltaBP = _lpDeltaBP;
+        console.log("Pool.setDeltaParam: lpDeltaBP:", lpDeltaBP);
         defaultSwapMode = _defaultSwapMode;
         defaultLPMode = _defaultLPMode;
         emit DeltaParamUpdated(_batched, _swapDeltaBP, _lpDeltaBP, _defaultSwapMode, _defaultLPMode);
@@ -531,6 +538,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
                 // (liquidity * (weight/totalWeight)) - (lkb+credits)
                 uint256 balLiq = totalLiquidity.mul(cp.weight).div(totalWeight);
                 uint256 currLiq = cp.lkb.add(cp.credits);
+                console.log("Pool._delta: totalLiquidity, balLiq, currLiq:", totalLiquidity, balLiq, currLiq);
                 if (balLiq > currLiq) {
                     // save gas since we know balLiq > currLiq and we know deficit[i] > 0
                     deficit[i] = balLiq - currLiq;
@@ -552,6 +560,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
                         // credits = credits + toBalanceChange + remaining allocation based on weight
                         uint256 amtToCredit = deltaCredit.mul(cp.weight).div(totalWeight);
                         spent = spent.add(amtToCredit);
+                        console.log("Pool._delta: first added: spent, amtToCredit", spent, amtToCredit);
                         cp.credits = cp.credits.add(amtToCredit);
                     }
                 } // else do nth
@@ -559,13 +568,16 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
                 if (fullMode) {
                     // algorithm step 13: calculate amount to disperse to bring to balance state or as close as possible
                     uint256 excessCredit = deltaCredit - totalDeficit;
+                    console.log("Pool._delta: excessCredit, deltaCredit, totalDeficit:", excessCredit, deltaCredit, totalDeficit);
                     // algorithm steps 14-16: calculate credits
                     for (uint256 i = 0; i < cpLength; ++i) {
+                        console.log("Pool._delta: cpLength, deficit[i]:", cpLength, deficit[i]);
                         if (deficit[i] > 0) {
                             ChainPath storage cp = chainPaths[i];
                             // credits = credits + deficit + remaining allocation based on weight
                             uint256 amtToCredit = deficit[i].add(excessCredit.mul(cp.weight).div(totalWeight));
                             spent = spent.add(amtToCredit);
+                            console.log("Pool._delta: second added: spent, amtToCredit", spent, amtToCredit);
                             cp.credits = cp.credits.add(amtToCredit);
                         }
                     }
@@ -577,6 +589,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
                             ChainPath storage cp = chainPaths[i];
                             uint256 amtToCredit = deficit[i];
                             spent = spent.add(amtToCredit);
+                            console.log("Pool._delta: third added: spent, amtToCredit", spent, amtToCredit);
                             cp.credits = cp.credits.add(amtToCredit);
                         }
                     }
@@ -588,6 +601,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
                         ChainPath storage cp = chainPaths[i];
                         uint256 proportionalDeficit = deficit[i].mul(deltaCredit).div(totalDeficit);
                         spent = spent.add(proportionalDeficit);
+                        console.log("Pool._delta: fourth added: spent, proportionalDeficit", spent, proportionalDeficit);
                         cp.credits = cp.credits.add(proportionalDeficit);
                     }
                 }
@@ -595,6 +609,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
 
             // deduct the amount of credit sent
             deltaCredit = deltaCredit.sub(spent);
+            console.log("Pool._delta ended: deltaCredit, spent:", deltaCredit, spent);
         }
     }
 
@@ -604,18 +619,22 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         bool _feesEnabled,
         bool _creditDelta
     ) internal returns (uint256 amountSD) {
+        console.log("Pool._mintLocal: _to, _amountLD, _creditDelta:", _to, _amountLD, _creditDelta);
         require(totalWeight > 0, "Stargate: No ChainPaths exist");
         amountSD = amountLDtoSD(_amountLD);
+        console.log("Pool._mintLocal: amountSD:", amountSD);
 
         uint256 mintFeeSD = 0;
         if (_feesEnabled) {
             mintFeeSD = amountSD.mul(mintFeeBP).div(BP_DENOMINATOR);
             amountSD = amountSD.sub(mintFeeSD);
             mintFeeBalance = mintFeeBalance.add(mintFeeSD);
+            console.log("Pool._mintLocal: _feesEnabled, mintFeeSD, amountSD:", _feesEnabled, mintFeeSD, amountSD);
         }
 
         if (_creditDelta) {
             deltaCredit = deltaCredit.add(amountSD);
+            console.log("Pool._mintLocal: _creditDelta, deltaCredit:", _creditDelta, deltaCredit);
         }
 
         uint256 amountLPTokens = amountSD;
@@ -629,6 +648,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
 
         // add to credits and call delta. short circuit to save gas
         if (!batched || deltaCredit > totalLiquidity.mul(lpDeltaBP).div(BP_DENOMINATOR)) {
+            console.log("Pool._mintLocal: _delta() called: defaultLPMode, batched, lpDeltaBP:", defaultLPMode, batched, lpDeltaBP);
             _delta(defaultLPMode);
         }
     }

@@ -1,6 +1,6 @@
 import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock } from '../types/typechain';
 
-export type ChainPath = {
+export type StargateChainPath = {
   sourceChainId: number,
   sourcePoolId: number,
   destinationChainId: number,
@@ -9,6 +9,7 @@ export type ChainPath = {
 };
 
 export interface StargateDeploymentOnchain {
+  lzEndpoint: LZEndpointMock,
   routerContract: Router,
   factoryContract: Factory,
   bridgeContract: Bridge,
