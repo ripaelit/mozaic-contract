@@ -212,6 +212,10 @@ contract SecondaryVault is NonblockingLzApp {
                 (uint256 _amountSD, address _token) = abi.decode(_action.payload, (uint256, address));
                 _unstake(_amountSD, _token);
             }
+            else if (_action.actionType == ProtocolDriver.ActionType.SwapRemote) {
+                (uint256 _amountLD, address _srcToken, uint16 _dstChainId, address _dstToken) = abi.decode(_action.payload, (uint256, address, uint16, address));
+                _swapRemote(_amountLD, _srcToken, _dstChainId, _dstToken);
+            }
             else {
                 ProtocolDriver _driver = protocolDrivers[_action.driverIndex];
                 (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
@@ -477,5 +481,13 @@ contract SecondaryVault is NonblockingLzApp {
         uint256 _userToken = _coinContract.balanceOf(address(this));
     }
 
+    function _swapRemote(uint256 _amountLD, address _srcToken, uint16 _dstChainId, address _dstToken) private {
+        require (_amountLD > 0, "Cannot stake zero amount");
+        uint256 _srcPoolId = _getStargatePoolFromToken(_srcToken).poolId();
+        uint256 _dstPoolId = _getStargatePoolFromToken(_dstToken).poolId();
+        
+        _srcToken.approve(stargateRouter, _amountLD);
+        Router(stargateRouter).swap(_dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
+    }
 
 }
