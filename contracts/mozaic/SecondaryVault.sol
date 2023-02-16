@@ -4,7 +4,8 @@ pragma solidity ^0.8.9;
 import "../libraries/lzApp/NonblockingLzApp.sol";
 import "../libraries/stargate/Router.sol";
 import "../libraries/stargate/Pool.sol";
-import "./OrderTaker.sol";
+import "../libraries/stargate/LPStaking.sol";
+import "./ProtocolDriver.sol";
 import "./MozaicLP.sol";
 
 // libraries
@@ -36,6 +37,19 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public constant PT_ACCEPTREQUESTS = 10002;
     //---------------------------------------------------------------------------
     // STRUCTS
+    /// @title: Action Parameters for Each Type:
+    /// - Stake (amountCoin, poolIndex)
+    /// - Unstake: (amountLP, poolIndex)
+    /// - Swap (amountSrc, srcPoolIndex, dstPoolIndex)
+    /// - Swap Remote(amountSrc, srcPoolIndex, dstChainId, dstPoolIndex)
+    /// - Sell(amountSTG, StgPoolIndex)
+    /// @note: every pool index is the index in Stargate Factory
+    struct Action {
+        uint256 driverIndex;
+        ProtocolDriver.ActionType actionType;
+        bytes payload;
+    }
+
     struct SnapshotReport {
         uint256 depositRequestAmountSD;
         uint256 withdrawRequestAmountMLP;
@@ -70,7 +84,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    OrderTaker public orderTaker;
+    ProtocolDriver[] protocolDrivers;
     address public stargateRouter;
     address public stargateLpStaking;
     address public stargateToken;
@@ -170,9 +184,13 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = MozaicLP(_mozaicLp);
     }
-    function setOrderTaker(OrderTaker _orderTaker) external onlyOwner {
-        // TODO: contract type check
-        orderTaker = _orderTaker;
+    function addProtocolDriver(ProtocolDriver _driver) public returns (uint256) {
+        uint256 _index = protocolDrivers.length;
+        for (uint i = 0; i < protocolDrivers.length; i++) {
+            require (protocolDrivers[i]!=_driver, "Cannot add duplicate");
+        }
+        protocolDrivers.push(_driver);
+        return _index;
     }
     function setMozaicLp(MozaicLP _mozaicLp) public onlyOwner {
         // TODO: contract type check
@@ -182,6 +200,25 @@ contract SecondaryVault is NonblockingLzApp {
         primaryChainId = _chainId;
     }
 
+    function executeActions(Action[] calldata _actions) external onlyOwner {
+        for (uint i = 0; i < _actions.length ; i++) {
+            // NOTE: PoC: stake and unstake is handled by self. Move to StargateDriver after PoC
+            Action calldata _action = _actions[i];
+            if (_action.actionType == ProtocolDriver.ActionType.StargateStake) {
+                (uint256 _amountLD, address _token) = abi.decode(_action.payload, (uint256, address));
+                _stake(_amountLD, _token);
+            }
+            else if (_action.actionType == ProtocolDriver.ActionType.StargateUnstake) {
+                (uint256 _amountSD, address _token) = abi.decode(_action.payload, (uint256, address));
+                _unstake(_amountSD, _token);
+            }
+            else {
+                ProtocolDriver _driver = protocolDrivers[_action.driverIndex];
+                (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
+                require(success, "Failed to delegate to ProtocolDriver");
+            }
+        }
+    }
     /**
      * Add Deposit Request
      */
@@ -190,7 +227,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(primaryChainId > 0, "main chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
-        Pool pool = stargatePoolFromToken(_token);
+        Pool pool = _getStargatePoolFromToken(_token);
         uint256 _amountSD =  _convertLDtoSD(_token, _amountLD);
         uint256 _amountLDAccept = _convertSDtoLD(_token, _amountSD);
 
@@ -341,7 +378,7 @@ contract SecondaryVault is NonblockingLzApp {
             WithdrawRequest memory request = reqs.withdrawRequestList[i];
             uint256 _withdrawAmountLP = reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
             uint256 _coinToGiveLD = _convertSDtoLD(request.token, _withdrawAmountLP.div(_mozaicLpPerStablecoinMil).mul(1000000));
-            orderTaker.giveStablecoin(request.user, request.token, _coinToGiveLD);
+            _giveStablecoin(request.user, request.token, _coinToGiveLD);
         }
     }
 
@@ -352,7 +389,7 @@ contract SecondaryVault is NonblockingLzApp {
      * @param _token stablecoin token contract address
      * @return uint256 indicating Stargate Liquidity Pool
      */
-    function stargatePoolFromToken(address _token) public view returns (Pool) {
+    function _getStargatePoolFromToken(address _token) public view returns (Pool) {
         for (uint i = 0; i < Factory(Router(stargateRouter).factory()).allPoolsLength(); i++) {
             Pool _pool = Pool(Factory(Router(stargateRouter).factory()).allPools(i));
             if (_pool.token() == _token) {
@@ -365,13 +402,80 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _convertSDtoLD(address _token, uint256 _amountSD) internal view returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
-        Pool pool = stargatePoolFromToken(_token);
+        Pool pool = _getStargatePoolFromToken(_token);
         return  _amountSD.mul(pool.convertRate()); // pool.amountSDtoLD(_amountSD);
     }
 
     function _convertLDtoSD(address _token, uint256 _amountLD) internal view returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
-        Pool pool = stargatePoolFromToken(_token);
+        Pool pool = _getStargatePoolFromToken(_token);
         return  _amountLD.div(pool.convertRate()); // pool.amountLDtoSD(_amountLD);
     }
+
+    function _giveStablecoin(address _user, address _token, uint256 _amountLD) internal {
+        IERC20(_token).transfer(_user, _amountLD);
+    }
+
+    // NOTE: also move to stargate protocol driver after PoC
+    function _getPool(uint256 _poolId) internal view returns (Pool) {
+        return Router(stargateRouter).factory().getPool(_poolId);
+    }
+    // NOTE: also move to stargate protocol driver after PoC
+    function _getPoolIndexInFarming(uint256 _poolId) internal view returns (bool, uint256) {
+        Pool pool = _getPool(_poolId);
+        
+        for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++ ) {
+            if (address(LPStaking(stargateLpStaking).getPoolInfo(i)) == address(pool)) {
+                return (true, i);
+            }
+        }
+        // not found
+        return (false, 0);
+    }
+    /**
+    * NOTE: Need to move to protocol driver after PoC.
+     */
+    function _stake(uint256 _amountLD, address _token ) private {
+        require (_amountLD > 0, "Cannot stake zero amount");
+        Pool _pool = _getStargatePoolFromToken(_token);
+        uint256 _poolId = _pool.poolId();
+        // Approve coin transfer from OrderTaker to STG.Pool
+        IERC20 coinContract = IERC20(_pool.token());
+        coinContract.approve(stargateRouter, _amountLD);
+        // Stake coin from OrderTaker to STG.Pool
+        uint256 balancePre = _pool.balanceOf(address(this));
+        Router(stargateRouter).addLiquidity(_poolId, _amountLD, address(this));
+        uint256 balanceAfter = _pool.balanceOf(address(this));
+        uint256 amountLPToken = balanceAfter - balancePre;
+        // Find the Liquidity Pool's index in the Farming Pool.
+        (bool found, uint256 stkPoolIndex) = _getPoolIndexInFarming(_poolId);
+        require(found, "The LP token not acceptable.");
+        // Approve LPToken transfer from OrderTaker to LPStaking
+        _pool.approve(stargateLpStaking, amountLPToken);
+        // Stake LPToken from OrderTaker to LPStaking
+        LPStaking(stargateLpStaking).deposit(stkPoolIndex, amountLPToken);
+    }
+
+    /**
+    * NOTE: Need to move to protocol driver after PoC.
+    */
+    function _unstake(uint256 _amountLPToken, address _token) private {
+        require (_amountLPToken > 0, "Cannot unstake zero amount");
+        Pool _pool = _getStargatePoolFromToken(_token);
+        uint256 _poolId = _pool.poolId();
+        // Find the Liquidity Pool's index in the Farming Pool.
+        (bool found, uint256 stkPoolIndex) = _getPoolIndexInFarming(_poolId);
+        require(found, "The LP token not acceptable.");
+
+        // Unstake LPToken from LPStaking to OrderTaker
+        LPStaking(stargateLpStaking).withdraw(stkPoolIndex, _amountLPToken);
+        
+        // Unstake coin from STG.Pool to OrderTaker
+        Router(stargateRouter).instantRedeemLocal(uint16(_poolId), _amountLPToken, address(this));
+        
+        IERC20 _coinContract = IERC20(_pool.token());
+        uint256 _userToken = _coinContract.balanceOf(address(this));
+    }
+
+
 }

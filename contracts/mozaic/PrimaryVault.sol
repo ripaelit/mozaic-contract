@@ -123,7 +123,7 @@ abstract contract PrimaryVault is SecondaryVault {
     }
     function calculateMozLpPerStablecoinMil() public {
         require(checkAllSnapshotReportReady(), "Some SnapshotReports not reached");
-        uint256 _stargatePriceMil = orderTaker.getStargatePriceMil();
+        uint256 _stargatePriceMil = _getStargatePriceMil();
         uint256 _totalStablecoinValue = 0;
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
@@ -158,4 +158,7 @@ abstract contract PrimaryVault is SecondaryVault {
 
     //---------------------------------------------------------------------------
     // INTERNAL
+    function _getStargatePriceMil() internal returns (uint256) {
+        return 0;
+    }
 }
