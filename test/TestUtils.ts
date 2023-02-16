@@ -16,7 +16,7 @@ export const deployStablecoins = async (owner: SignerWithAddress, stablecoins: M
       const coin = await coinFactory.deploy(stablecoinname, stablecoinname, BigNumber.from("18"));
       await coin.deployed();
       console.log("Deployed coin: chainId, stablecoinname, address, totalSupply:", chainId, stablecoinname, coin.address, await coin.totalSupply());
-      coin.connect(owner).mint(owner.address, exportData.localTestConstants.coinTotal); // 10 ** 9 (total supply) ** 18 (decimals)
+      coin.connect(owner).mint(owner.address, exportData.localTestConstants.coinTotal); // 1000*1e18
       console.log("Minted coin to owner: chainId, owner, coin:", chainId, owner.address, await coin.balanceOf(owner.address));
       contractsInChain.set(stablecoinname, coin);
     }
@@ -48,7 +48,7 @@ export const equalize = async (owner: SignerWithAddress, stargateDeployments: St
       for (let i = 0; i < chainPathsLength.toNumber(); i++) {
         let cp = await pool.chainPaths(i);
         await stargateDeployments.get(chainId)!.routerContract.sendCredits(cp.dstChainId, poolId, cp.dstPoolId, owner.address);
-        console.log("TestUtils.equalize: sendCredits: cp.dstChainId, poolId, cp.dstPoolId, owner.address:", cp.dstChainId, poolId, cp.dstPoolId, owner.address);
+        console.log("TestUtils.equalize: sendCredits: cp.dstChainId, poolId, cp.dstPoolId, owner.address:", cp.dstChainId, poolId, cp.dstPoolId.toNumber(), owner.address);
       }
     }
   }
@@ -86,9 +86,9 @@ export const newStargateEndpoint = async (
   stablecoinDeployments: StableCoinDeployments, 
   poolIds: Map<string, number>, 
   stgMainChainId: number, 
-  stargateChainPaths: Array<StargateChainPath>
-  ) => {
+  stargateChainPaths: Array<StargateChainPath>) => {
   let stargateDeploymentOnchain = {} as StargateDeploymentOnchain;
+  console.log("TestUtils.newStargateEndpoint started: _chainId, stgMainchainId:", _chainId, stgMainChainId);
 
   // Deploy LzEndpoint
   const lzEndpointFactory = (await ethers.getContractFactory('LZEndpointMock', owner)) as LZEndpointMock__factory;
@@ -124,19 +124,6 @@ export const newStargateEndpoint = async (
   // Link Bridge and Factory to Router  //set deploy params
   await router.setBridgeAndFactory(bridge.address, factory.address);
 
-  // Deploy Stargate Token
-  const stargateTokenFactory = (await ethers.getContractFactory('StargateToken', owner)) as StargateToken__factory;
-  const stargateToken = await stargateTokenFactory.deploy(
-    'Stargate Token', 
-    'STG', 
-    lzEndpoint.address, 
-    stgMainChainId, 
-    exportData.localTestConstants.STGs // 10**9 (total supply) 10** 18 (decimals)
-  );
-  await stargateToken.deployed();
-  console.log("Deployed StargateToken: chainId, address, totalSupply:", _chainId, stargateToken.address, await stargateToken.totalSupply());
-  stargateDeploymentOnchain.stargateToken = stargateToken;
-
   // Create Pools For each stablecoin
   const poolFactory = (await ethers.getContractFactory('Pool', owner)) as Pool__factory;
   const stablecoins = stablecoinDeployments.get(_chainId)!;
@@ -149,20 +136,6 @@ export const newStargateEndpoint = async (
     pools.set(poolId, pool);
   }
   stargateDeploymentOnchain.pools = pools;
-
-  // Deploy LPStaking contract
-  const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-  const latestBlockNumber = await ethers.provider.getBlockNumber();
-  const lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("100000"), latestBlockNumber + 3, latestBlockNumber + 3);
-  await lpStaking.deployed();
-
-  // Add Stargate Liquidity Pools
-  for (const [poolId, pool] of pools) {
-    await lpStaking.add(BigNumber.from("1000"), pool.address);
-  }
-
-  stargateDeploymentOnchain.lpStakingContract = lpStaking;
-  console.log("Deployed LPStaking: chainId, address, totalAllocPoint:", _chainId, lpStaking.address, await lpStaking.totalAllocPoint());
 
   // Create and activate ChainPaths
   for (const chainPath of stargateChainPaths) {
