@@ -1,4 +1,5 @@
-import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock } from '../types/typechain';
+import { Contract } from 'ethers';
+import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault, ILayerZeroEndpoint } from '../types/typechain';
 
 export type StargateChainPath = {
   sourceChainId: number,
@@ -18,11 +19,18 @@ export interface StargateDeploymentOnchain {
   stargateToken: StargateToken,
 };
 
+export type MozaicDeployment = {
+  mozaicLp: MozaicLP,
+  mozaicVault: SecondaryVault
+};
+
 export type StargateDeployments = Map<number, StargateDeploymentOnchain>; // Map<chainId, StargateDeploymentOnchain>
 
-export type LayerZeroDeployments = Map<number, LZEndpointMock>;           // Map<chainId, LZEndpointMock>
+export type LayerZeroDeployments = Map<number, LZEndpointMock>;           // Map<chainId, ILayerZeroEndpoint>
 
 export type StableCoinDeployments = Map<number, Map<string, ERC20>>;      // Map<chainId, Map<coinname, coincontract>>
+
+export type MozaicDeployments = Map<number, MozaicDeployment>;
 
 export enum ActionTypeEnum {
     Swap = 0,

@@ -75,6 +75,7 @@ const localTestConstants = {
     },
   ),
   stgMainChain: 101, // main chain ID of Stargate Token
+  mozaicPrimaryChain: 101,
   coinTotal:      ethers.BigNumber.from("1000000000000000000000"),        // 1000*1e18
   coinEachPool:   ethers.BigNumber.from("50000000000000000000"),          // 50*1e18
   coinOrderTaker: ethers.BigNumber.from("20000000000000000000"),          // 20*1e18
