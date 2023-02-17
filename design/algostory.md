@@ -12,94 +12,115 @@ INMOZ --> MozaicLP = mLP
 
 User can Book Deposit.
 User can Book Withdraw.
-Control Center (as the owner of contract) run Sync Session.
-Control Center (as the owner of contract) run Asset Transition Session.
-NOTE: Demo Limitation - In product version, the user should have choice to run Sync Session to have his deposits/withdrawals accepted early at the cost of paying the gas fee.
+Control Center (as the owner of contract) run Optimization Session.
+NOTE: Demo Limitation - In product version, the user should have choice to run Optimization Session to have his deposits/withdrawals accepted early at the cost of paying the gas fee.
 
-## Book Deposit
+### Advanced Features (Skip Now)
 
-User call `requestDeposit(poolIndex, amountSD)`
-`poolInfos[poolIndex].coinAddress` indicates the stablecoin address
-`amountSD` indicates the amount.
+- User can cancel request (possible when the request is in pending status)
+  Skipping because the secondary chain should send snapshot LZ message again. (Avoiding LZ messages as much as possible.)
 
-This adds to `totalDeposits` and `pendingDeposits[depositeraddress]`
+## Story
 
-## Book Withdraw
+### 1. User Books Deposit
 
-User call `addWithdrawRequest(amountIM, poolIndex)`
-`amountIM` - INMOZ amount to return to get back stable coin.
-`poolInfos[poolIndex].coinAddress` indicates the stablecoin he wants to receive
+- User call `addDepositRequest(amountLD, depositTokenAddr, destChainId)`
+  - `poolInfos[poolIndex].coinAddress` indicates the stablecoin address
+  - `amountLD` indicates the amount.
 
-This adds to `totalPendingWithdraws` and `pendingWithdraws[Withdraworaddress][poolIndex]` and `totalPendingWithdrawPerUser`
-Guard condition: overburning should be prevented. Meaning pending INMOZ to return <= owned INMOZ
+This adds to pending deposit requests buffer.
 
-## Sync Session
+### 2. User Books Withdraw
 
-### 1. Sync Start
+- User call `addWithdrawRequest(amountMLP, dstTokenAddr, dstChainId)`
+  - `amountMLP` - returning mLP amount to get back stable coin.
+  - `dstTokenAddr` - the stable coin token address to get.
+  - `dstChainId` - the destination chain ID of stable coin to get.
 
-Control Center calls PrimaryVault.initSyncSession()
+This adds to pending withdraw requests buffer.
+Guard condition: overburning should be prevented. Meaning pending mLP to return <= owned mLP
 
-PrimaryVault.initSyncSession()
-- Check if current protocol status is idle. Otherwise reject.
-- Clear snapshotReports. (flag and struct values) Getting ready to accept new SnapshotReports.
+### 3. Optimization Session
 
-### 2. Sync Snapshot
+#### 3-1. Session Start (Protocol Status: Idle -> Optimizing)
+
+Control Center calls `PrimaryVault.initOptimizationSession()`
+
+- PrimaryVault.initOptimizationSession():
+  - Guard condition: Check if current protocol status is idle. Otherwise reject.
+  - Set protocol status as `Optimizing`
+  - PrimaryVault trigger `self.snapshotAndReport()`
+
+#### 2. Take Snapshot and Report
 
 Control Center calls `Vault.snapshotAndReport()` on each (Secondary) Vault
 
 Each (Secondary Vault) does the following:
 
-- Take snapshot of the asset amounts (YOU CAN SKIP NOW)
+- Take snapshot of the asset amounts
     This means turn pending deposits/Withdraws into `staged state`.
-- Prepare snapshot report, which basically says
-    How much stable coin assets are there (in stable coin) - `syncResponse.totalStablecoin`
-    How much pending rewards (in STG) - `syncResponse.totalInmoz`
-    How many pending depositements (in stable Coin)  - `syncResponse.totalPendingDeposits`
-    <!-- How mnay pending Withdraws (in INMOZ)  -->
-- Send snapshot report to primary vault
 
-### 3. Sync Determine
+- Prepare snapshot report.
+  ```sol
+      struct SnapshotReport {
+        uint256 depositRequestAmountSD;
+        uint256 withdrawRequestAmountMLP;
+        uint256 totalStargate;
+        uint256 totalStablecoin;
+        uint256 totalMozaicLp; // Mozaic "LP"
+    }
+  ```
+
+- Send snapshot report to primary vault (LayerZero communication)
+
+#### 3. Determine MLP per Stablecoin Rate
 
 When all sync responses reach to primary vault, it determines the following
 mozaicLpPerStablecoin = totalMozLp / (totalStablecoin + totalStargate*stargatePrice)
-(Check out onSyncResponse() and _syncVaults() in psudocode)
 
 This means that we want to give out mLP in a fair way to new depositors.
-(And also be fair to Withdrawors)
+(And also be fair to Withdrawers)
 
-### 4. Execute Asset Transition Orders
+#### 4. Execute Asset Transition
 
 Asset Transition decision depends on snapshot reports.
 And thus Asset Transision Subsession starts after all snapshot reports arrive primary vault.
-Asset Transision Subsession runs before Sync execution for two purposes:
+Asset Transision Subsession runs before settling requests for two purposes:
 
 - Have enough stablecoin to return, in order to satisfy Withdraw request
 - Update Staking Assets to maximize profit rate
 
-The control center call each vault's `executeOrders()` method with asset transition orders.
+The control center call each vault's `executeActions()` method with proposed actions to execute (=order).
 
-Each asset transition order should guarantee that no value slip out of Mozaic.
+Each asset transition action should guarantee that no value slip out of Mozaic.
 
-### Special Note: The deposit/withdraw requests made while syncing are booked as `pending requests`.
+#### Special Note: The deposit/withdraw requests made while syncing are booked as `pending requests`.
 
 Every deposit/withdraw request goes through the following lifecycle.
 Pending --> Staged --> Accepted
 
-### 5. Accept Requests
+#### 5. Settle Requests
 
-Control Center calls primaryVault.acceptRequestsAllVaults()
+Control Center calls primaryVault.settleRequestsAllVaults()
 
-primaryVault.acceptRequestsAllVaults() send LayerZero message to secondary vaults with mozaicLpPerStablecoin value, which will in turn,
-call secondaryVault.acceptRequests(mozaicLpPerStablecoin)
+primaryVault.settleRequestsAllVaults() send LayerZero message to secondary vaults with mozaicLpPerStablecoin value, which will in turn,
+call secondaryVault.settleRequests(mozaicLpPerStablecoin)
 
-secondaryVault.acceptRequests(mozaicLpPerStablecoin) accept deposit and withdraw requests
+secondaryVault.settleRequests(mozaicLpPerStablecoin) settle deposit and withdraw requests
 
-- Accept deposit request by giving mLP as mozaicLpPerStablecoin rate.
-- Accept withdraw request by burning the mLP and giving the stablecoin as mozaicLpPerStablecoin rate.
+- Settle deposit request by giving mLP as mozaicLpPerStablecoin rate.
+- Settle withdraw request by burning the mLP and giving the stablecoin as mozaicLpPerStablecoin rate.
+- When there's not enough stablecoin to give for a withdraw request, we accept/burn partial amount of mLP. 
+- Each secondary vault send simple LayerZero message to primary vault, saying all requests for the vault are settled.
 
-----
-And thus
-The requests are accepted. And the users mLP amount gets updated.
+As a result:
+The staged requests are now settled. And the users mLP amount gets updated.
+The primary vault will get notified via LayerZero message that all requests are settled
+
+#### 6. Close Session
+
+- Set protocol status as `Idle`
+- Clear snapshotReports. (flags) Getting ready to accept new SnapshotReports.
 
 # At every moment, User state is composed of
 
