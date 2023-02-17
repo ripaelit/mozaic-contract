@@ -2,19 +2,18 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "../interfaces/IOFT.sol";
 import "../libraries/oft/OFTCore.sol";
 import "hardhat/console.sol";
-import "./VaultControlled.sol";
 
-contract MozaicLP is OFTCore, ERC20, IOFT, VaultControlled {
+contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
     constructor(
         string memory _name,
         string memory _symbol,
-        address _lzEndpoint,
-        address _vault
-    ) ERC20(_name, _symbol) OFTCore(_lzEndpoint) VaultControlled(_vault) {
+        address _lzEndpoint
+    ) ERC20(_name, _symbol) OFTCore(_lzEndpoint) {
     }
     function decimals() public view virtual override returns (uint8) {
         return 6;
@@ -71,7 +70,7 @@ contract MozaicLP is OFTCore, ERC20, IOFT, VaultControlled {
         return _amount;
     }
 
-    function mint(address _account, uint256 _amount) public onlyVault {
+    function mint(address _account, uint256 _amount) public onlyOwner {
         _mint(_account, _amount);
     }
 }
