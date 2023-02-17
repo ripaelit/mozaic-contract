@@ -18,7 +18,15 @@ const INFURA_ID = 'e254d35aa64b4c16816163824d9d5b83'
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   solidity: {
-    compilers: [{version: '0.8.9', settings: {optimizer: {enabled:true, runs:200}}}],
+    compilers: [{
+        version: '0.8.9', 
+        settings: {
+            optimizer: {
+                enabled:true, 
+                runs:200
+            }
+        }
+    }],
   },
   // redirect typechain output for the frontend
   typechain: {
@@ -35,19 +43,22 @@ const config: HardhatUserConfig = {
         url: "https://goerli.infura.io/v3/" + INFURA_ID,
         chainId: 5,
         gasPrice: 20000000000,
-        accounts: [GOERLI_PRIVATE_KEY]
+        accounts: [GOERLI_PRIVATE_KEY],
     }
   },
   etherscan: {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
     apiKey: "S1VH5HN4RW22314GI9APVKVFIJ36IH5SXV"
- },
- paths: {
+  },
+  paths: {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
+  },
+  mocha: {
+    timeout: 400000
   }
 };
 

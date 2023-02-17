@@ -1,3 +1,5 @@
+pragma solidity ^0.8.9;
+
 abstract contract VaultControlled {
     address public vault;
     modifier onlyVault() {

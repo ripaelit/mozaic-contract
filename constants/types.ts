@@ -23,3 +23,11 @@ export type StargateDeployments = Map<number, StargateDeploymentOnchain>; // Map
 export type LayerZeroDeployments = Map<number, LZEndpointMock>;           // Map<chainId, LZEndpointMock>
 
 export type StableCoinDeployments = Map<number, Map<string, ERC20>>;      // Map<chainId, Map<coinname, coincontract>>
+
+export enum ActionTypeEnum {
+    Swap = 0,
+    SwapRemote = 1,
+    GetPriceMil = 2,
+    StargateStake = 4,
+    StargateUnstake = 5
+}
