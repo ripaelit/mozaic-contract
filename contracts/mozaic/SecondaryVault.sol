@@ -192,6 +192,8 @@ contract SecondaryVault is NonblockingLzApp {
         mozaicLp = _mozaicLp;
     }
     function setMainChainId(uint16 _chainId) public onlyOwner {
+        console.log("setMainChainId:", _chainId);
+        console.log("selfChainId:", chainId);
         primaryChainId = _chainId;
     }
 
@@ -228,7 +230,10 @@ contract SecondaryVault is NonblockingLzApp {
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
         Pool pool = _getStargatePoolFromToken(_token);
         uint256 _amountSD =  _convertLDtoSD(_token, _amountLD);
+        console.log("_amountSD", _amountSD);
         uint256 _amountLDAccept = _convertSDtoLD(_token, _amountSD);
+        console.log("_amountLDAccept", _amountLDAccept);
+
 
         // transfer stablecoin
         _safeTransferFrom(_token, msg.sender, address(this), _amountLDAccept);
@@ -408,6 +413,7 @@ contract SecondaryVault is NonblockingLzApp {
     function _convertLDtoSD(address _token, uint256 _amountLD) internal view returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
         Pool pool = _getStargatePoolFromToken(_token);
+        console.log(pool.convertRate());
         return  _amountLD.div(pool.convertRate()); // pool.amountLDtoSD(_amountLD);
     }
 

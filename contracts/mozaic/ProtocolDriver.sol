@@ -11,6 +11,6 @@ abstract contract ProtocolDriver is Ownable {
         StargateStake,
         StargateUnstake
     }
-    function execute(ActionType _actionType, bytes calldata _payload) virtual public onlyOwner returns (bytes memory) {
+    function execute(ActionType _actionType, bytes calldata _payload) virtual public returns (bytes memory) {
     }
 }

@@ -23,7 +23,7 @@ contract PancakeSwapDriver is ProtocolDriver {
         pancakeSwapSmartRouter = _pancakeSwapSmartRouter;
     }
 
-    function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public onlyOwner returns (bytes memory) {
+    function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public returns (bytes memory) {
         bytes memory returnData;
         if (actionType == ProtocolDriver.ActionType.Swap) {
             (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));

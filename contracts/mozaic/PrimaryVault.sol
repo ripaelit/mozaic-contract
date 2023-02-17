@@ -50,6 +50,7 @@ contract PrimaryVault is SecondaryVault {
         address _stargateToken,
         address _mozaicLp
     ) SecondaryVault(_lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken, _mozaicLp) {
+        setMainChainId(_chainId);
     }
     function addSecondaryVaults(VaultDescriptor calldata _vault) external onlyOwner {
         // TODO: prevent duplicate of (chainId)
