@@ -13,14 +13,14 @@ contract PancakeSwapDriver is ProtocolDriver {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    address public pancakeSwapSmartRouterOnBsc;
+    address public pancakeSwapSmartRouter;
 
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
     constructor(
-        address _pancakeSwapSmartRouterOnBsc
+        address _pancakeSwapSmartRouter
     ) {
-        pancakeSwapSmartRouterOnBsc = _pancakeSwapSmartRouterOnBsc;
+        pancakeSwapSmartRouter = _pancakeSwapSmartRouter;
     }
 
     function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public onlyOwner returns (bytes memory) {
@@ -41,11 +41,11 @@ contract PancakeSwapDriver is ProtocolDriver {
         FLAG flag = FLAG.STABLE_SWAP;
         //
         // Approve
-        _srcToken.approve(pancakeSwapSmartRouterOnBsc, _amount);
+        _srcToken.approve(pancakeSwapSmartRouter, _amount);
 
         // Swap
-        (bool success, bytes memory returnData) = address(pancakeSwapSmartRouterOnBsc).call(abi.encodeWithSignature("swap(address,address,uint256,uint256,uint8)", _srcToken, _dstToken, _amount, minReturn, flag));
-        require(success, "Failed to access Pancakeswap smart router on BSC");
+        (bool success, bytes memory returnData) = address(pancakeSwapSmartRouter).call(abi.encodeWithSignature("swap(address,address,uint256,uint256,uint8)", _srcToken, _dstToken, _amount, minReturn, flag));
+        require(success, "Failed to access Pancakeswap smart router");
         return returnData;
     }
 }

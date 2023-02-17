@@ -14,5 +14,5 @@ export const testnetTestConstants = {
     amountInitialSTG: BigNumber.from("4000000000000"),                // 4e12
     amountSwapSTG: BigNumber.from("1000000000000"),                   // 1e12
     amountUSDC: BigNumber.from("2000000000000"),         // 1e12
-    pancakeSwapSmartRouterOnBsc: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
+    pancakeSwapSmartRouter: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
 }
