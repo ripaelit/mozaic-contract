@@ -1,4 +1,5 @@
 import { ethers } from 'hardhat';
+import { BigNumber } from 'ethers';
 
 export const testnetTestConstants = {
     chainIds: [
@@ -10,5 +11,6 @@ export const testnetTestConstants = {
     stgMainChainId: 10121,
     USDC: "0xDf0360Ad8C5ccf25095Aa97ee5F2785c8d848620",
     USDT: "0x5BCc22abEC37337630C0E0dd41D64fd86CaeE951",
-    amountSTGs: ethers.BigNumber.from("4000000000000"),                 // 4*1e12
+    amountSTGs: BigNumber.from("4000000000000"),                // 4*1e12
+    amountStake: BigNumber.from("1000000000000000000"),         // 1e18
 }

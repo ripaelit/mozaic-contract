@@ -18,10 +18,9 @@ describe('SecondaryVault', () => {
     let lpStaking: LPStaking;
     let mozaicLP: MozaicLP;
     let secondaryVault: SecondaryVault;
-    let pancakeSwapDriver: PancakeSwapDriver;
 
     beforeEach(async () => {
-        // [deployer] = await ethers.getSigners();
+        [deployer] = await ethers.getSigners();
         
         bridgeFactory = await ethers.getContractFactory('Bridge');
         bridge = bridgeFactory.attach(testnetTestConstants.stgBridge);
@@ -37,19 +36,20 @@ describe('SecondaryVault', () => {
         console.log("Deployed LPStaking: chainId, address, totalAllocPoint:", chainId, lpStaking.address, await lpStaking.totalAllocPoint());
         
         // Deploy MozaicLP
-        mozaicLP = await deployNew("MozaicLP", ["MLP", "MLP", lzEndpoint, secondaryVault.address]) as MozaicLP; // fourth parameter
+        mozaicLP = await deployNew("MozaicLP", ["MLP", "MLP", lzEndpoint]) as MozaicLP; // fourth parameter
 
         // Deploy SecondaryVault
         secondaryVault = await deployNew("SecondaryVault", [lzEndpoint, chainId, router, lpStaking.address, stargateToken.address, mozaicLP.address]) as SecondaryVault;
 
-        // Deploy PancakeSwapDriver
-        pancakeSwapDriver = await deployNew("PancakeSwapDriver") as PancakeSwapDriver;
+        // Transfer Ownership of mozaicLP from deployer to secondaryVault
+        mozaicLP.transferOwnership(secondaryVault.address);
+
     })
     it ("stake and unstake", async () => {
         const stakeAction: SecondaryVault.ActionStruct  = {
             driverIndex: 0, // no meaning for stake
             actionType: ActionTypeEnum.StargateStake,
-            payload: ethers.utils.defaultAbiCoder.encode(["uint256","address"], [BigNumber.from("1000000000000000000"), testnetTestConstants.USDC])
+            payload: ethers.utils.defaultAbiCoder.encode(["uint256","address"], [testnetTestConstants.amountStake, testnetTestConstants.USDC])
         };
         await secondaryVault.connect(deployer).executeActions([stakeAction]);
 

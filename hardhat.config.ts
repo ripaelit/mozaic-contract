@@ -42,8 +42,8 @@ const config: HardhatUserConfig = {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
     apiKey: "S1VH5HN4RW22314GI9APVKVFIJ36IH5SXV"
- },
- paths: {
+  },
+  paths: {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
