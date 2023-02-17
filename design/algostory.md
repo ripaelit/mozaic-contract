@@ -119,6 +119,8 @@ The primary vault will get notified via LayerZero message that all requests are 
 
 #### 6. Close Session
 
+Happens when: primary vault received REQUESTS_SETTLED messages from all secondary vaults.
+
 - Set protocol status as `Idle`
 - Clear snapshotReports. (flags) Getting ready to accept new SnapshotReports.
 
