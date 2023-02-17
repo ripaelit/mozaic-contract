@@ -84,7 +84,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    ProtocolDriver[] protocolDrivers;
+    mapping (uint256=>ProtocolDriver) protocolDrivers;
     address public stargateRouter;
     address public stargateLpStaking;
     address public stargateToken;
@@ -184,13 +184,8 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = MozaicLP(_mozaicLp);
     }
-    function addProtocolDriver(ProtocolDriver _driver) public returns (uint256) {
-        uint256 _index = protocolDrivers.length;
-        for (uint i = 0; i < protocolDrivers.length; i++) {
-            require (protocolDrivers[i]!=_driver, "Cannot add duplicate");
-        }
-        protocolDrivers.push(_driver);
-        return _index;
+    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver) public onlyOwner returns (uint256) {
+        protocolDrivers[_driverId] = _driver;
     }
     function setMozaicLp(MozaicLP _mozaicLp) public onlyOwner {
         // TODO: contract type check
