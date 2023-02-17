@@ -485,8 +485,8 @@ contract SecondaryVault is NonblockingLzApp {
         require (_amountLD > 0, "Cannot stake zero amount");
         uint256 _srcPoolId = _getStargatePoolFromToken(_srcToken).poolId();
         uint256 _dstPoolId = _getStargatePoolFromToken(_dstToken).poolId();
-        
-        _srcToken.approve(stargateRouter, _amountLD);
+
+        IERC20(_srcToken).approve(stargateRouter, _amountLD);
         Router(stargateRouter).swap(_dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
     }
 
