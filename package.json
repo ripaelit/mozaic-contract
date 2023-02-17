@@ -8,6 +8,7 @@
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
     "testpan": "npx hardhat test ./test/onTestnet/PancakeSwapDriver.test.ts",
+    "testsec": "npx hardhat test ./test/onTestnet/SecondaryVault.test.ts",
     "coverage": "yarn build && npx hardhat coverage --temp artifacts --network coverage",
     "postinstall": "yarn compile",
     "lint": "gts lint && npx hardhat check",

@@ -11,6 +11,8 @@ export const testnetTestConstants = {
     stgMainChainId: 10121,
     USDC: "0xDf0360Ad8C5ccf25095Aa97ee5F2785c8d848620",
     USDT: "0x5BCc22abEC37337630C0E0dd41D64fd86CaeE951",
-    amountSTGs: BigNumber.from("4000000000000"),                // 4*1e12
-    amountStake: BigNumber.from("1000000000000000000"),         // 1e18
+    amountInitialSTG: BigNumber.from("4000000000000"),                // 4e12
+    amountSwapSTG: BigNumber.from("1000000000000"),                   // 1e12
+    amountUSDC: BigNumber.from("2000000000000"),         // 1e12
+    pancakeSwapSmartRouterOnBsc: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
 }
