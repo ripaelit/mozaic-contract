@@ -7,22 +7,18 @@ import "hardhat/console.sol";
 contract PancakeSwapDriver is ProtocolDriver {
     //---------------------------------------------------------------------------
     // VARIABLES
-    uint16 public chainId;
     address public protocol;
 
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
     constructor(
-        uint16 _chainId,
-        address _protocol
     ) {
-        chainId = _chainId;
-        protocol = _protocol;
-        console.log("PancakeswapDriver.constructor: protocol:", protocol);
     }
 
     function configDriver(bytes calldata params) public virtual override onlyOwner returns (bytes memory) {
         protocol = abi.decode(params, (address));
+        
+        console.log("PancakeswapDriver.configDriver: protocol:", protocol);
     }
 
     function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public returns (bytes memory) {

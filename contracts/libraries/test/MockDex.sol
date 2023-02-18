@@ -10,15 +10,9 @@ contract MockDex {
     using SafeMath for uint256; 
 
     //---------------------------------------------------------------------------
-    // VARIABLES
-    uint16 chainId;
-
-    //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
     constructor(
-        uint16 _chainId
     ) {
-        chainId = _chainId;
     }
 
     function swap(address _srcToken, address _dstToken, uint256 _amountLD, uint256 minReturn, uint8 flag) public returns (bool, bytes memory) {

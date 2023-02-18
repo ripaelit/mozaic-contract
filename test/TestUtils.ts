@@ -183,10 +183,10 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
     // Deploy Protocal Drivers
     // Get protocol
     const protocol = protocols.get(chainId)!.get("PancakeSwapSmartRouter")!;
-    const config = ethers.utils.defaultAbiCoder.encode(["address"], [protocol]);
+    const configProtocol = ethers.utils.defaultAbiCoder.encode(["address"], [protocol]);
     // 1. Deploy PancakeSwapDriver
     const pancakeSwapDriverFactory = await ethers.getContractFactory('PancakeSwapDriver', owner) as PancakeSwapDriver__factory;
-    const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy(chainId, protocol);
+    const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy();
     await pancakeSwapDriver.deployed();
     console.log("TestUtils.deployMozaic: chainId, pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
 
@@ -197,7 +197,7 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
       const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address);
       await primaryVault.deployed();
-      await primaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+      await primaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, configProtocol);
       vault = primaryVault;
     }
     else {
@@ -206,7 +206,7 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
       const secondaryVault = await secondaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address)
       await secondaryVault.deployed();
       await secondaryVault.connect(owner).setMainChainId(primaryChain);
-      await secondaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+      await secondaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, configProtocol);
       vault = secondaryVault;
     }
     
