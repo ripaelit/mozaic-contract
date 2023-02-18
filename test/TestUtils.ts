@@ -148,7 +148,7 @@ export const newStargateEndpoint = async (
     'STG', 
     lzEndpoint.address,
     stgMainChainId, 
-    exportData.localTestConstants.STGs // 4*1e12
+    BigNumber.from("4000000000000") // 4*1e12   minted to owner
   );
   await stargateToken.deployed();
   stargateDeploymentOnchain.stargateToken = stargateToken;
