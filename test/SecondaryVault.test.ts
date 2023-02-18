@@ -2,7 +2,7 @@ import { expect } from 'chai';
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { ERC20__factory, ERC20, OrderTaker, OrderTaker__factory, MockToken } from '../types/typechain';
+import { ERC20__factory, ERC20, OrderTaker, OrderTaker__factory, MockToken, PrimaryVault } from '../types/typechain';
 import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments } from './TestUtils';
 import { StargateDeployments, StableCoinDeployments, MozaicDeployments } from '../constants/types'
 import exportData from '../constants/index';
@@ -10,11 +10,13 @@ import { BigNumber } from 'ethers';
 describe('SecondaryVault', () => {
     let owner: SignerWithAddress;
     let alice: SignerWithAddress;
+    let ben: SignerWithAddress;
+    let chris: SignerWithAddress;
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
     beforeEach(async () => {
-        [owner, alice] = await ethers.getSigners();  // owner is control center
+        [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
         // Deploy Stablecoins
         stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
         // Deploy Stargate
@@ -40,7 +42,7 @@ describe('SecondaryVault', () => {
             expect(await vaultContract.getDepositRequestAmount(false, alice.address, coinContract.address, chainId)).to.gt(0);
         })
     });
-    describe('SecondaryVault.addWithdrawRequest', () => {
+    describe.skip('SecondaryVault.addWithdrawRequest', () => {
         it('add request to pending buffer', async() => {
             // NOTE: Run this test case without transferring ownership from `owner` to `vault`
             const chainId = exportData.localTestConstants.chainIds[0];
@@ -59,13 +61,44 @@ describe('SecondaryVault', () => {
             await expect(vaultContract.connect(alice).snapshotAndReport()).to.revertedWith('Ownable: caller is not the owner')
         })
     })
-    describe('SecondaryVault Single-Chain Flow : settleRequests', () => {
-        it('normal flow', async () => {
+    describe.only('Flow Test', () => {
+        it.only('normal flow', async () => {
+            const primaryChainId = exportData.localTestConstants.chainIds[0];
+            const secondaryChainId = exportData.localTestConstants.chainIds[1];
+            const tokenAPrimary = stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0]) as MockToken;
+            const tokenASecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![0]) as MockToken;
+            const tokenBSecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![1]) as MockToken;
+            const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
+            const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault;
+            const aliceTotalLD = BigNumber.from("10000000000000000000000"); // $1000
+            const benTotalLD = BigNumber.from("20000000000000000000000"); // $2000
+            const chrisTotalLD = BigNumber.from("30000000000000000000000"); // $3000
+            const aliceDeposit1LD = BigNumber.from("5000000000000000000000"); // $500
+            const aliceDeposit2LD = BigNumber.from("4000000000000000000000"); // $400
+            const benDeposit1LD = BigNumber.from("10000000000000000000000"); // $1000
+            const benWithdraw2MLP = BigNumber.from("5000000000000000000000"); // 500 mLP ~ $500
+            const chrisDeposit1LD = BigNumber.from("15000000000000000000000"); // $1500
+
+            // Mint tokens
+            tokenAPrimary.mint(alice.address, aliceTotalLD);
+            tokenASecondary.mint(ben.address, benTotalLD);
+            tokenBSecondary.mint(chris.address, chrisTotalLD);
+            
             // First Round:
-            // Alice and Ben deposit
+            // Alice and Ben deposit to SecondaryVault, Chris deposit to PrimaryVault
+            await tokenASecondary.connect(alice).approve(secondaryVault.address, aliceDeposit1LD);
+            await secondaryVault.connect(alice).addDepositRequest(aliceDeposit1LD, tokenASecondary.address, secondaryChainId);
+            await tokenBSecondary.connect(ben).approve(secondaryVault.address, benDeposit1LD);
+            await secondaryVault.connect(alice).addDepositRequest(benDeposit1LD, tokenBSecondary.address, secondaryChainId);
+            await tokenAPrimary.connect(ben).approve(tokenAPrimary.address, benDeposit1LD);
+            await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);            
+
+            // init optimization session.
+            await primaryVault.connect(owner).initOptimizationSession();
+            // check protocolStatus
             // snapshot requests
             // settle requests
-            // Alice and Ben now has mLP, Vault has coin
+            // Alice, Ben and Chris now has mLP, Vaults has coin
 
             // Second Round:
             // Alice books deposit

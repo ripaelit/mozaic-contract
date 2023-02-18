@@ -199,14 +199,22 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
       await secondaryVault.connect(owner).setMainChainId(primaryChain);
       vault = secondaryVault;
     }
-    // TODO: Transfer ownership of MozaicLP to Vault
-    await mozaicLp.connect(owner).transferOwnership(vault.address);
     
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,
       mozaicVault: vault
     }
     mozDeploys.set(chainId, mozDeploy);
+  }
+  // Register TrustedRemote
+  for (const [chainIdLeft] of stargateDeployments) {
+    for (const [chainIdRight] of stargateDeployments) {
+      if (chainIdLeft == chainIdRight) continue;
+      await mozDeploys.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemoteAddress(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicVault.address);
+      await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemoteAddress(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicLp.address);
+    }
+    // TODO: Transfer ownership of MozaicLP to Vault
+    await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozDeploys.get(chainIdLeft)!.mozaicVault.address);
   }
   return mozDeploys;  
 }

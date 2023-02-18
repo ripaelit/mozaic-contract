@@ -134,7 +134,7 @@ contract PrimaryVault is SecondaryVault {
 
     function settleRequestsAllVaults() public payable {
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
-        settleRequests(mozaicLpPerStablecoinMil);
+        _settleRequests(mozaicLpPerStablecoinMil);
         for (uint i = 0; i < secondaryVaults.length; i++) {
             VaultDescriptor memory vd = secondaryVaults[i];
             bytes memory lzPayload = abi.encode(PT_ACCEPTREQUESTS, mozaicLpPerStablecoinMil);
