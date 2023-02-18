@@ -59,13 +59,14 @@ contract PrimaryVault is SecondaryVault {
     constructor(
         address _lzEndpoint,
         uint16 _chainId,
+        uint16 _primaryChainId,
         address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp
-    ) SecondaryVault(_lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken, _mozaicLp) {
+    ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateRouter, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
-        setMainChainId(_chainId);
+        // setMainChainId(_chainId);
     }
     function setSecondaryVaults(uint16 _chainId, VaultDescriptor calldata _vault) external onlyOwner {
         require(_chainId != chainId, "Cannot be primary chainID");

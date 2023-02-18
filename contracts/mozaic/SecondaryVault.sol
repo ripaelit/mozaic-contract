@@ -90,7 +90,7 @@ contract SecondaryVault is NonblockingLzApp {
     address public stargateRouter;
     address public stargateLpStaking;
     address public stargateToken;
-    MozaicLP public mozaicLp;
+    address public mozaicLp;
     uint16 public primaryChainId=0;
     uint16 public chainId=0;
     
@@ -175,6 +175,7 @@ contract SecondaryVault is NonblockingLzApp {
     constructor(
         address _lzEndpoint,
         uint16 _chainId,
+        uint16 _primaryChainId,
         address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken,
@@ -184,32 +185,30 @@ contract SecondaryVault is NonblockingLzApp {
         stargateRouter = _stargateRouter;
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
-        mozaicLp = MozaicLP(_mozaicLp);
+        mozaicLp = _mozaicLp;
     }
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
-        console.log("SecondaryVault.setProtocolDriver: _driverId, ProtocolDriver", _driverId, address(_driver));
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
         (bool _success, bytes memory _response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
-        require(_success, "failed to configure driver");
+        require(_success, "Failed to access configDriver in setProtocolDriver");
     }
-    function setMozaicLp(MozaicLP _mozaicLp) public onlyOwner {
-        // TODO: contract type check
-        mozaicLp = _mozaicLp;
-    }
-    function setMainChainId(uint16 _chainId) public onlyOwner {
-        console.log("setMainChainId:", _chainId);
-        console.log("selfChainId:", chainId);
-        primaryChainId = _chainId;
-    }
+    // function setMozaicLp(address _mozaicLp) public onlyOwner {
+    //     // TODO: contract type check
+    //     mozaicLp = _mozaicLp;
+    // }
+    // function setMainChainId(uint16 _chainId) public onlyOwner {
+    //     console.log("setMainChainId:", _chainId);
+    //     console.log("selfChainId:", chainId);
+    //     primaryChainId = _chainId;
+    // }
 
     function executeActions(Action[] calldata _actions) external onlyOwner {
-        console.log("SecondaryVault.executeActions: Actions size:", _actions.length);
         for (uint i = 0; i < _actions.length ; i++) {
             Action calldata _action = _actions[i];
             console.log("SecondaryVault.executeActions: _action.driverIndex:", _action.driverIndex);
             ProtocolDriver _driver = protocolDrivers[_action.driverIndex];
-            console.log("SecondaryVault.executeActions: ProtocolDriver address:", address(_driver));
+            console.log("SecondaryVault.executeActions: protocolDriver:", address(_driver));
             (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
             require(success, "Failed to delegate to ProtocolDriver");
         }
@@ -222,17 +221,15 @@ contract SecondaryVault is NonblockingLzApp {
         require(primaryChainId > 0, "main chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
-        bool _success;
-        bytes memory _data;
-        (_success, _data) =  address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTLDTOSD, _token, _amountLD));
-        require(_success);
-        uint256 _amountSD = uint256(_data);
+        
+        (bool _success, bytes memory _returnData) =  address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTLDTOSD, _token, _amountLD));
+        require(_success, "Failed to access convertLDtoSD in addDepositRequest");
+        uint256 _amountSD = abi.decode(_returnData, (uint256));
         console.log("_amountSD", _amountSD);
-        // 
-        uint256 _amountLDAccept;
-        (_success, _data) = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD, _token, _amountSD));
-        _amountLDAccept = uint256(_data);
-        require(_success);
+        
+        (_success, _returnData) = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD, _token, _amountSD));
+        require(_success, "Failed to access convertSDtoLD in addDepositRequest");
+        uint256 _amountLDAccept = abi.decode(_returnData, (uint256));
         console.log("_amountLDAccept", _amountLDAccept);
 
 
@@ -382,12 +379,13 @@ contract SecondaryVault is NonblockingLzApp {
     function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
+        MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
         RequestBuffer storage reqs = _stagedReqs();
         for (uint i = 0; i < reqs.depositRequestList.length; i++) {
             DepositRequest memory request = reqs.depositRequestList[i];
             uint256 _depositAmount = reqs.depositRequestLookup[request.user][request.token][request.chainId];
             uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
-            mozaicLp.mint(request.user, _amountToMint);
+            mozaicLpContract.mint(request.user, _amountToMint);
             // Reduce Handled Amount from Buffer
             reqs.totalDepositRequestSD = reqs.totalDepositRequestSD.sub(_depositAmount);
             reqs.depositRequestLookup[request.user][request.token][request.chainId] = reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmount);
@@ -396,7 +394,9 @@ contract SecondaryVault is NonblockingLzApp {
         for (uint i = 0; i < reqs.withdrawRequestList.length; i++) {
             WithdrawRequest memory request = reqs.withdrawRequestList[i];
             uint256 _withdrawAmountMLP = reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
-            uint256 _coinToGiveLD = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD,request.token,  _withdrawAmountMLP.div(_mozaicLpPerStablecoinMil).mul(1000000)));
+            (bool success, bytes memory returnData) = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD,request.token,  _withdrawAmountMLP.div(_mozaicLpPerStablecoinMil).mul(1000000)));
+            require(success, "Failed to access convertSDtoLD in _settleRequests");
+            uint256 _coinToGiveLD = abi.decode(returnData, (uint256));
             uint256 _vaultBalance = IERC20(request.token).balanceOf(address(this));
             // Reduce Handled Amount from Buffer
             reqs.totalWithdrawRequestMLP = reqs.totalWithdrawRequestMLP.sub(_withdrawAmountMLP);
@@ -407,12 +407,12 @@ contract SecondaryVault is NonblockingLzApp {
                 // TODO: Check numerical logic.
                 _withdrawAmountMLP = _withdrawAmountMLP.mul(_vaultBalance).div(_coinToGiveLD);
                 // Burn MLP
-                mozaicLp.burn(request.user, _withdrawAmountMLP);
+                mozaicLpContract.burn(request.user, _withdrawAmountMLP);
                 // Give Stablecoin
                 _giveStablecoin(request.user, request.token, _vaultBalance);
             }
             // Burn MLP
-            mozaicLp.burn(request.user, _withdrawAmountMLP);
+            mozaicLpContract.burn(request.user, _withdrawAmountMLP);
             // Give Stablecoin
             _giveStablecoin(request.user, request.token, _coinToGiveLD);
         }

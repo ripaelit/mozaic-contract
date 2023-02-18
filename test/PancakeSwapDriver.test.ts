@@ -28,8 +28,9 @@ describe('PancakeSwapDriver', () => {
         let protocols = new Map<number, Map<string, string>>();
         for (const chainId of exportData.localTestConstants.chainIds) {
             const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-            const mockDex = await mockDexFactory.deploy(chainId);
+            const mockDex = await mockDexFactory.deploy();
             await mockDex.deployed();
+            console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
             mockDexs.set(chainId, mockDex.address);
             protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
         }
@@ -95,7 +96,7 @@ describe('PancakeSwapDriver', () => {
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgContract.address, usdtContract.address]);
 
             // Send STG to SecondaryVault
-            console.log("Send USDC to SecondaryVault");
+            console.log("Send STG to SecondaryVault");
             await stgContract.connect(owner).approve(secondaryVault.address, amountLD);
             await stgContract.connect(owner).transfer(secondaryVault.address, amountLD);
             console.log("SecondaryVault has STG, USDT:", (await stgContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));

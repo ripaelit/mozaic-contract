@@ -26,7 +26,7 @@ describe('SecondaryVault', () => {
         let protocols = new Map<number, Map<string, string>>();
         for (const chainId of exportData.localTestConstants.chainIds) {
             const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-            const mockDex = await mockDexFactory.deploy(chainId);
+            const mockDex = await mockDexFactory.deploy();
             await mockDex.deployed();
             mockDexs.set(chainId, mockDex.address);
             protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
