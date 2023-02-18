@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint } from '../types/typechain';
+import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory } from '../types/typechain';
 import { ERC20Mock } from '../types/typechain';
 import { ERC20Mock__factory } from '../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment } from '../constants/types';
@@ -15,9 +15,9 @@ export const deployStablecoins = async (owner: SignerWithAddress, stablecoins: M
       const coinFactory = (await ethers.getContractFactory('ERC20Mock', owner)) as ERC20Mock__factory;
       const coin = await coinFactory.deploy(stablecoinname, stablecoinname, BigNumber.from("18"));
       await coin.deployed();
-      console.log("Deployed coin: chainId, stablecoinname, address, totalSupply:", chainId, stablecoinname, coin.address, await coin.totalSupply());
+    //   console.log("Deployed coin: chainId, stablecoinname, address, totalSupply:", chainId, stablecoinname, coin.address, await coin.totalSupply());
       coin.connect(owner).mint(owner.address, exportData.localTestConstants.coinTotal); // 1000*1e18
-      console.log("Minted coin to owner: chainId, owner, coin:", chainId, owner.address, await coin.balanceOf(owner.address));
+    //   console.log("Minted coin to owner: chainId, owner, coin:", chainId, owner.address, await coin.balanceOf(owner.address));
       contractsInChain.set(stablecoinname, coin);
     }
     coinContracts.set(chainId, contractsInChain);
@@ -35,7 +35,6 @@ export const deployStargate = async (
   let stargateDeployments : StargateDeployments = new Map<number, StargateDeploymentOnchain>();
   for (const chainId of stablecoinDeployments.keys()!) {
     await newStargateEndpoint(chainId, owner, stargateDeployments, stablecoinDeployments, poolIds, stgMainChainId, stargateChainPaths);
-    console.log("Deployed newStargateEndpoint: stargateDeployments size:", stargateDeployments.size);
   }
 
   return stargateDeployments;
@@ -48,14 +47,13 @@ export const equalize = async (owner: SignerWithAddress, stargateDeployments: St
       for (let i = 0; i < chainPathsLength.toNumber(); i++) {
         let cp = await pool.chainPaths(i);
         await stargateDeployments.get(chainId)!.routerContract.sendCredits(cp.dstChainId, poolId, cp.dstPoolId, owner.address);
-        console.log("TestUtils.equalize: sendCredits: cp.dstChainId, poolId, cp.dstPoolId, owner.address:", cp.dstChainId, poolId, cp.dstPoolId.toNumber(), owner.address);
       }
     }
   }
 }
 
 export const bridgeStargateEndpoints = async (stargateDeployments: StargateDeployments) => {
-  console.log("TestUtils.bridgeStargateEndpoints called");
+//   console.log("TestUtils.bridgeStargateEndpoints called");
   for (const srcChainId of stargateDeployments.keys()!) {
     for (const dstChainId of stargateDeployments.keys()!) {
       if (srcChainId === dstChainId) continue;
@@ -66,14 +64,14 @@ export const bridgeStargateEndpoints = async (stargateDeployments: StargateDeplo
       if (remoteBridge === "0x") {
         // set it if its not set
         await stargateSrc.bridgeContract.setBridge(dstChainId, stargateDst.bridgeContract.address);
-        console.log("TestUtils.bridgeStargateEndpoints: setBridge: ", srcChainId, dstChainId, stargateDst.bridgeContract.address);
+        // console.log("TestUtils.bridgeStargateEndpoints: setBridge: ", srcChainId, dstChainId, stargateDst.bridgeContract.address);
       }
 
       const destLzEndpoint = await stargateSrc.lzEndpoint.lzEndpointLookup(stargateDst.bridgeContract.address);
       if (destLzEndpoint === "0x0000000000000000000000000000000000000000") {
         // set it if its not set
         await stargateSrc.lzEndpoint.setDestLzEndpoint(stargateDst.bridgeContract.address, stargateDst.lzEndpoint.address);
-        console.log("TestUtils.bridgeStargateEndpoints: setDestLzEndpoint: bridge, lzEndpoint:", stargateDst.bridgeContract.address, stargateDst.lzEndpoint.address)
+        // console.log("TestUtils.bridgeStargateEndpoints: setDestLzEndpoint: bridge, lzEndpoint:", stargateDst.bridgeContract.address, stargateDst.lzEndpoint.address)
       }
     }
   }
@@ -88,34 +86,34 @@ export const newStargateEndpoint = async (
   stgMainChainId: number, 
   stargateChainPaths: Array<StargateChainPath>) => {
   let stargateDeploymentOnchain = {} as StargateDeploymentOnchain;
-  console.log("TestUtils.newStargateEndpoint started: _chainId, stgMainchainId:", _chainId, stgMainChainId);
+//   console.log("TestUtils.newStargateEndpoint started: _chainId, stgMainchainId:", _chainId, stgMainChainId);
 
   // Deploy LzEndpoint
   const lzEndpointFactory = (await ethers.getContractFactory('LZEndpointMock', owner)) as LZEndpointMock__factory;
   const lzEndpoint = await lzEndpointFactory.deploy(_chainId);
   await lzEndpoint.deployed();
-  console.log("Deployed LZEndpoint: chainId, address:", _chainId, lzEndpoint.address);
+//   console.log("Deployed LZEndpoint: chainId, address:", _chainId, lzEndpoint.address);
   stargateDeploymentOnchain.lzEndpoint = lzEndpoint;
   
   // Deploy Router
   const routerFactory = (await ethers.getContractFactory('Router', owner)) as Router__factory;
   const router = await routerFactory.deploy();
   await router.deployed();
-  console.log("Deployed Router: chainId, address:", _chainId, router.address);
+//   console.log("Deployed Router: chainId, address:", _chainId, router.address);
   stargateDeploymentOnchain.routerContract = router;
 
   // Deploy Bridge
   const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
   const bridge = await bridgeFactory.deploy(lzEndpoint.address, router.address);
   await bridge.deployed();
-  console.log("Deployed Bridge: chainId, address:", _chainId, bridge.address);
+//   console.log("Deployed Bridge: chainId, address:", _chainId, bridge.address);
   stargateDeploymentOnchain.bridgeContract = bridge;
   
   // Deploy Factory
   const factoryFactory = (await ethers.getContractFactory('Factory', owner)) as Factory__factory;
   const factory = await factoryFactory.deploy(router.address);
   await factory.deployed();
-  console.log("Deployed Factory: chainId, address:", _chainId, factory.address);
+//   console.log("Deployed Factory: chainId, address:", _chainId, factory.address);
   stargateDeploymentOnchain.factoryContract = factory;
 
   // Deploy FeeLibrary
@@ -156,7 +154,7 @@ export const newStargateEndpoint = async (
   );
   await stargateToken.deployed();
   stargateDeploymentOnchain.stargateToken = stargateToken;
-  console.log("Deployed StargateToken: chainId, address, totalSupply:", _chainId, stargateToken.address, await stargateToken.totalSupply());
+//   console.log("Deployed StargateToken: chainId, address, totalSupply:", _chainId, stargateToken.address, await stargateToken.totalSupply());
 
   // Deploy LPStaking contract
   const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner));
@@ -164,7 +162,7 @@ export const newStargateEndpoint = async (
   const lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("100000"), latestBlockNumber + 3, latestBlockNumber + 3);
   await lpStaking.deployed();
   stargateDeploymentOnchain.lpStakingContract = lpStaking;
-  console.log("Deployed LPStaking: chainId, address, totalAllocPoint:", _chainId, lpStaking.address, await lpStaking.totalAllocPoint());
+//   console.log("Deployed LPStaking: chainId, address, totalAllocPoint:", _chainId, lpStaking.address, await lpStaking.totalAllocPoint());
 
   stargateDeployments.set(_chainId, stargateDeploymentOnchain);
 
@@ -174,21 +172,32 @@ export const newStargateEndpoint = async (
   return stargateDeploymentOnchain;
 }
 
-export const deployMozaic = async (owner: SignerWithAddress, primaryChain: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, stablecoinDeployments: StableCoinDeployments) => {
+export const deployMozaic = async (owner: SignerWithAddress, primaryChain: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, protocols: Map<number, Map<string,string>>) => {
   let mozDeploys = new Map<number, MozaicDeployment>();
-  for (const [chainId, stgOnChain] of stargateDeployments) {
-    const stgDeploy = stargateDeployments.get(chainId)!
-
+  for (const [chainId, stgDeploy] of stargateDeployments) {
     // Deploy MozaicLP
     const mozaicLpFactory = await ethers.getContractFactory('MozaicLP', owner) as MozaicLP__factory;
     const mozaicLp = await mozaicLpFactory.deploy("MozaicLP", "mLP", layerzeroDeployments.get(chainId)!.address);
     await mozaicLp.deployed();
-    let vault
+
+    // Deploy Protocal Drivers
+    // Get protocol
+    const protocol = protocols.get(chainId)!.get("PancakeSwapSmartRouter")!;
+    console.log("TestUtils.deployMozaic: chainId, protocol:", chainId, protocol);
+    // 1. Deploy PancakeSwapDriver
+    const pancakeSwapDriverFactory = await ethers.getContractFactory('PancakeSwapDriver', owner) as PancakeSwapDriver__factory;
+    const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy(chainId, protocol);
+    await pancakeSwapDriver.deployed();
+    console.log("TestUtils.deployMozaic: chainId, pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
+
+    // Deploy Vault
+    let vault;
     if (chainId == primaryChain) {
       // Deploy PrimaryVault
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
       const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address);
       await primaryVault.deployed();
+      await primaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address);
       vault = primaryVault;
     }
     else {
@@ -197,12 +206,13 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
       const secondaryVault = await secondaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address)
       await secondaryVault.deployed();
       await secondaryVault.connect(owner).setMainChainId(primaryChain);
+      await secondaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address);
       vault = secondaryVault;
     }
     
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,
-      mozaicVault: vault
+      mozaicVault: vault,
     }
     mozDeploys.set(chainId, mozDeploy);
   }

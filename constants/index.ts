@@ -82,6 +82,7 @@ const localTestConstants = {
   coinStake:      ethers.BigNumber.from("3000000000000000000"),           // 3*1e18
   coinSwap:       ethers.BigNumber.from("1000000000000000000"),           // 1*1e18
   STGs:           ethers.BigNumber.from("4000000000000"),                 // 4*1e12
+  pancakeSwapDriverId:  1,
 };
 
 const contractConstants = {};

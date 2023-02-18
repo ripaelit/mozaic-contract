@@ -87,7 +87,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    mapping (uint256=>ProtocolDriver) protocolDrivers;
+    mapping (uint256=>ProtocolDriver) public protocolDrivers;
     address public stargateRouter;
     address public stargateLpStaking;
     address public stargateToken;
@@ -188,6 +188,7 @@ contract SecondaryVault is NonblockingLzApp {
         mozaicLp = MozaicLP(_mozaicLp);
     }
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver) public onlyOwner returns (uint256) {
+        console.log("SecondaryVault.setProtocolDriver: _driverId, ProtocolDriver", _driverId, address(_driver));
         protocolDrivers[_driverId] = _driver;
     }
     function setMozaicLp(MozaicLP _mozaicLp) public onlyOwner {
@@ -201,6 +202,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function executeActions(Action[] calldata _actions) external onlyOwner {
+        console.log("SecondaryVault.executeActions: Actions size:", _actions.length);
         for (uint i = 0; i < _actions.length ; i++) {
             // NOTE: PoC: stake and unstake is handled by self. Move to StargateDriver after PoC
             Action calldata _action = _actions[i];
@@ -217,7 +219,9 @@ contract SecondaryVault is NonblockingLzApp {
                 _swapRemote(_amountLD, _srcToken, _dstChainId, _dstToken);
             }
             else {
+                console.log("SecondaryVault.executeActions: _action.driverIndex:", _action.driverIndex);
                 ProtocolDriver _driver = protocolDrivers[_action.driverIndex];
+                console.log("SecondaryVault.executeActions: ProtocolDriver address:", address(_driver));
                 (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
                 require(success, "Failed to delegate to ProtocolDriver");
             }

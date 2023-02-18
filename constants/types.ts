@@ -21,7 +21,7 @@ export interface StargateDeploymentOnchain {
 
 export type MozaicDeployment = {
   mozaicLp: MozaicLP,
-  mozaicVault: SecondaryVault
+  mozaicVault: SecondaryVault,
 };
 
 export type StargateDeployments = Map<number, StargateDeploymentOnchain>; // Map<chainId, StargateDeploymentOnchain>
