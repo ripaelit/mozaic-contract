@@ -7,7 +7,7 @@
     "clean": "npx hardhat clean",
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "testpan": "npx hardhat test ./test/onTestnet/PancakeSwapDriver.test.ts",
+    "testpan": "npx hardhat test ./test/PancakeSwapDriver.test.ts",
     "testsec": "npx hardhat test ./test/onTestnet/SecondaryVault.test.ts",
     "testvault": "npx hardhat test ./test/SecondaryVault.test.ts",
     "coverage": "yarn build && npx hardhat coverage --temp artifacts --network coverage",

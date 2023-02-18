@@ -23,8 +23,6 @@ contract PancakeSwapDriver is ProtocolDriver {
 
     function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public returns (bytes memory) {
         console.log("PancakeSwapDriver.execute: msg.sender:", msg.sender);
-        console.log("PancakeSwapDriver.execute: address(this).protocol():", PancakeSwapDriver(this).protocol());
-        // console.log("PancakeSwapDriver.execute: this.protocol:", this.protocol);
         bytes memory returnData;
         if (actionType == ProtocolDriver.ActionType.Swap) {
             (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));
