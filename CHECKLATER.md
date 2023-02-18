@@ -19,3 +19,5 @@ overall, avoid using contract types directly, instead use address type, and use 
 - "TestUtils" -> "DeployUtils"
 
 ### Business Logic
+
+#### SecondaryVault should check if sourceChain, sourceAddress are of the PrimaryVault.
