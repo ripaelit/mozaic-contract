@@ -367,13 +367,13 @@ contract SecondaryVault is NonblockingLzApp {
 
         if (packetType == PT_ACCEPTREQUESTS) {
             (, uint256 _mozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
-            settleRequests(_mozaicLpPerStablecoinMil);
+            _settleRequests(_mozaicLpPerStablecoinMil);
         } else {
             emit UnexpectedLzMessage(packetType, _payload);
         }
     }
     
-    function settleRequests(uint256 _mozaicLpPerStablecoinMil) public {
+    function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         RequestBuffer storage reqs = _stagedReqs();

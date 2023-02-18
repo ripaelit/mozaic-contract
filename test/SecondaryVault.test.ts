@@ -53,7 +53,37 @@ describe('SecondaryVault', () => {
         })
     })
     describe('SecondaryVault.snapshotAndReport', () => {
-        it('')
+        it('only owner can call', async() => {
+            const chainId = exportData.localTestConstants.chainIds[1];
+            const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
+            await expect(vaultContract.connect(alice).snapshotAndReport()).to.revertedWith('Ownable: caller is not the owner')
+        })
+    })
+    describe('SecondaryVault Single-Chain Flow : settleRequests', () => {
+        it('normal flow', async () => {
+            // First Round:
+            // Alice and Ben deposit
+            // snapshot requests
+            // settle requests
+            // Alice and Ben now has mLP, Vault has coin
+
+            // Second Round:
+            // Alice books deposit
+            // Ben books withdraw (half of his mLP)
+            // snapshot requests
+            // settle requests
+        })
+    })
+    describe('Snapshot Flow', () => {
+        it('It needs to begin with PrimaryVault.initOptimizationSession()', async() => {
+
+        })
+        it('Reports flow from SecondaryVault to PrimaryVault', async() => {
+
+        })
+        it('When all reports are collected PrimaryVault calculate mozaicLpPerStablecoin; Flags and other variables set correctly', async() => {
+
+        })
     })
 });
 
