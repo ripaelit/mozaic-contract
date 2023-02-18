@@ -4,7 +4,7 @@ import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ERC20__factory, ERC20, OrderTaker, OrderTaker__factory, MockToken, PrimaryVault, MockDex__factory } from '../types/typechain';
 import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployments } from '../constants/types'
+import { StargateDeployments, StableCoinDeployments, MozaicDeployments, ProtocolStatus, VaultStatus } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
 describe('SecondaryVault', () => {
@@ -124,6 +124,9 @@ describe('SecondaryVault', () => {
             // init optimization session.
             await primaryVault.connect(owner).initOptimizationSession();
             // check protocolStatus
+            expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
+            
+
             // snapshot requests
             // settle requests
             // Alice, Ben and Chris now has mLP, Vaults has coin

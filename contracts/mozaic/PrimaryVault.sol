@@ -19,6 +19,20 @@ contract PrimaryVault is SecondaryVault {
     // EVENTS
     
     //--------------------------------------------------------------------------
+    // ENUMS
+    enum ProtocolStatus {
+        IDLE,
+        OPTIMIZING
+    }
+    enum VaultStatus {
+        IDLE,
+        SNAPSHOTTING,
+        SNAPSHOTTED,
+        SETTLING,
+        SETTLED
+    }
+
+    //--------------------------------------------------------------------------
     // STRUCTS
     struct VaultDescriptor {
         uint16 chainId;
@@ -27,16 +41,18 @@ contract PrimaryVault is SecondaryVault {
 
     //---------------------------------------------------------------------------
     // VARIABLES
+    ProtocolStatus public protocolStatus;
+
     uint16[] public secondaryChainIds;
-    
-    VaultDescriptor[] public secondaryVaults;
-    function secondaryVaultsLength() public view returns (uint256) {
-        return secondaryVaults.length;
+    mapping(uint16 => VaultDescriptor) public secondaryVaults;
+    mapping(uint16 => VaultStatus) public secondaryVaultStatus;
+
+    function secondaryChainIdsLength() public view returns (uint256) {
+        return secondaryChainIds.length;
     }
-    mapping (uint16 => uint256) public secondaryVaultIndex; // chainId -> index in secondaryVaults
+    // mapping (uint16 => uint256) public secondaryVaultIndex; // chainId -> index in secondaryVaults
 
     mapping (uint16 => SnapshotReport) public snapshotReport; // chainId -> SnapshotReport
-    mapping (uint16 => bool) public snapshotReportFlag; // true - arrived false - not arrived
 
     uint256 public mozaicLpPerStablecoinMil=0; // mozLP/stablecoinSD*1_000_000
     uint256 public constant INITIAL_MLP_PER_COIN_MIL=1000000;
@@ -51,28 +67,39 @@ contract PrimaryVault is SecondaryVault {
         address _stargateToken,
         address _mozaicLp
     ) SecondaryVault(_lzEndpoint, _chainId, _stargateRouter, _stargateLpStaking, _stargateToken, _mozaicLp) {
+        protocolStatus = ProtocolStatus.IDLE;
         setMainChainId(_chainId);
     }
-    function addSecondaryVaults(VaultDescriptor calldata _vault) external onlyOwner {
-        // TODO: prevent duplicate of (chainId)
-        // TODO: prevent duplicate of (chainId, vaultAddress)
-        secondaryVaults.push(_vault);
+    function setSecondaryVaults(uint16 _chainId, VaultDescriptor calldata _vault) external onlyOwner {
+        require(_chainId != chainId, "Secondary Chain ID cannot be of Primary");
+        bool _already = false;
+        for (uint i = 0; i < secondaryChainIds.length; i++) {
+            if (secondaryChainIds[i]==_chainId) {
+                _already = true;
+                break;
+            }
+        }
+        if (!_already) {
+            secondaryChainIds.push(_chainId);
+        }
+        secondaryVaults[_chainId]=_vault;
     }
 
     function initOptimizationSession() public onlyOwner {
+        require(protocolStatus == ProtocolStatus.IDLE, "Needs to be idle before start optimizing");
         // reset
         mozaicLpPerStablecoinMil = 0;
-        // TODO: reset snapshotReport, snapshotReportFlag;
-        // Check staged ...
-        require(_stagedReqs().totalWithdrawRequestMLP == 0, "Staged request should be all processessed");
-        require(_stagedReqs().totalDepositRequestSD == 0, "Staged request should be all processessed");
+        protocolStatus = ProtocolStatus.OPTIMIZING;
+        secondaryVaultStatus[chainId] = VaultStatus.SNAPSHOTTING;
+        for (uint i = 0; i < secondaryChainIds.length; i++) {
+            secondaryVaultStatus[secondaryChainIds[i]] = VaultStatus.SNAPSHOTTING;
+        }
     }
 
     /**
      * Call this with zero gas
      */
     function snapshotAndReport() virtual override public payable onlyOwner {
-        require(!snapshotReportFlag[chainId], "Report is already ready");
         // Processing Amount Should be Zero!
         require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
@@ -89,15 +116,22 @@ contract PrimaryVault is SecondaryVault {
         if (packetType == PT_REPORTSNAPSHOT) {
             (, SnapshotReport memory _report) = abi.decode(_payload, (uint16, SnapshotReport));
             _acceptSnapshotReport(_srcChainId, _report);
-        } else {
+        } 
+        else if (packetType == PT_SETTLED_REQUESTS) {
+            secondaryVaultStatus[_srcChainId] = VaultStatus.SETTLED;
+            if (checkRequestsSettledAllVaults()) {
+                _resetProtocolStatus();
+            }
+        }
+        else {
             emit UnexpectedLzMessage(packetType, _payload);
             // super._nonblockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
         }
     }
     function _acceptSnapshotReport(uint16 _srcChainId, SnapshotReport memory _report) internal {
-        require(!snapshotReportFlag[_srcChainId], "Report is already ready");
+        require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Accept Report: prevStatus=SNAPSHOTTING");
         snapshotReport[_srcChainId] = _report;
-        snapshotReportFlag[_srcChainId] = true;
+        secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTED;
         if (checkAllSnapshotReportReady()) {
             calculateMozLpPerStablecoinMil();
         }
@@ -121,11 +155,19 @@ contract PrimaryVault is SecondaryVault {
         }
     }
     function checkAllSnapshotReportReady() public view returns (bool) {
-        if (!snapshotReportFlag[chainId]) {
+        if (secondaryVaultStatus[chainId]!=VaultStatus.SNAPSHOTTED) {
             return false;
         }
         for (uint i = 0; i < secondaryChainIds.length ; i++) {
-            if (!snapshotReportFlag[secondaryChainIds[i]]) {
+            if (secondaryVaultStatus[secondaryChainIds[i]]!=VaultStatus.SNAPSHOTTED) {
+                return false;
+            }
+        }
+        return true;
+    }
+    function checkRequestsSettledAllVaults() public view returns (bool) {
+        for (uint i=0; i < secondaryChainIds.length; i++) {
+            if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.SETTLED) {
                 return false;
             }
         }
@@ -133,18 +175,33 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function settleRequestsAllVaults() public payable {
+        require(checkAllSnapshotReportReady(), "Settle-All: Requires all reports");
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
         _settleRequests(mozaicLpPerStablecoinMil);
-        for (uint i = 0; i < secondaryVaults.length; i++) {
-            VaultDescriptor memory vd = secondaryVaults[i];
-            bytes memory lzPayload = abi.encode(PT_ACCEPTREQUESTS, mozaicLpPerStablecoinMil);
+        secondaryVaultStatus[chainId] = VaultStatus.SETTLED;
+        for (uint i = 0; i < secondaryChainIds.length; i++) {
+            VaultDescriptor memory vd = secondaryVaults[secondaryChainIds[i]];
+            secondaryVaultStatus[secondaryChainIds[i]] = VaultStatus.SETTLING;
+            bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
             _lzSend(vd.chainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
         }
     }
 
+    function _resetProtocolStatus() internal {
+        for (uint i=0; i < secondaryChainIds.length; i++) {
+            secondaryVaultStatus[secondaryChainIds[i]] = VaultStatus.IDLE;
+        }
+        protocolStatus = ProtocolStatus.IDLE;
+    }
     //---------------------------------------------------------------------------
     // INTERNAL
+
+    /**
+    * NOTE: PoC: need to move to StargateDriver in next phase of development.
+     */
     function _getStargatePriceMil() internal returns (uint256) {
-        return 0;
+        // PoC: right now deploy to TestNet only. We work with MockSTG token and Mocked Stablecoins.
+        // And thus we don't have real DEX market.
+        return 1000000;
     }
 }

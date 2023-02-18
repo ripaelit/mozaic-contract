@@ -111,7 +111,9 @@ secondaryVault.settleRequests(mozaicLpPerStablecoin) settle deposit and withdraw
 - Settle deposit request by giving mLP as mozaicLpPerStablecoin rate.
 - Settle withdraw request by burning the mLP and giving the stablecoin as mozaicLpPerStablecoin rate.
 - When there's not enough stablecoin to give for a withdraw request, we accept/burn partial amount of mLP. 
-- Each secondary vault send simple LayerZero message to primary vault, saying all requests for the vault are settled.
+- When all requests are handled the sum of staged requests becomes zero.
+- PoC: The control center awaits till all requests are handled and call `secondaryVault.reportSettled()`
+- secondaryVault.reportSettled() sends simple LayerZero message to primary vault, saying all requests for the vault are settled.
 
 As a result:
 The staged requests are now settled. And the users mLP amount gets updated.

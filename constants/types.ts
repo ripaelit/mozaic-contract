@@ -39,3 +39,16 @@ export enum ActionTypeEnum {
     StargateStake = 4,
     StargateUnstake = 5
 }
+
+export enum ProtocolStatus {
+  IDLE = 0,
+  OPTIMIZING = 1,
+}
+
+export enum VaultStatus {
+  IDLE = 0,
+  SNAPSHOTTING = 1,
+  SNAPSHOTTED = 2,
+  SETTLING = 3,
+  SETTLED = 4,
+}

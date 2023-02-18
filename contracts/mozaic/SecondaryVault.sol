@@ -36,7 +36,8 @@ contract SecondaryVault is NonblockingLzApp {
     //--------------------------------------------------------------------------
     // CONSTANTS
     uint16 public constant PT_REPORTSNAPSHOT = 10001;
-    uint16 public constant PT_ACCEPTREQUESTS = 10002;
+    uint16 public constant PT_SETTLE_REQUESTS = 10002;
+    uint16 public constant PT_SETTLED_REQUESTS = 10003;
     //---------------------------------------------------------------------------
     // STRUCTS
     /// @title: Action Parameters for Each Type:
@@ -325,6 +326,14 @@ contract SecondaryVault is NonblockingLzApp {
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
         _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
     }
+    function _clearPendingBuffer() internal {
+        // Clear Pending
+        RequestBuffer storage pending = _pendingReqs();
+        require(pending.totalDepositRequestSD == 0, "_clearPendingBuffer: expected totalDeposit = 0");
+        require(pending.totalDepositRequestSD == 0, "_clearPendingBuffer: expected totalWithdraw = 0");
+        delete pending.depositRequestList;
+        delete pending.withdrawRequestList;
+    }
     function _snapshot() internal virtual returns (SnapshotReport memory report){
         // Take Snapshot: Pending --> Processing
         bufferFlag = !bufferFlag;
@@ -369,7 +378,7 @@ contract SecondaryVault is NonblockingLzApp {
             packetType := mload(add(_payload, 32))
         }
 
-        if (packetType == PT_ACCEPTREQUESTS) {
+        if (packetType == PT_SETTLE_REQUESTS) {
             (, uint256 _mozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
             _settleRequests(_mozaicLpPerStablecoinMil);
         } else {
@@ -386,14 +395,42 @@ contract SecondaryVault is NonblockingLzApp {
             uint256 _depositAmount = reqs.depositRequestLookup[request.user][request.token][request.chainId];
             uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
             mozaicLp.mint(request.user, _amountToMint);
+            // Reduce Handled Amount from Buffer
+            reqs.totalDepositRequestSD = reqs.totalDepositRequestSD.sub(_depositAmount);
+            reqs.depositRequestLookup[request.user][request.token][request.chainId] = reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmount);
         }
-        // TODO: for all withdraw reuqests, burn MozaicLp and give stablecoin.
+
         for (uint i = 0; i < reqs.withdrawRequestList.length; i++) {
             WithdrawRequest memory request = reqs.withdrawRequestList[i];
-            uint256 _withdrawAmountLP = reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
-            uint256 _coinToGiveLD = _convertSDtoLD(request.token, _withdrawAmountLP.div(_mozaicLpPerStablecoinMil).mul(1000000));
+            uint256 _withdrawAmountMLP = reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
+            uint256 _coinToGiveLD = _convertSDtoLD(request.token, _withdrawAmountMLP.div(_mozaicLpPerStablecoinMil).mul(1000000));
+            uint256 _vaultBalance = IERC20(request.token).balanceOf(address(this));
+            // Reduce Handled Amount from Buffer
+            reqs.totalWithdrawRequestMLP = reqs.totalWithdrawRequestMLP.sub(_withdrawAmountMLP);
+            reqs.withdrawForUserMLP[request.user] = reqs.withdrawForUserMLP[request.user].sub(_withdrawAmountMLP);
+            reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = reqs.withdrawRequestLookup[request.user][request.chainId][request.token].sub(_withdrawAmountMLP);
+            if (_vaultBalance <= _coinToGiveLD) {
+                // The vault does not have enough balance. Only give as much as it has.
+                // TODO: Check numerical logic.
+                _withdrawAmountMLP = _withdrawAmountMLP.mul(_vaultBalance).div(_coinToGiveLD);
+                // Burn MLP
+                mozaicLp.burn(request.user, _withdrawAmountMLP);
+                // Give Stablecoin
+                _giveStablecoin(request.user, request.token, _vaultBalance);
+            }
+            // Burn MLP
+            mozaicLp.burn(request.user, _withdrawAmountMLP);
+            // Give Stablecoin
             _giveStablecoin(request.user, request.token, _coinToGiveLD);
         }
+    }
+
+    function reportSettled() public payable {
+        require(_stagedReqs().totalDepositRequestSD==0);
+        require(_stagedReqs().totalWithdrawRequestMLP==0);
+        // report to primary vault
+        bytes memory lzPayload = abi.encode(PT_SETTLED_REQUESTS);
+        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
     }
 
     /**
