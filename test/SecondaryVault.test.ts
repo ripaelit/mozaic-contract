@@ -31,7 +31,7 @@ describe('SecondaryVault', () => {
             const aliceBalBefore = await coinContract.balanceOf(alice.address);
             await coinContract.connect(alice).approve(vaultContract.address, amountLD);
             await vaultContract.connect(alice).addDepositRequest(amountLD, coinContract.address, chainId);
-            // fund move from coinContract to vault
+            // fund move from Alice to vault
             expect(await coinContract.balanceOf(alice.address)).to.lt(aliceBalBefore);
             expect(await coinContract.balanceOf(alice.address)).to.eq(0);
             expect(await coinContract.balanceOf(vaultContract.address)).to.eq(amountLD);
