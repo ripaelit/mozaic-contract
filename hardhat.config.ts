@@ -8,6 +8,7 @@ import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-solhint';
 import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomiclabs/hardhat-ethers';
+import "hardhat-contract-sizer";
 
 const ALCHEMY_API_KEY = "SdxE5xrDm_WJBQSMjcHb3qKh68T5ILxD";
 
@@ -23,7 +24,7 @@ const config: HardhatUserConfig = {
         settings: {
             optimizer: {
                 enabled:true, 
-                runs:200
+                runs:1
             }
         }
     }],
@@ -34,8 +35,8 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      gas: 30000000,
-      gasPrice: 8000000000
+      gas: 30000000, //"auto", // 30000000
+      gasPrice: "auto",// 8000000000
     },
     localhost: {},
     goerli: {
