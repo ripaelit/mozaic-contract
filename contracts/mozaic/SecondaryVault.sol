@@ -188,9 +188,12 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = MozaicLP(_mozaicLp);
     }
-    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver) public onlyOwner {
+    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
         console.log("SecondaryVault.setProtocolDriver: _driverId, ProtocolDriver", _driverId, address(_driver));
         protocolDrivers[_driverId] = _driver;
+        // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
+        (bool _success, bytes memory _response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
+        require(_success, "failed to configure driver");
     }
     function setMozaicLp(MozaicLP _mozaicLp) public onlyOwner {
         // TODO: contract type check
