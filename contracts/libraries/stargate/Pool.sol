@@ -438,7 +438,6 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         batched = _batched;
         swapDeltaBP = _swapDeltaBP;
         lpDeltaBP = _lpDeltaBP;
-        console.log("Pool.setDeltaParam: lpDeltaBP:", lpDeltaBP);
         defaultSwapMode = _defaultSwapMode;
         defaultLPMode = _defaultLPMode;
         emit DeltaParamUpdated(_batched, _swapDeltaBP, _lpDeltaBP, _defaultSwapMode, _defaultLPMode);
