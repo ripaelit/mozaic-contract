@@ -21,6 +21,8 @@ contract SecondaryVault is NonblockingLzApp {
     event DepositRequestAdded (
         address indexed depositor,
         address indexed token,
+        uint16 indexed chainId,
+        uint256 amountLD,
         uint256 amountSD
     );
 
@@ -78,6 +80,7 @@ contract SecondaryVault is NonblockingLzApp {
         // withdraw
         mapping (address => mapping (uint16 => mapping (address => uint256))) withdrawRequestLookup; // [user][chainId][token] = amountMLP
         WithdrawRequest[] withdrawRequestList;
+        mapping (address => uint256) withdrawForUserMLP; // [user] = amountMLP
         uint256 totalWithdrawRequestMLP;
     }
 
@@ -267,7 +270,7 @@ contract SecondaryVault is NonblockingLzApp {
         // 3. Update totalDepositRequestSD
         buffer.totalDepositRequestSD = buffer.totalDepositRequestSD.add(_amountSD);
 
-        emit DepositRequestAdded(_depositor, _token, _amountSD);
+        emit DepositRequestAdded(_depositor, _token, _chainId, _amountLDAccept, _amountSD);
     }
 
     function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
@@ -276,11 +279,14 @@ contract SecondaryVault is NonblockingLzApp {
         address _withdrawer = msg.sender;
         RequestBuffer storage buffer;
         buffer = _pendingReqs();
+        RequestBuffer storage stagedBuffer;
+        stagedBuffer = _stagedReqs();
         // check if the user has enough balance
-        require (buffer.withdrawRequestLookup[_withdrawer][_chainId][_token].add(_amountMLP) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned INMOZ");
-        // check token
-
-
+        buffer.withdrawForUserMLP[_withdrawer] = buffer.withdrawForUserMLP[_withdrawer].add(_amountMLP);
+        console.log("buffer.withdrawForUserMLP[_withdrawer]", buffer.withdrawForUserMLP[_withdrawer]);
+        console.log("stagedBuffer.withdrawForUserMLP[_withdrawer]", stagedBuffer.withdrawForUserMLP[_withdrawer]);
+        require (buffer.withdrawForUserMLP[_withdrawer].add(stagedBuffer.withdrawForUserMLP[_withdrawer]) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
+        
         // book request
         // 1. Update withdrawRequestList
         bool _exists = false;
@@ -314,12 +320,16 @@ contract SecondaryVault is NonblockingLzApp {
         // Processing Amount Should be Zero!
         require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
-        
+        SnapshotReport memory report = _snapshot();
+        // Send Report
+        bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
+        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+    }
+    function _snapshot() internal virtual returns (SnapshotReport memory report){
         // Take Snapshot: Pending --> Processing
         bufferFlag = !bufferFlag;
 
         // Make Report
-        SnapshotReport memory report;
         uint256 _totalStablecoin = 0;
         for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++) {
             // 1. Collect pending STG rewards
@@ -335,10 +345,6 @@ contract SecondaryVault is NonblockingLzApp {
         report.depositRequestAmountSD = _stagedReqs().totalDepositRequestSD;
         report.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
         report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        
-        // Send Report
-        bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
-        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
     }
 
     //---------------------------------------------------------------------------

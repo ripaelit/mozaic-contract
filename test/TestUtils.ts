@@ -209,7 +209,9 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
       await secondaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address);
       vault = secondaryVault;
     }
-
+    // TODO: Transfer ownership of MozaicLP to Vault
+    await mozaicLp.connect(owner).transferOwnership(vault.address);
+    
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,
       mozaicVault: vault,
