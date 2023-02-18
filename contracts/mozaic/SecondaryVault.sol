@@ -188,7 +188,7 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = MozaicLP(_mozaicLp);
     }
-    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver) public onlyOwner returns (uint256) {
+    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver) public onlyOwner {
         console.log("SecondaryVault.setProtocolDriver: _driverId, ProtocolDriver", _driverId, address(_driver));
         protocolDrivers[_driverId] = _driver;
     }
@@ -329,8 +329,8 @@ contract SecondaryVault is NonblockingLzApp {
     function _clearPendingBuffer() internal {
         // Clear Pending
         RequestBuffer storage pending = _pendingReqs();
-        require(pending.totalDepositRequestSD == 0, "_clearPendingBuffer: expected totalDeposit = 0");
-        require(pending.totalDepositRequestSD == 0, "_clearPendingBuffer: expected totalWithdraw = 0");
+        require(pending.totalDepositRequestSD == 0, "expected totalDeposit = 0");
+        require(pending.totalDepositRequestSD == 0, "expected totalWithdraw = 0");
         delete pending.depositRequestList;
         delete pending.withdrawRequestList;
     }

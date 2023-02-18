@@ -1,12 +1,9 @@
 pragma solidity ^0.8.0;
 
 // imports
-import "../libraries/oft/OFTCore.sol";
 import "../libraries/stargate/Router.sol";
-import "../libraries/stargate/Pool.sol";
 import "./SecondaryVault.sol";
 import "./MozaicLP.sol";
-import "./OrderTaker.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -71,7 +68,7 @@ contract PrimaryVault is SecondaryVault {
         setMainChainId(_chainId);
     }
     function setSecondaryVaults(uint16 _chainId, VaultDescriptor calldata _vault) external onlyOwner {
-        require(_chainId != chainId, "Secondary Chain ID cannot be of Primary");
+        require(_chainId != chainId, "Cannot be primary chainID");
         bool _already = false;
         for (uint i = 0; i < secondaryChainIds.length; i++) {
             if (secondaryChainIds[i]==_chainId) {
@@ -86,7 +83,7 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function initOptimizationSession() public onlyOwner {
-        require(protocolStatus == ProtocolStatus.IDLE, "Needs to be idle before start optimizing");
+        require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
         // reset
         mozaicLpPerStablecoinMil = 0;
         protocolStatus = ProtocolStatus.OPTIMIZING;
@@ -129,7 +126,7 @@ contract PrimaryVault is SecondaryVault {
         }
     }
     function _acceptSnapshotReport(uint16 _srcChainId, SnapshotReport memory _report) internal {
-        require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Accept Report: prevStatus=SNAPSHOTTING");
+        require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
         snapshotReport[_srcChainId] = _report;
         secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTED;
         if (checkAllSnapshotReportReady()) {
