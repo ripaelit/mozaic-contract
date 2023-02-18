@@ -21,3 +21,5 @@ overall, avoid using contract types directly, instead use address type, and use 
 ### Business Logic
 
 #### SecondaryVault should check if sourceChain, sourceAddress are of the PrimaryVault.
+
+#### PoC treats all stable coins with same rate. Each stable coin should have price. The standard token = ?

@@ -11,6 +11,7 @@ Compiled contracts are fed into [TypeChain](https://github.com/dethcrypto/TypeCh
 - `yarn lint` to lint everything.
 - `yarn node:start` to start a Hardhat node on `localhost`.
 - `yarn node:run <path>` to run a script at the given path on `localhost`.
+- `yarn hardhat size-contracts` to get bytecode sizes of contracts
 
 ## Formatting & Linting
 
