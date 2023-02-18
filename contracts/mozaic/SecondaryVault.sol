@@ -316,12 +316,16 @@ contract SecondaryVault is NonblockingLzApp {
         // Processing Amount Should be Zero!
         require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
-        
+        SnapshotReport memory report = _snapshot();
+        // Send Report
+        bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
+        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+    }
+    function _snapshot() internal virtual returns (SnapshotReport memory report){
         // Take Snapshot: Pending --> Processing
         bufferFlag = !bufferFlag;
 
         // Make Report
-        SnapshotReport memory report;
         uint256 _totalStablecoin = 0;
         for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++) {
             // 1. Collect pending STG rewards
@@ -337,10 +341,6 @@ contract SecondaryVault is NonblockingLzApp {
         report.depositRequestAmountSD = _stagedReqs().totalDepositRequestSD;
         report.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
         report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        
-        // Send Report
-        bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
-        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
     }
 
     //---------------------------------------------------------------------------

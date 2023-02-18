@@ -39,6 +39,7 @@ contract PrimaryVault is SecondaryVault {
     mapping (uint16 => bool) public snapshotReportFlag; // true - arrived false - not arrived
 
     uint256 public mozaicLpPerStablecoinMil=0; // mozLP/stablecoinSD*1_000_000
+    uint256 public constant INITIAL_MLP_PER_COIN_MIL=1000000;
     
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
@@ -75,28 +76,7 @@ contract PrimaryVault is SecondaryVault {
         // Processing Amount Should be Zero!
         require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
-
-        // Take Snapshot: Pending --> Staged
-        bufferFlag = !bufferFlag;
-
-        // Make Report
-        SnapshotReport memory report;
-        uint256 _totalStablecoin = 0;
-        for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++) {
-            // 1. Collect pending STG rewards
-            LPStaking(stargateLpStaking).withdraw(i, 0);
-            // 2. Check total stablecoin
-            Pool _pool = Pool(address(LPStaking(stargateLpStaking).getPoolInfo(i))); // TODO: Check type conv
-            uint256 _lpAmount = _pool.balanceOf(address(this));
-            _totalStablecoin = _totalStablecoin.add(_pool.totalLiquidity().mul(_lpAmount).div(_pool.totalSupply()));
-            _totalStablecoin = _totalStablecoin.add(IERC20(_pool.token()).balanceOf(address(this))); // Just in case
-        }
-        report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
-        report.totalStablecoin = _totalStablecoin;
-        report.depositRequestAmountSD = _stagedReqs().totalDepositRequestSD;
-        report.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
-        report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        
+        SnapshotReport memory report = _snapshot();
         // Send Report
         _acceptSnapshotReport(chainId, report);
     }
@@ -133,7 +113,12 @@ contract PrimaryVault is SecondaryVault {
             _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
-        mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
+        if (_totalStablecoinValue > 0) {
+            mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
+        }
+        else {
+            mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
+        }
     }
     function checkAllSnapshotReportReady() public view returns (bool) {
         if (!snapshotReportFlag[chainId]) {
