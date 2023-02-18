@@ -199,6 +199,9 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
       await secondaryVault.connect(owner).setMainChainId(primaryChain);
       vault = secondaryVault;
     }
+    // TODO: Transfer ownership of MozaicLP to Vault
+    await mozaicLp.connect(owner).transferOwnership(vault.address);
+    
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,
       mozaicVault: vault

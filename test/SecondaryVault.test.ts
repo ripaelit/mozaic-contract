@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ERC20__factory, ERC20, OrderTaker, OrderTaker__factory, MockToken } from '../types/typechain';
@@ -30,7 +31,7 @@ describe('SecondaryVault', () => {
             await coinContract.connect(owner).mint(alice.address, amountLD);
             const aliceBalBefore = await coinContract.balanceOf(alice.address);
             await coinContract.connect(alice).approve(vaultContract.address, amountLD);
-            await vaultContract.connect(alice).addDepositRequest(amountLD, coinContract.address, chainId);
+            await expect(vaultContract.connect(alice).addDepositRequest(amountLD, coinContract.address, chainId)).to.emit(vaultContract, 'DepositRequestAdded').withArgs(alice.address, coinContract.address, chainId, amountLD, anyValue); // don't compare amountSD
             // fund move from Alice to vault
             expect(await coinContract.balanceOf(alice.address)).to.lt(aliceBalBefore);
             expect(await coinContract.balanceOf(alice.address)).to.eq(0);
@@ -39,5 +40,20 @@ describe('SecondaryVault', () => {
             expect(await vaultContract.getDepositRequestAmount(false, alice.address, coinContract.address, chainId)).to.gt(0);
         })
     });
+    describe('SecondaryVault.addWithdrawRequest', () => {
+        it('add request to pending buffer', async() => {
+            // NOTE: Run this test case without transferring ownership from `owner` to `vault`
+            const chainId = exportData.localTestConstants.chainIds[0];
+            const coinContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;
+            const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
+            const amountMLP =  BigNumber.from("1000000000000000");
+            const mozaicLpContract = mozaicDeployments.get(chainId)!.mozaicLp;
+            await mozaicLpContract.connect(owner).mint(alice.address, amountMLP);
+            await expect(vaultContract.connect(alice).addWithdrawRequest(amountMLP, coinContract.address, chainId)).to.emit(vaultContract, 'WithdrawRequestAdded').withArgs(alice.address,coinContract.address,chainId,amountMLP);
+        })
+    })
+    describe('SecondaryVault.snapshotAndReport', () => {
+        it('')
+    })
 });
 
