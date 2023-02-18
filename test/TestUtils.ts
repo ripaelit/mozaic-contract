@@ -177,7 +177,10 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
   for (const [chainId, stgDeploy] of stargateDeployments) {
     // Deploy MozaicLP
     const mozaicLpFactory = await ethers.getContractFactory('MozaicLP', owner) as MozaicLP__factory;
+    console.log("ETH(owner) before deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
     const mozaicLp = await mozaicLpFactory.deploy("MozaicLP", "mLP", layerzeroDeployments.get(chainId)!.address);
+    console.log("ETH(owner) after deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
+    console.log("Gas Price:", (await ethers.provider.getGasPrice()).toString());
     await mozaicLp.deployed();
 
     // Deploy Protocal Drivers
@@ -195,7 +198,7 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChain: numbe
     if (chainId == primaryChain) {
       // Deploy PrimaryVault
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
-      const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address);
+      const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address, {gasLimit:BigNumber.from("30000000")});
       await primaryVault.deployed();
       await primaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, configProtocol);
       vault = primaryVault;
