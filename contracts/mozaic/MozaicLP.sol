@@ -73,4 +73,7 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
     function mint(address _account, uint256 _amount) public onlyOwner {
         _mint(_account, _amount);
     }
+    function burn(address _account, uint256 _amount) public onlyOwner {
+        _burn(_account, _amount);
+    }
 }
