@@ -8,9 +8,11 @@ abstract contract ProtocolDriver is Ownable {
         Swap,
         SwapRemote,
         GetPriceMil,
-        StargateStake,
-        StargateUnstake
+        Stake,
+        Unstake
     }
-    function execute(ActionType _actionType, bytes calldata _payload) virtual public returns (bytes memory) {
+    function configDriver(bytes calldata params) public virtual onlyOwner returns (bytes memory) {
+    }
+    function execute(ActionType _actionType, bytes calldata _payload) public virtual returns (bytes memory) {
     }
 }
