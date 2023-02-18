@@ -16,13 +16,12 @@ describe('PancakeSwapDriver', () => {
 
     beforeEach(async () => {
         [owner, alice] = await ethers.getSigners();  // owner is control center
+
         // Deploy Stablecoins
         stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
-        console.log("Deployed stablecoins");
         
         // Deploy Stargate
-        stargateDeployments = await deployStargate(owner, stablecoinDeployments, exportData.localTestConstants.poolIds, exportData.localTestConstants.stgMainChain, exportData.localTestConstants.stargateChainPaths);
-        console.log("Deployed stargates");
+        stargateDeployments = await deployStargate(owner, stablecoinDeployments, exportData.localTestConstants.poolIds, exportData.localTestConstants.stgMainChainId, exportData.localTestConstants.stargateChainPaths);
 
         // Deploy MockDex and create protocols
         let mockDexs = new Map<number, string>(); 
@@ -38,7 +37,7 @@ describe('PancakeSwapDriver', () => {
         console.log("Deployed mockDexs");
 
         // Deploy Mozaic
-        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChain, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols);
+        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols);
         console.log("Deployed mozaics");
 
         // Set deltaparam
@@ -56,12 +55,9 @@ describe('PancakeSwapDriver', () => {
                 );
             }
         }
-        console.log("Set deltaparam");
 
         // Update the chain path balances
         await equalize(owner, stargateDeployments);
-        console.log("Equalized");
-        
     });
     describe('PancakeSwapDriver.execute', () => {
         it ("can swap USDC->USDT", async () => {
@@ -91,7 +87,7 @@ describe('PancakeSwapDriver', () => {
             console.log("Now SecondaryVault has USDC, USDT:", (await usdcContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
             expect(await usdtContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
-        it.only ("can swap STG->USDC", async () => {
+        it ("can swap STG->USDC", async () => {
             const chainId = exportData.localTestConstants.chainIds[1];// Bsc
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const stgContract = stargateDeployments.get(chainId)!.stargateToken as StargateToken;

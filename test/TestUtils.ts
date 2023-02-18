@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory } from '../types/typechain';
+import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory } from '../types/typechain';
 // import { ERC20Mock } from '../types/typechain';
 // import { ERC20Mock__factory } from '../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment } from '../constants/types';
@@ -172,6 +172,7 @@ export const newStargateEndpoint = async (
 
 export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, protocols: Map<number, Map<string,string>>) => {
   let mozDeploys = new Map<number, MozaicDeployment>();
+  let vault, config;
   for (const [chainId, stgDeploy] of stargateDeployments) {
     // Deploy MozaicLP
     const mozaicLpFactory = await ethers.getContractFactory('MozaicLP', owner) as MozaicLP__factory;
@@ -182,37 +183,43 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     await mozaicLp.deployed();
 
     // Deploy Protocal Drivers
-    // Get protocol
-    const protocol = protocols.get(chainId)!.get("PancakeSwapSmartRouter")!;
-    const configProtocol = ethers.utils.defaultAbiCoder.encode(["address"], [protocol]);
     // 1. Deploy PancakeSwapDriver
     const pancakeSwapDriverFactory = await ethers.getContractFactory('PancakeSwapDriver', owner) as PancakeSwapDriver__factory;
     const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy();
     await pancakeSwapDriver.deployed();
     console.log("TestUtils.deployMozaic: chainId, pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
+    // 2. Deploy StargateDriver
+    const stargateDriverFactory = await ethers.getContractFactory('StargateDriver', owner) as StargateDriver__factory;
+    const stargateDriver = await stargateDriverFactory.deploy();
+    await stargateDriver.deployed();
+    console.log("TestUtils.deployMozaic: chainId, stargateDriver:", chainId, stargateDriver.address);
 
     // Deploy Vault
-    let vault;
+    const stgRouter = stgDeploy.routerContract.address;
+    const stgLpStaking = stgDeploy.lpStakingContract.address;
+    const stgToken = stgDeploy.stargateToken.address;
     if (chainId == primaryChainId) {
       // Deploy PrimaryVault
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
-      const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, primaryChainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address, {gasLimit:BigNumber.from("30000000")});
+      const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, primaryChainId, stgRouter, stgLpStaking, stgToken, mozaicLp.address, {gasLimit:BigNumber.from("30000000")});
       await primaryVault.deployed();
-      await primaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, configProtocol);
       console.log("Deployed PrimaryVault:", primaryVault.address);
       vault = primaryVault;
     }
     else {
       // Deploy SecondaryVault
       const secondaryVaultFactory = await ethers.getContractFactory('SecondaryVault', owner) as SecondaryVault__factory;
-      const secondaryVault = await secondaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, primaryChainId, stgDeploy.routerContract.address, stgDeploy.lpStakingContract.address, stgDeploy.stargateToken.address, mozaicLp.address)
+      const secondaryVault = await secondaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, primaryChainId, stgRouter, stgLpStaking, stgToken, mozaicLp.address);
       await secondaryVault.deployed();
-    //   await secondaryVault.connect(owner).setMainChainId(primaryChain);
-      await secondaryVault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, configProtocol);
       console.log("Deployed SecondaryVault:", secondaryVault.address);
       vault = secondaryVault;
     }
-    
+    // Set ProtocolDrivers to vault
+    config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
+    await vault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+    config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLpStaking]);
+    await vault.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
+
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,
       mozaicVault: vault,

@@ -11,14 +11,13 @@ contract StargateDriver is ProtocolDriver{
     struct StargateDriverConfig {
         address stgRouter;
         address stgLpStaking;
-        address stgToken;
     }
     StargateDriverConfig public stargateDriverConfig;
     function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory response) {
-        // unpack into stargateDriverConfig.stgRouter, stargateLpStaking
+        // Unpack into stargateDriverConfig.stgRouter, stgLpStaking, stgToken
         (address _stgRouter, address _stgLpStaking) = abi.decode(params, (address, address));
-        // get stargateToken from stargateLpStaking
-        stargateDriverConfig.stgToken = address(LPStaking(_stgLpStaking).stargate());
+        stargateDriverConfig.stgRouter = _stgRouter;
+        stargateDriverConfig.stgLpStaking = _stgLpStaking;
     }
     function execute(ActionType _actionType, bytes calldata _payload) public override returns (bytes memory response) {
         if (_actionType == ActionType.Stake) {
@@ -108,7 +107,6 @@ contract StargateDriver is ProtocolDriver{
     function convertLDtoSD(address _token, uint256 _amountLD) public view returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
         Pool pool = getStargatePoolFromToken(_token);
-        console.log(pool.convertRate());
         return  _amountLD.div(pool.convertRate()); // pool.amountLDtoSD(_amountLD);
     }
 

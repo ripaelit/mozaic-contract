@@ -2,7 +2,7 @@ import { expect } from 'chai';
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { ERC20__factory, ERC20, OrderTaker, OrderTaker__factory, MockToken, PrimaryVault, MockDex__factory } from '../types/typechain';
+import { MockToken, PrimaryVault, MockDex__factory, SecondaryVault } from '../types/typechain';
 import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments } from './TestUtils';
 import { StargateDeployments, StableCoinDeployments, MozaicDeployments, ProtocolStatus, VaultStatus } from '../constants/types'
 import exportData from '../constants/index';
@@ -15,12 +15,16 @@ describe('SecondaryVault', () => {
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
+
     beforeEach(async () => {
         [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
+        
         // Deploy Stablecoins
         stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
+        
         // Deploy Stargate
-        stargateDeployments = await deployStargate(owner, stablecoinDeployments, exportData.localTestConstants.poolIds, exportData.localTestConstants.stgMainChain, exportData.localTestConstants.stargateChainPaths);
+        stargateDeployments = await deployStargate(owner, stablecoinDeployments, exportData.localTestConstants.poolIds, exportData.localTestConstants.stgMainChainId, exportData.localTestConstants.stargateChainPaths);
+
         // Deploy MockDex and create protocols
         let mockDexs = new Map<number, string>(); 
         let protocols = new Map<number, Map<string, string>>();
@@ -28,12 +32,16 @@ describe('SecondaryVault', () => {
             const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
             const mockDex = await mockDexFactory.deploy();
             await mockDex.deployed();
+            console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
             mockDexs.set(chainId, mockDex.address);
             protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
         }
         console.log("Deployed mockDexs");
+
         // Deploy Mozaic
-        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChain, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols);
+        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols);
+        console.log("Deployed mozaics");
+
         // Set deltaparam
         for (const chainId of stargateDeployments.keys()!) {
             for (const [poolId, pool] of stargateDeployments.get(chainId)!.pools) {
@@ -49,7 +57,8 @@ describe('SecondaryVault', () => {
                 );
             }
         }
-        // update the chain path balances
+
+        // Update the chain path balances
         await equalize(owner, stargateDeployments);
     });
     describe('SecondaryVault.addDepositRequest', () => {
@@ -70,7 +79,7 @@ describe('SecondaryVault', () => {
             expect(await vaultContract.getDepositRequestAmount(false, alice.address, coinContract.address, chainId)).to.gt(0);
         })
     });
-    describe.skip('SecondaryVault.addWithdrawRequest', () => {
+    describe('SecondaryVault.addWithdrawRequest', () => {
         it('add request to pending buffer', async() => {
             // NOTE: Run this test case without transferring ownership from `owner` to `vault`
             const chainId = exportData.localTestConstants.chainIds[0];
@@ -97,36 +106,42 @@ describe('SecondaryVault', () => {
             const tokenASecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![0]) as MockToken;
             const tokenBSecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![1]) as MockToken;
             const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
-            const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault;
-            const aliceTotalLD = BigNumber.from("10000000000000000000000"); // $1000
-            const benTotalLD = BigNumber.from("20000000000000000000000"); // $2000
-            const chrisTotalLD = BigNumber.from("30000000000000000000000"); // $3000
-            const aliceDeposit1LD = BigNumber.from("5000000000000000000000"); // $500
-            const aliceDeposit2LD = BigNumber.from("4000000000000000000000"); // $400
-            const benDeposit1LD = BigNumber.from("10000000000000000000000"); // $1000
-            const benWithdraw2MLP = BigNumber.from("5000000000000000000000"); // 500 mLP ~ $500
-            const chrisDeposit1LD = BigNumber.from("15000000000000000000000"); // $1500
+            const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault as SecondaryVault;
+            const aliceTotalLD = BigNumber.from("10000000000000000000000"); // $10000
+            const benTotalLD = BigNumber.from("20000000000000000000000"); // $20000
+            const chrisTotalLD = BigNumber.from("30000000000000000000000"); // $30000
+            const aliceDeposit1LD = BigNumber.from("5000000000000000000000"); // $5000
+            const aliceDeposit2LD = BigNumber.from("4000000000000000000000"); // $4000
+            const benDeposit1LD = BigNumber.from("10000000000000000000000"); // $10000
+            const benWithdraw2MLP = BigNumber.from("5000000000000000000000"); // 5000 mLP ~ $5000
+            const chrisDeposit1LD = BigNumber.from("15000000000000000000000"); // $15000
 
             // Mint tokens
-            tokenAPrimary.mint(alice.address, aliceTotalLD);
-            tokenASecondary.mint(ben.address, benTotalLD);
-            tokenBSecondary.mint(chris.address, chrisTotalLD);
+            tokenASecondary.mint(alice.address, aliceTotalLD);
+            tokenBSecondary.mint(ben.address, benTotalLD);
+            tokenAPrimary.mint(chris.address, chrisTotalLD);
             
             // First Round:
             // Alice and Ben deposit to SecondaryVault, Chris deposit to PrimaryVault
+            // Alice deposit tokenAPrimary to secondaryVault
             await tokenASecondary.connect(alice).approve(secondaryVault.address, aliceDeposit1LD);
             await secondaryVault.connect(alice).addDepositRequest(aliceDeposit1LD, tokenASecondary.address, secondaryChainId);
+            // Ben deposit tokenASecondary to secondaryVault
             await tokenBSecondary.connect(ben).approve(secondaryVault.address, benDeposit1LD);
-            await secondaryVault.connect(alice).addDepositRequest(benDeposit1LD, tokenBSecondary.address, secondaryChainId);
-            await tokenAPrimary.connect(ben).approve(tokenAPrimary.address, benDeposit1LD);
+            await secondaryVault.connect(ben).addDepositRequest(benDeposit1LD, tokenBSecondary.address, secondaryChainId);
+            // Chris deposit tokenBSecondary to primaryVault
+            await tokenAPrimary.connect(chris).approve(primaryVault.address, chrisDeposit1LD);
             await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);            
 
             // init optimization session.
             await primaryVault.connect(owner).initOptimizationSession();
             // check protocolStatus
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
-            
 
+            console.log("TokenASecondary in secondaryVault:", await tokenASecondary.balanceOf(secondaryVault.address));
+            console.log("TokenBSecondary in secondaryVault:", await tokenBSecondary.balanceOf(secondaryVault.address));
+            console.log("TokenAPrimary in primaryVault:", await tokenAPrimary.balanceOf(primaryVault.address));
+            
             // snapshot requests
             // settle requests
             // Alice, Ben and Chris now has mLP, Vaults has coin

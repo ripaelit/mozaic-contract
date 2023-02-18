@@ -74,14 +74,15 @@ const localTestConstants = {
       weight: 1,
     },
   ),
-  stgMainChain: 101, // main chain ID of Stargate Token
-  mozaicPrimaryChain: 101,
+  stgMainChainId: 101, // main chain ID of Stargate Token
+  mozaicPrimaryChainId: 101,
   coinTotal:      ethers.BigNumber.from("1000000000000000000000"),        // 1000*1e18
   coinEachPool:   ethers.BigNumber.from("50000000000000000000"),          // 50*1e18
   coinOrderTaker: ethers.BigNumber.from("20000000000000000000"),          // 20*1e18
   coinStake:      ethers.BigNumber.from("3000000000000000000"),           // 3*1e18
   coinSwap:       ethers.BigNumber.from("1000000000000000000"),           // 1*1e18
-  pancakeSwapDriverId:  1,
+  stargateDriverId:     1,
+  pancakeSwapDriverId:  2,
 };
 
 const contractConstants = {};

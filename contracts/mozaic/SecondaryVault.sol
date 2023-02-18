@@ -182,6 +182,7 @@ contract SecondaryVault is NonblockingLzApp {
         address _mozaicLp
     ) NonblockingLzApp(_lzEndpoint) {
         chainId = _chainId;
+        primaryChainId = _primaryChainId;
         stargateRouter = _stargateRouter;
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
@@ -218,10 +219,12 @@ contract SecondaryVault is NonblockingLzApp {
      */
     function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) public {
         address _depositor = msg.sender;
-        require(primaryChainId > 0, "main chain is not set");
+        require(primaryChainId > 0, "primary chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
         
+        console.log("SecondaryVault.addDepositRequest: _amountLD", _amountLD);
+        ////////    ???????
         (bool _success, bytes memory _returnData) =  address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTLDTOSD, _token, _amountLD));
         require(_success, "Failed to access convertLDtoSD in addDepositRequest");
         uint256 _amountSD = abi.decode(_returnData, (uint256));
@@ -231,7 +234,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(_success, "Failed to access convertSDtoLD in addDepositRequest");
         uint256 _amountLDAccept = abi.decode(_returnData, (uint256));
         console.log("_amountLDAccept", _amountLDAccept);
-
+        ///////   ???????
 
         // transfer stablecoin
         _safeTransferFrom(_token, msg.sender, address(this), _amountLDAccept);
