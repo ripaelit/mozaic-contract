@@ -98,7 +98,7 @@ contract PrimaryVault is SecondaryVault {
      */
     function snapshotAndReport() virtual override public payable onlyOwner {
         // Processing Amount Should be Zero!
-        require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
+        require(_stagedReqs().totalDepositRequest==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
         SnapshotReport memory report = _snapshot();
         // Send Report
@@ -150,6 +150,7 @@ contract PrimaryVault is SecondaryVault {
         else {
             mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
         }
+        console.log("total mLP: %d / total$: %d * kk = %d", _totalStablecoinValue, _mintedMozLp, mozaicLpPerStablecoinMil);
     }
     function checkAllSnapshotReportReady() public view returns (bool) {
         if (secondaryVaultStatus[chainId]!=VaultStatus.SNAPSHOTTED) {

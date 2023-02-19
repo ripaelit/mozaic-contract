@@ -124,9 +124,12 @@ describe('SecondaryVault', () => {
             tokenBSecondary.mint(ben.address, benTotalLD);
             tokenAPrimary.mint(chris.address, chrisTotalLD);
             
-            // First Round:
-            // Alice and Ben deposit to SecondaryVault, Chris deposit to PrimaryVault
-            // Alice deposit tokenAPrimary to secondaryVault
+            // ----------------------- First Round: ----------------------------
+
+            // Algostory: ### 1. User Books Deposit
+            // Alice -> SecondaryVault Token A
+            // Ben -> SecondaryVault Token B
+            // Chris -> PrimaryVault Token A
             await tokenASecondary.connect(alice).approve(secondaryVault.address, aliceDeposit1LD);
             await secondaryVault.connect(alice).addDepositRequest(aliceDeposit1LD, tokenASecondary.address, secondaryChainId);
             // Ben deposit tokenASecondary to secondaryVault
@@ -134,38 +137,52 @@ describe('SecondaryVault', () => {
             await secondaryVault.connect(ben).addDepositRequest(benDeposit1LD, tokenBSecondary.address, secondaryChainId);
             // Chris deposit tokenBSecondary to primaryVault
             await tokenAPrimary.connect(chris).approve(primaryVault.address, chrisDeposit1LD);
-            await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);            
+            await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);
+            
+            // Check Pending Request Buffer
+            expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit1LD.add(benDeposit1LD));
+            expect(await secondaryVault.getDepositRequestAmount(false, alice.address, tokenASecondary.address, secondaryChainId)).to.eq(aliceDeposit1LD);
 
-            // init optimization session.
+            // Algostory: #### 3-1. Session Start (Protocol Status: Idle -> Optimizing)
             await primaryVault.connect(owner).initOptimizationSession();
-            // check protocolStatus
+            // Protocol Status : IDLE -> OPTIMIZING
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
-
-            // snapshot requests
+            
+            // Algostory: #### 3-2. Take Snapshot and Report
             for (const chainId of exportData.localTestConstants.chainIds) {
                 // TODO: optimize lz native token fee.
                 console.log("vault address", chainId, mozaicDeployments.get(chainId)!.mozaicVault.address);
                 await mozaicDeployments.get(chainId)!.mozaicVault.snapshotAndReport({value:ethers.utils.parseEther("0.1")});
             }
-            // check: primary vault now has all snapshot reports
+
+            // Alice adds to pending request pool, but this should not affect minted mLP amount.
+            await tokenASecondary.connect(alice).approve(secondaryVault.address, aliceDeposit2LD);
+            await secondaryVault.connect(alice).addDepositRequest(aliceDeposit2LD, tokenASecondary.address, secondaryChainId);
+
+            // Pending/Staged Request Amounts
+            expect(await secondaryVault.getTotalDepositRequest(true)).to.eq(aliceDeposit1LD.add(benDeposit1LD));
+            expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit2LD);
+            // Primary vault now has all snapshot reports.
             expect(await primaryVault.checkAllSnapshotReportReady()).to.eq(true);
             const mozaicLpPerStablecoin = await primaryVault.mozaicLpPerStablecoinMil();
-            expect(mozaicLpPerStablecoin).to.eq(1000000); // initial rate 1 mLP per USD*
+            // Algostory: #### 3-3. Determine MLP per Stablecoin Rate
+            // Initial rate is 1 mLP per USD
+            expect(mozaicLpPerStablecoin).to.eq(1000000);
 
             // TODO: stake
 
-            // Algostory-5. Settle Requests
+            // Algostory: #### 5. Settle Requests
             // Alice, Ben and Chris now has mLP, Vaults has coin
             await primaryVault.settleRequestsAllVaults();
             for (const chainId of exportData.localTestConstants.chainIds) {
                 if (chainId == primaryChainId) continue;
                 await mozaicDeployments.get(chainId)!.mozaicVault.reportSettled();
             }
+            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(alice.address)).to.eq(aliceDeposit1LD); //.div(BigNumber.from("1000000000000"))); // mLP eq to SD
+            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDeposit1LD); //.div(BigNumber.from("1000000000000")));
+            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(chris.address)).to.eq(chrisDeposit1LD); //.div(BigNumber.from("1000000000000")));
+            // Algostory: #### 6. Session Closes
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
-            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(alice.address)).to.eq(aliceDeposit1LD.div(BigNumber.from("1000000000000"))); // mLP eq to SD
-            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDeposit1LD.div(BigNumber.from("1000000000000")));
-            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(chris.address)).to.eq(chrisDeposit1LD.div(BigNumber.from("1000000000000")));
-
 
             // Second Round:
             // Alice books deposit

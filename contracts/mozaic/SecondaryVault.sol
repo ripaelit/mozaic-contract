@@ -10,7 +10,9 @@ import "./MozaicLP.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "hardhat/console.sol";
 
 contract SecondaryVault is NonblockingLzApp {
     using SafeMath for uint256;
@@ -22,8 +24,7 @@ contract SecondaryVault is NonblockingLzApp {
         address indexed depositor,
         address indexed token,
         uint16 indexed chainId,
-        uint256 amountLD,
-        uint256 amountSD
+        uint256 amountLD
     );
 
     event WithdrawRequestAdded (
@@ -52,7 +53,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     struct SnapshotReport {
-        uint256 depositRequestAmountSD;
+        uint256 depositRequestAmount;
         uint256 withdrawRequestAmountMLP;
         uint256 totalStargate;
         uint256 totalStablecoin;
@@ -75,7 +76,7 @@ contract SecondaryVault is NonblockingLzApp {
         // deposit
         mapping (address => mapping (address => mapping (uint16 => uint256))) depositRequestLookup; // [user][token][chainId] = amountSD
         DepositRequest[] depositRequestList;
-        uint256 totalDepositRequestSD;
+        uint256 totalDepositRequest;
         // withdraw
         mapping (address => mapping (uint16 => mapping (address => uint256))) withdrawRequestLookup; // [user][chainId][token] = amountMLP
         WithdrawRequest[] withdrawRequestList;
@@ -134,12 +135,13 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function getTotalDepositRequestSD(bool _staged) public view returns (uint256) {
+    function getTotalDepositRequest(bool _staged) public view returns (uint256) {
+        console.log("getTotalDepositRequest: staged: %d pending: %d", _stagedReqs().totalDepositRequest, _pendingReqs().totalDepositRequest);
         if (_staged) {
-            return _stagedReqs().totalDepositRequestSD;
+            return _stagedReqs().totalDepositRequest;
         }
         else {
-            return _pendingReqs().totalDepositRequestSD;
+            return _pendingReqs().totalDepositRequest;
         }
     }
 
@@ -218,18 +220,9 @@ contract SecondaryVault is NonblockingLzApp {
         address _depositor = msg.sender;
         require(primaryChainId > 0, "primary chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
-        // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
-        
-        ////////    ???????
-        (bool _success, bytes memory _returnData) =  address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTLDTOSD, _token, _amountLD));
-        require(_success, "Failed to access convertLDtoSD in addDepositRequest");
-        uint256 _amountSD = abi.decode(_returnData, (uint256));
-        
-        (_success, _returnData) = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD, _token, _amountSD));
-        require(_success, "Failed to access convertSDtoLD in addDepositRequest");
-        uint256 _amountLDAccept = abi.decode(_returnData, (uint256));
-        ///////   ???????
-
+        // Minimum unit of acceptance 1 USD - to easy the following staking
+        // uint256 _amountLDAccept = _amountLD.div(IERC20Metadata(_token).decimals()).mul(IERC20Metadata(_token).decimals());
+        uint256 _amountLDAccept = _amountLD;
         // transfer stablecoin
         _safeTransferFrom(_token, msg.sender, address(this), _amountLDAccept);
         RequestBuffer storage buffer = _pendingReqs();
@@ -253,12 +246,12 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         // 2. Update depositRequestLookup
-        buffer.depositRequestLookup[_depositor][_token][_chainId] = buffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountSD);
+        buffer.depositRequestLookup[_depositor][_token][_chainId] = buffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountLDAccept);
 
-        // 3. Update totalDepositRequestSD
-        buffer.totalDepositRequestSD = buffer.totalDepositRequestSD.add(_amountSD);
+        // 3. Update totalDepositRequest
+        buffer.totalDepositRequest = buffer.totalDepositRequest.add(_amountLDAccept);
 
-        emit DepositRequestAdded(_depositor, _token, _chainId, _amountLDAccept, _amountSD);
+        emit DepositRequestAdded(_depositor, _token, _chainId, _amountLDAccept);
     }
 
     function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
@@ -304,7 +297,7 @@ contract SecondaryVault is NonblockingLzApp {
     function snapshotAndReport() public virtual payable onlyOwner {
         require(primaryChainId > 0, "main chain is not set");
         // Processing Amount Should be Zero!
-        require(_stagedReqs().totalDepositRequestSD==0, "Still has processing requests");
+        require(_stagedReqs().totalDepositRequest==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
         SnapshotReport memory report = _snapshot();
         // Send Report
@@ -314,8 +307,8 @@ contract SecondaryVault is NonblockingLzApp {
     function _clearPendingBuffer() internal {
         // Clear Pending
         RequestBuffer storage pending = _pendingReqs();
-        require(pending.totalDepositRequestSD == 0, "expected totalDeposit = 0");
-        require(pending.totalDepositRequestSD == 0, "expected totalWithdraw = 0");
+        require(pending.totalDepositRequest == 0, "expected totalDeposit = 0");
+        require(pending.totalDepositRequest == 0, "expected totalWithdraw = 0");
         delete pending.depositRequestList;
         delete pending.withdrawRequestList;
     }
@@ -324,19 +317,24 @@ contract SecondaryVault is NonblockingLzApp {
         bufferFlag = !bufferFlag;
 
         // Make Report
+        // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
         uint256 _totalStablecoin = 0;
         for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++) {
             // 1. Collect pending STG rewards
             LPStaking(stargateLpStaking).withdraw(i, 0);
-            // 2. Check total stablecoin
+            // 2. Check total staked assets measured as stablecoin
             Pool _pool = Pool(address(LPStaking(stargateLpStaking).getPoolInfo(i))); // TODO: Check type conv
             uint256 _lpAmount = _pool.balanceOf(address(this));
-            _totalStablecoin = _totalStablecoin.add(_pool.totalLiquidity().mul(_lpAmount).div(_pool.totalSupply()));
-            _totalStablecoin = _totalStablecoin.add(IERC20(_pool.token()).balanceOf(address(this))); // Just in case
+            uint256 _totalLiquidityLD = _pool.totalLiquidity().mul(_pool.convertRate());
+            if (_pool.totalSupply() > 0) {
+                _totalStablecoin = _totalStablecoin.add(_totalLiquidityLD.mul(_lpAmount).div(_pool.totalSupply()));
+            }
+            // _totalStablecoin = _totalStablecoin.add(IERC20(_pool.token()).balanceOf(address(this))); // Just in case
         }
         report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
-        report.totalStablecoin = _totalStablecoin;
-        report.depositRequestAmountSD = _stagedReqs().totalDepositRequestSD;
+        // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
+        report.totalStablecoin = _totalStablecoin; // _totalStablecoin.sub(_stagedReqs().totalDepositRequest).sub(_pendingReqs().totalDepositRequest);
+        report.depositRequestAmount = _stagedReqs().totalDepositRequest;
         report.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
         report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
     }
@@ -354,7 +352,7 @@ contract SecondaryVault is NonblockingLzApp {
     ) private {
         // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
         (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0x23b872dd, _from, _to, _value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "Stargate: TRANSFER_FROM_FAILED");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "Mozaic: TRANSFER_FROM_FAILED");
     }
     
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
@@ -372,6 +370,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
     
     function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
+        console.log("mlp/$*kk %d", _mozaicLpPerStablecoinMil);
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
@@ -379,17 +378,24 @@ contract SecondaryVault is NonblockingLzApp {
         for (uint i = 0; i < _reqs.depositRequestList.length; i++) {
             DepositRequest memory request = _reqs.depositRequestList[i];
             uint256 _depositAmount = _reqs.depositRequestLookup[request.user][request.token][request.chainId];
+            if (_depositAmount == 0) {
+                continue;
+            }
             uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
+            console.log("depo: %d lp: %d", _depositAmount, _amountToMint);
             mozaicLpContract.mint(request.user, _amountToMint);
             // Reduce Handled Amount from Buffer
-            _reqs.totalDepositRequestSD = _reqs.totalDepositRequestSD.sub(_depositAmount);
+            _reqs.totalDepositRequest = _reqs.totalDepositRequest.sub(_depositAmount);
             _reqs.depositRequestLookup[request.user][request.token][request.chainId] = _reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmount);
         }
-        require(_reqs.totalDepositRequestSD==0, "Has unsettled deposit amount.");
+        require(_reqs.totalDepositRequest==0, "Has unsettled deposit amount.");
 
         for (uint i = 0; i < _reqs.withdrawRequestList.length; i++) {
             WithdrawRequest memory request = _reqs.withdrawRequestList[i];
             uint256 _withdrawAmountMLP = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
+            if (_withdrawAmountMLP == 0) {
+                continue;
+            }
             (bool success, bytes memory returnData) = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD,request.token,  _withdrawAmountMLP.div(_mozaicLpPerStablecoinMil).mul(1000000)));
             require(success, "Failed to access convertSDtoLD in _settleRequests");
             uint256 _coinToGiveLD = abi.decode(returnData, (uint256));
@@ -416,7 +422,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function reportSettled() public payable {
-        require(_stagedReqs().totalDepositRequestSD==0, "Has unsettled deposit amount.");
+        require(_stagedReqs().totalDepositRequest==0, "Has unsettled deposit amount.");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Has unsettled withdrawal amount.");
         // report to primary vault
         bytes memory lzPayload = abi.encode(PT_SETTLED_REQUESTS);
