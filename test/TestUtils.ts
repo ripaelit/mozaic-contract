@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory, PrimaryVault } from '../types/typechain';
+import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory, PrimaryVault, MockContract, MockContract__factory } from '../types/typechain';
 // import { ERC20Mock } from '../types/typechain';
 // import { ERC20Mock__factory } from '../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
@@ -15,7 +15,7 @@ export const deployStablecoins = async (owner: SignerWithAddress, stablecoins: M
       const coinFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
       const coin = await coinFactory.deploy(stablecoinname, stablecoinname, BigNumber.from("18"));
       await coin.deployed();
-      console.log("Deployed coin: chainId, stablecoinname, address, totalSupply:", chainId, stablecoinname, coin.address, await coin.totalSupply());
+      console.log("Deployed coin: chainId = %d, stablecoinname = %s, address = %s", chainId, stablecoinname, coin.address);
       contractsInChain.set(stablecoinname, coin);
     }
     coinContracts.set(chainId, contractsInChain);
@@ -161,6 +161,10 @@ export const newStargateEndpoint = async (
   const latestBlockNumber = await ethers.provider.getBlockNumber();
   const lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("100000"), latestBlockNumber + 3, latestBlockNumber + 3);
   await lpStaking.deployed();
+  // Register pools to LPStaking
+  for (const [poolId, pool] of pools) {
+    lpStaking.add(poolId, pool.address);
+  }
   stargateDeploymentOnchain.lpStakingContract = lpStaking;
 //   console.log("Deployed LPStaking: chainId, address, totalAllocPoint:", _chainId, lpStaking.address, await lpStaking.totalAllocPoint());
 
@@ -276,4 +280,39 @@ export const lzEndpointMockSetDestEndpoints = async (lzDeploys: LayerZeroDeploym
       await lzEndpoint.setDestLzEndpoint(mozaicVault.address, destLzEndpoint.address);
     }
   }
+}
+
+export const deployMozaicForLocal = async (owner: SignerWithAddress, stargateDeployments: StargateDeployments, protocols: Map<number, Map<string,string>>) => {
+  let mozDeploys = new Map<number, MockContract>();
+  for (const [chainId, stgDeploy] of stargateDeployments) {
+    // Deploy Protocal Drivers
+    // 1. Deploy PancakeSwapDriver
+    const pancakeSwapDriverFactory = await ethers.getContractFactory('PancakeSwapDriver', owner) as PancakeSwapDriver__factory;
+    const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy();
+    await pancakeSwapDriver.deployed();
+    console.log("Deployed pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
+    // 2. Deploy StargateDriver
+    const stargateDriverFactory = await ethers.getContractFactory('StargateDriver', owner) as StargateDriver__factory;
+    const stargateDriver = await stargateDriverFactory.deploy();
+    await stargateDriver.deployed();
+    console.log("Deployed stargateDriver:", chainId, stargateDriver.address);
+
+    // Deploy MockContract
+    const stgRouter = stgDeploy.routerContract.address;
+    const stgLpStaking = stgDeploy.lpStakingContract.address;
+    // const stgToken = stgDeploy.stargateToken.address;
+    const mockContractFactory = (await ethers.getContractFactory('MockContract', owner)) as MockContract__factory;
+    const mockContract = await mockContractFactory.deploy();
+    await mockContract.deployed();
+    console.log("Deployed MockContract:", mockContract.address);
+
+    // Set ProtocolDrivers to MockContract
+    let config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLpStaking]);
+    await mockContract.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
+    config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
+    await mockContract.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+
+    mozDeploys.set(chainId, mockContract);
+  }
+  return mozDeploys;
 }
