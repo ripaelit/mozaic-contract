@@ -37,8 +37,8 @@ contract StargateDriver is ProtocolDriver{
             _unstake(_amountMLP, _token);
         }
         else if (_actionType == ActionType.SwapRemote) {
-            (uint256 _amountLD, address _srcToken, uint16 _dstChainId, address _dstToken) = abi.decode(_payload, (uint256, address, uint16, address));
-            _swapRemote(_amountLD, _srcToken, _dstChainId, _dstToken);
+            (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint16 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint16));
+            _swapRemote(_amountLD, _srcToken, _dstChainId, _dstPoolId);
         }
     }
     function _stake(uint256 _amountLD, address _token) private {
@@ -65,6 +65,7 @@ contract StargateDriver is ProtocolDriver{
 
     function _unstake(uint256 _amountLPToken, address _token) private {
         require (_amountLPToken > 0, "Cannot unstake zero amount");
+        console.log("StargateDriver._unstake: _amountLPToken = %d, _token = %s", _amountLPToken, _token);
         Pool _pool = getStargatePoolFromToken(_token);
         uint256 _poolId = _pool.poolId();
         // Find the Liquidity Pool's index in the Farming Pool.
@@ -81,22 +82,27 @@ contract StargateDriver is ProtocolDriver{
         uint256 _userToken = _coinContract.balanceOf(address(this));
     }
 
-    function _swapRemote(uint256 _amountLD, address _srcToken, uint16 _dstChainId, address _dstToken) private {
+    function _swapRemote(uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint16 _dstPoolId) private {
+        console.log("StargateDriver._swapRemote: _amountLD =", _amountLD);
         require (_amountLD > 0, "Cannot stake zero amount");
         uint256 _srcPoolId = getStargatePoolFromToken(_srcToken).poolId();
-        uint256 _dstPoolId = getStargatePoolFromToken(_dstToken).poolId();
-
+        // uint256 _dstPoolId = getStargatePoolFromToken(_dstToken).poolId();
+        console.log("srcPoodId = %d, dstPoolId = %d", _srcPoolId, _dstPoolId);
         IERC20(_srcToken).approve(_getConfig().stgRouter, _amountLD);
         Router(_getConfig().stgRouter).swap(_dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
     }
 
     function getStargatePoolFromToken(address _token) public view returns (Pool) {
+        console.log("getStargatePoolFromToken: _token", _token);
+        console.log("poolsLength =", Factory(Router(_getConfig().stgRouter).factory()).allPoolsLength());
         for (uint i = 0; i < Factory(Router(_getConfig().stgRouter).factory()).allPoolsLength(); i++) {
             Pool _pool = Pool(Factory(Router(_getConfig().stgRouter).factory()).allPools(i));
+            console.log("_pool.token(), _token", _pool.token(), _token);
             if (_pool.token() == _token) {
                 return _pool;
             }
         }
+        console.log("Pool not found for token");
         // revert when not found.
         revert("Pool not found for token");
     }

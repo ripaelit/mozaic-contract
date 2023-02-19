@@ -61,7 +61,7 @@ describe('PancakeSwapDriver', () => {
     });
     describe('PancakeSwapDriver.execute', () => {
         it ("can swap USDC->USDT", async () => {
-            const chainId = exportData.localTestConstants.chainIds[1];// Bsc
+            const chainId = exportData.localTestConstants.chainIds[0];// Ethereum
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const usdcContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;  // USDC in ETH
             const usdtContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1]) as MockToken;  // USDT in ETH
@@ -83,7 +83,7 @@ describe('PancakeSwapDriver', () => {
             };
             await secondaryVault.connect(owner).executeActions([swapAction]);
 
-             // Check USDT amount of SecondaryVault
+            // Check USDT amount of SecondaryVault
             console.log("Now SecondaryVault has USDC, USDT:", (await usdcContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
             expect(await usdtContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })

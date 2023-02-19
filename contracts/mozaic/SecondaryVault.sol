@@ -207,6 +207,8 @@ contract SecondaryVault is NonblockingLzApp {
         for (uint i = 0; i < _actions.length ; i++) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverIndex];
+            console.log("SecondaryVault.executeActions: _action.driverIndex:", _action.driverIndex);
+            console.log("SecondaryVault.executeActions: _driver:", address(_driver));
             (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
             require(success, "Failed to delegate to ProtocolDriver");
         }
@@ -220,15 +222,10 @@ contract SecondaryVault is NonblockingLzApp {
         require(_chainId == chainId, "only onchain mint in PoC");
         // TODO: make sure we only accept in the unit of amountSD (shared decimals in Stargate) --> What stargate did in Router.swap()
         
-        ////////    ???????
         (bool _success, bytes memory _returnData) =  address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTLDTOSD, _token, _amountLD));
-        require(_success, "Failed to access convertLDtoSD in addDepositRequest");
         uint256 _amountSD = abi.decode(_returnData, (uint256));
-        
         (_success, _returnData) = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD, _token, _amountSD));
-        require(_success, "Failed to access convertSDtoLD in addDepositRequest");
         uint256 _amountLDAccept = abi.decode(_returnData, (uint256));
-        ///////   ???????
 
         // transfer stablecoin
         _safeTransferFrom(_token, msg.sender, address(this), _amountLDAccept);
@@ -354,7 +351,7 @@ contract SecondaryVault is NonblockingLzApp {
     ) private {
         // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
         (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0x23b872dd, _from, _to, _value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "Stargate: TRANSFER_FROM_FAILED");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "SecondaryVault: TRANSFER_FROM_FAILED");
     }
     
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
