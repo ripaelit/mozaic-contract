@@ -129,12 +129,12 @@ contract PrimaryVault is SecondaryVault {
         require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
         snapshotReport[_srcChainId] = _report;
         secondaryVaultStatus[_srcChainId]=VaultStatus.SNAPSHOTTED;
-        if (checkAllSnapshotReportReady()) {
+        if (allVaultsSnapshotted()) {
             calculateMozLpPerStablecoinMil();
         }
     }
     function calculateMozLpPerStablecoinMil() public {
-        require(checkAllSnapshotReportReady(), "Some SnapshotReports not reached");
+        require(allVaultsSnapshotted(), "Some SnapshotReports not reached");
         uint256 _stargatePriceMil = _getStargatePriceMil();
         uint256 _totalStablecoinValue = 0;
         uint256 _mintedMozLp = 0;
@@ -152,7 +152,7 @@ contract PrimaryVault is SecondaryVault {
         }
         console.log("total mLP: %d / total$: %d * kk = %d", _totalStablecoinValue, _mintedMozLp, mozaicLpPerStablecoinMil);
     }
-    function checkAllSnapshotReportReady() public view returns (bool) {
+    function allVaultsSnapshotted() public view returns (bool) {
         if (secondaryVaultStatus[chainId]!=VaultStatus.SNAPSHOTTED) {
             return false;
         }
@@ -173,7 +173,7 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function settleRequestsAllVaults() public payable {
-        require(checkAllSnapshotReportReady(), "Settle-All: Requires all reports");
+        require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
         _settleRequests(mozaicLpPerStablecoinMil);
         secondaryVaultStatus[chainId] = VaultStatus.SETTLED;

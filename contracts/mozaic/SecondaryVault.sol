@@ -94,6 +94,7 @@ contract SecondaryVault is NonblockingLzApp {
     address public mozaicLp;
     uint16 public primaryChainId=0;
     uint16 public chainId=0;
+    address[] public acceptingTokens;
     
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     RequestBuffer public leftBuffer;
@@ -197,6 +198,38 @@ contract SecondaryVault is NonblockingLzApp {
         (bool _success, bytes memory _response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(_success, "Failed to access configDriver in setProtocolDriver");
     }
+    function addToken(address _token) public onlyOwner {
+        for (uint i = 0; i < acceptingTokens.length; i++) {
+            if (acceptingTokens[i] == _token) {
+                return;
+            }
+        }
+        acceptingTokens.push(_token);
+    }
+    function removeToken(address _token) public onlyOwner {
+        // TODO: Make sure there's no asset as this token.
+        uint _idxToken = acceptingTokens.length;
+        for (uint i = 0; i < acceptingTokens.length; i++) {
+            if (acceptingTokens[i] == _token) {
+                _idxToken = i;
+                break;
+            }
+        }
+        require(_idxToken < acceptingTokens.length, "Token not in accepting list");
+        if (acceptingTokens.length > 1) {
+            acceptingTokens[_idxToken] = acceptingTokens[acceptingTokens.length-1];
+        }
+        acceptingTokens.pop();
+    }
+    function isAcceptingToken(address _token) public view returns (bool) {
+        for (uint i = 0; i < acceptingTokens.length; i++) {
+            if (acceptingTokens[i] == _token) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // function setMozaicLp(address _mozaicLp) public onlyOwner {
     //     // TODO: contract type check
     //     mozaicLp = _mozaicLp;
@@ -220,6 +253,7 @@ contract SecondaryVault is NonblockingLzApp {
         address _depositor = msg.sender;
         require(primaryChainId > 0, "primary chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
+        require(isAcceptingToken(_token), "should be accepting token");
         // Minimum unit of acceptance 1 USD - to easy the following staking
         // uint256 _amountLDAccept = _amountLD.div(IERC20Metadata(_token).decimals()).mul(IERC20Metadata(_token).decimals());
         uint256 _amountLDAccept = _amountLD;
@@ -257,6 +291,7 @@ contract SecondaryVault is NonblockingLzApp {
     function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
         require(_chainId == chainId, "PoC restriction - withdraw onchain");
         require(primaryChainId > 0, "main chain should be set");
+        require(isAcceptingToken(_token), "should be accepting token");
         address _withdrawer = msg.sender;
         RequestBuffer storage buffer;
         buffer = _pendingReqs();
@@ -319,6 +354,9 @@ contract SecondaryVault is NonblockingLzApp {
         // Make Report
         // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
         uint256 _totalStablecoin = 0;
+        for (uint i = 0; i < acceptingTokens.length; i++) {
+            _totalStablecoin = _totalStablecoin.add(IERC20(acceptingTokens[i]).balanceOf(address(this)));
+        }
         for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++) {
             // 1. Collect pending STG rewards
             LPStaking(stargateLpStaking).withdraw(i, 0);
@@ -329,11 +367,11 @@ contract SecondaryVault is NonblockingLzApp {
             if (_pool.totalSupply() > 0) {
                 _totalStablecoin = _totalStablecoin.add(_totalLiquidityLD.mul(_lpAmount).div(_pool.totalSupply()));
             }
-            // _totalStablecoin = _totalStablecoin.add(IERC20(_pool.token()).balanceOf(address(this))); // Just in case
         }
         report.totalStargate = IERC20(stargateToken).balanceOf(address(this));
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-        report.totalStablecoin = _totalStablecoin; // _totalStablecoin.sub(_stagedReqs().totalDepositRequest).sub(_pendingReqs().totalDepositRequest);
+        console.log("_snapshot: _totalcoin: %d staged: %d pending: %d", _totalStablecoin, _stagedReqs().totalDepositRequest, _pendingReqs().totalDepositRequest);
+        report.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositRequest).sub(_pendingReqs().totalDepositRequest);
         report.depositRequestAmount = _stagedReqs().totalDepositRequest;
         report.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
         report.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();

@@ -163,7 +163,7 @@ describe('SecondaryVault', () => {
             expect(await secondaryVault.getTotalDepositRequest(true)).to.eq(aliceDeposit1LD.add(benDeposit1LD));
             expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit2LD);
             // Primary vault now has all snapshot reports.
-            expect(await primaryVault.checkAllSnapshotReportReady()).to.eq(true);
+            expect(await primaryVault.allVaultsSnapshotted()).to.eq(true);
             const mozaicLpPerStablecoin = await primaryVault.mozaicLpPerStablecoinMil();
             // Algostory: #### 3-3. Determine MLP per Stablecoin Rate
             // Initial rate is 1 mLP per USD
