@@ -190,6 +190,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
         protocolDrivers[_driverId] = _driver;
+        console.log("SecondaryVault.setProtocolDriver: _driverId, _driver: ", _driverId, address(_driver));
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
         (bool _success, bytes memory _response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(_success, "Failed to access configDriver in setProtocolDriver");

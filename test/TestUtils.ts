@@ -144,7 +144,7 @@ export const newStargateEndpoint = async (
 
   // LPStaking and STG
   // Deploy Stargate Token
-  const stargateTokenFactory = (await ethers.getContractFactory('StargateToken', owner));
+  const stargateTokenFactory = (await ethers.getContractFactory('StargateToken', owner)) as StargateToken__factory;
   const stargateToken = await stargateTokenFactory.deploy(
     'Stargate Token', 
     'STG', 
@@ -157,7 +157,7 @@ export const newStargateEndpoint = async (
 //   console.log("Deployed StargateToken: chainId, address, totalSupply:", _chainId, stargateToken.address, await stargateToken.totalSupply());
 
   // Deploy LPStaking contract
-  const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner));
+  const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
   const latestBlockNumber = await ethers.provider.getBlockNumber();
   const lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("100000"), latestBlockNumber + 3, latestBlockNumber + 3);
   await lpStaking.deployed();
@@ -217,10 +217,10 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
       vault = secondaryVault;
     }
     // Set ProtocolDrivers to vault
-    config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
-    await vault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
     config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLpStaking]);
     await vault.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
+    config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
+    await vault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
 
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,
