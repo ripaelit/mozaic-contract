@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import { Bridge__factory, ERC20, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver__factory, MockContract, MockContract__factory, StargateFeeLibraryV02__factory } from '../types/typechain';
+import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory, PrimaryVault} from '../types/typechain';
 // import { ERC20Mock } from '../types/typechain';
 // import { ERC20Mock__factory } from '../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
@@ -181,10 +181,10 @@ export const newStargateEndpoint = async (
   return stargateDeploymentOnchain;
 }
 
-export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, protocols: Map<number, Map<string,string>>) => {
+export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, protocols: Map<number, Map<string,string>>, tokenDeploys: StableCoinDeployments) => {
   let mozDeploys = new Map<number, MozaicDeployment>();
-  let vault, config;
   for (const [chainId, stgDeploy] of stargateDeployments) {
+    let vault, config;
     // Deploy MozaicLP
     const mozaicLpFactory = await ethers.getContractFactory('MozaicLP', owner) as MozaicLP__factory;
     console.log("ETH(owner) before deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
@@ -198,12 +198,12 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     const pancakeSwapDriverFactory = await ethers.getContractFactory('PancakeSwapDriver', owner) as PancakeSwapDriver__factory;
     const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy();
     await pancakeSwapDriver.deployed();
-    console.log("Deployed pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
+    console.log("TestUtils.deployMozaic: chainId, pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
     // 2. Deploy StargateDriver
     const stargateDriverFactory = await ethers.getContractFactory('StargateDriver', owner) as StargateDriver__factory;
     const stargateDriver = await stargateDriverFactory.deploy();
     await stargateDriver.deployed();
-    console.log("Deployed stargateDriver:", chainId, stargateDriver.address);
+    console.log("TestUtils.deployMozaic: chainId, stargateDriver:", chainId, stargateDriver.address);
 
     // Deploy Vault
     const stgRouter = stgDeploy.routerContract.address;
@@ -225,12 +225,16 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
       console.log("Deployed SecondaryVault:", secondaryVault.address);
       vault = secondaryVault;
     }
-    
     // Set ProtocolDrivers to vault
     config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLpStaking]);
     await vault.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
     config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
     await vault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+
+    // Set Accepting Tokens
+    for (const [_, tokencontract] of tokenDeploys.get(chainId)!) {
+      await vault.addToken(tokencontract.address);
+    }
 
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,
@@ -239,8 +243,8 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     mozDeploys.set(chainId, mozDeploy);
   }
   // Register TrustedRemote
-  for (const [chainIdLeft] of stargateDeployments) {
-    for (const [chainIdRight] of stargateDeployments) {
+  for (const [chainIdLeft] of mozDeploys) {
+    for (const [chainIdRight] of mozDeploys) {
       if (chainIdLeft == chainIdRight) continue;
       await mozDeploys.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicVault.address);
       await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicLp.address);
@@ -248,6 +252,15 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     // TODO: Transfer ownership of MozaicLP to Vault
     await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozDeploys.get(chainIdLeft)!.mozaicVault.address);
   }
+  // Register SecondaryVaults
+  for (const [chainId] of mozDeploys) {
+    if (chainId == primaryChainId) continue;
+    await (mozDeploys.get(primaryChainId)!.mozaicVault as PrimaryVault).setSecondaryVaults(chainId, {
+      chainId,
+      vaultAddress: mozDeploys.get(chainId)!.mozaicVault.address,
+    });
+  }
+
   return mozDeploys;
   // Register
 }
@@ -272,39 +285,4 @@ export const lzEndpointMockSetDestEndpoints = async (lzDeploys: LayerZeroDeploym
       await lzEndpoint.setDestLzEndpoint(mozaicVault.address, destLzEndpoint.address);
     }
   }
-}
-
-export const deployMozaicForLocal = async (owner: SignerWithAddress, stargateDeployments: StargateDeployments, protocols: Map<number, Map<string,string>>) => {
-  let mozDeploys = new Map<number, MockContract>();
-  for (const [chainId, stgDeploy] of stargateDeployments) {
-    // Deploy Protocal Drivers
-    // 1. Deploy PancakeSwapDriver
-    const pancakeSwapDriverFactory = await ethers.getContractFactory('PancakeSwapDriver', owner) as PancakeSwapDriver__factory;
-    const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy();
-    await pancakeSwapDriver.deployed();
-    console.log("Deployed pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
-    // 2. Deploy StargateDriver
-    const stargateDriverFactory = await ethers.getContractFactory('StargateDriver', owner) as StargateDriver__factory;
-    const stargateDriver = await stargateDriverFactory.deploy();
-    await stargateDriver.deployed();
-    console.log("Deployed stargateDriver:", chainId, stargateDriver.address);
-
-    // Deploy MockContract
-    const stgRouter = stgDeploy.routerContract.address;
-    const stgLpStaking = stgDeploy.lpStakingContract.address;
-    // const stgToken = stgDeploy.stargateToken.address;
-    const mockContractFactory = (await ethers.getContractFactory('MockContract', owner)) as MockContract__factory;
-    const mockContract = await mockContractFactory.deploy();
-    await mockContract.deployed();
-    console.log("Deployed MockContract:", mockContract.address);
-
-    // Set ProtocolDrivers to MockContract
-    let config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLpStaking]);
-    await mockContract.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
-    config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
-    await mockContract.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
-
-    mozDeploys.set(chainId, mockContract);
-  }
-  return mozDeploys;
 }

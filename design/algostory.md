@@ -51,7 +51,7 @@ Control Center calls `PrimaryVault.initOptimizationSession()`
   - Set protocol status as `Optimizing`
   - PrimaryVault trigger `self.snapshotAndReport()`
 
-#### 2. Take Snapshot and Report
+#### 3-2. Take Snapshot and Report
 
 Control Center calls `Vault.snapshotAndReport()` on each (Secondary) Vault
 
@@ -73,13 +73,15 @@ Each (Secondary Vault) does the following:
 
 - Send snapshot report to primary vault (LayerZero communication)
 
-#### 3. Determine MLP per Stablecoin Rate
+#### 3-3. Determine MLP per Stablecoin Rate
 
 When all sync responses reach to primary vault, it determines the following
 mozaicLpPerStablecoin = totalMozLp / (totalStablecoin + totalStargate*stargatePrice)
 
 This means that we want to give out mLP in a fair way to new depositors.
 (And also be fair to Withdrawers)
+
+Initial Rate of mLP per staked USD : 1.000
 
 #### 4. Execute Asset Transition
 
@@ -119,7 +121,7 @@ As a result:
 The staged requests are now settled. And the users mLP amount gets updated.
 The primary vault will get notified via LayerZero message that all requests are settled
 
-#### 6. Close Session
+#### 6. Session Closes
 
 Happens when: primary vault received REQUESTS_SETTLED messages from all secondary vaults.
 
