@@ -138,11 +138,13 @@ describe('SecondaryVault', () => {
             // check protocolStatus
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
 
-            console.log("TokenASecondary in secondaryVault:", await tokenASecondary.balanceOf(secondaryVault.address));
-            console.log("TokenBSecondary in secondaryVault:", await tokenBSecondary.balanceOf(secondaryVault.address));
-            console.log("TokenAPrimary in primaryVault:", await tokenAPrimary.balanceOf(primaryVault.address));
-            
             // snapshot requests
+            for (const chainId of exportData.localTestConstants.chainIds) {
+                await mozaicDeployments.get(chainId)!.mozaicVault.snapshotAndReport({value:ethers.utils.parseEther("0.1")});
+            }
+            // check: primary vault now has all snapshot reports
+            expect(await primaryVault.checkAllSnapshotReportReady()).to.eq(true);
+
             // settle requests
             // Alice, Ben and Chris now has mLP, Vaults has coin
 
