@@ -10,6 +10,7 @@
     "testpan": "npx hardhat test ./test/PancakeSwapDriver.test.ts",
     "testsec": "npx hardhat test ./test/SecondaryVault.test.ts",
     "testvault": "npx hardhat test ./test/SecondaryVault.test.ts",
+    "teststa": "npx hardhat test ./test/StargateDriver.test.ts",
     "coverage": "yarn build && npx hardhat coverage --temp artifacts --network coverage",
     "postinstall": "yarn compile",
     "lint": "gts lint && npx hardhat check",
