@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory } from '../types/typechain';
+import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory, PrimaryVault } from '../types/typechain';
 // import { ERC20Mock } from '../types/typechain';
 // import { ERC20Mock__factory } from '../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
@@ -174,8 +174,8 @@ export const newStargateEndpoint = async (
 
 export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, protocols: Map<number, Map<string,string>>) => {
   let mozDeploys = new Map<number, MozaicDeployment>();
-  let vault, config;
   for (const [chainId, stgDeploy] of stargateDeployments) {
+    let vault, config;
     // Deploy MozaicLP
     const mozaicLpFactory = await ethers.getContractFactory('MozaicLP', owner) as MozaicLP__factory;
     console.log("ETH(owner) before deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
@@ -215,6 +215,7 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
       await secondaryVault.deployed();
       console.log("Deployed SecondaryVault:", secondaryVault.address);
       vault = secondaryVault;
+      
     }
     // Set ProtocolDrivers to vault
     config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLpStaking]);
@@ -229,8 +230,8 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     mozDeploys.set(chainId, mozDeploy);
   }
   // Register TrustedRemote
-  for (const [chainIdLeft] of stargateDeployments) {
-    for (const [chainIdRight] of stargateDeployments) {
+  for (const [chainIdLeft] of mozDeploys) {
+    for (const [chainIdRight] of mozDeploys) {
       if (chainIdLeft == chainIdRight) continue;
       await mozDeploys.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicVault.address);
       await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicLp.address);
@@ -238,6 +239,15 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     // TODO: Transfer ownership of MozaicLP to Vault
     await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozDeploys.get(chainIdLeft)!.mozaicVault.address);
   }
+  // Register SecondaryVaults
+  for (const [chainId] of mozDeploys) {
+    if (chainId == primaryChainId) continue;
+    await (mozDeploys.get(primaryChainId)!.mozaicVault as PrimaryVault).setSecondaryVaults(chainId, {
+      chainId,
+      vaultAddress: mozDeploys.get(chainId)!.mozaicVault.address,
+    });
+  }
+
   return mozDeploys;
   // Register
 }

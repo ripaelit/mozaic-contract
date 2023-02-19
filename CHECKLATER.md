@@ -29,3 +29,7 @@ overall, avoid using contract types directly, instead use address type, and use 
 #### Cancel Pending Request
 
 #### Probably Issue New Token for Pending and Staged Assets?
+
+#### Emergency Feature
+
+Please add your ideas ...

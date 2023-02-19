@@ -149,9 +149,19 @@ describe('SecondaryVault', () => {
             }
             // check: primary vault now has all snapshot reports
             expect(await primaryVault.checkAllSnapshotReportReady()).to.eq(true);
+            const mozaicLpPerStablecoin = await primaryVault.mozaicLpPerStablecoinMil();
+            expect(mozaicLpPerStablecoin).to.eq(1000000); // initial rate 1 mLP per USD*
 
-            // settle requests
+            // TODO: stake
+
+            // Algostory-5. Settle Requests
             // Alice, Ben and Chris now has mLP, Vaults has coin
+            await primaryVault.settleRequestsAllVaults();
+            for (const chainId of exportData.localTestConstants.chainIds) {
+                if (chainId == primaryChainId) continue;
+                await mozaicDeployments.get(chainId)!.mozaicVault.reportSettled();
+            }
+            expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
 
             // Second Round:
             // Alice books deposit

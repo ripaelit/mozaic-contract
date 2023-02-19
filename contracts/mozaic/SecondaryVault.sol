@@ -375,28 +375,29 @@ contract SecondaryVault is NonblockingLzApp {
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
-        RequestBuffer storage reqs = _stagedReqs();
-        for (uint i = 0; i < reqs.depositRequestList.length; i++) {
-            DepositRequest memory request = reqs.depositRequestList[i];
-            uint256 _depositAmount = reqs.depositRequestLookup[request.user][request.token][request.chainId];
+        RequestBuffer storage _reqs = _stagedReqs();
+        for (uint i = 0; i < _reqs.depositRequestList.length; i++) {
+            DepositRequest memory request = _reqs.depositRequestList[i];
+            uint256 _depositAmount = _reqs.depositRequestLookup[request.user][request.token][request.chainId];
             uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
             mozaicLpContract.mint(request.user, _amountToMint);
             // Reduce Handled Amount from Buffer
-            reqs.totalDepositRequestSD = reqs.totalDepositRequestSD.sub(_depositAmount);
-            reqs.depositRequestLookup[request.user][request.token][request.chainId] = reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmount);
+            _reqs.totalDepositRequestSD = _reqs.totalDepositRequestSD.sub(_depositAmount);
+            _reqs.depositRequestLookup[request.user][request.token][request.chainId] = _reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmount);
         }
+        require(_reqs.totalDepositRequestSD==0, "Has unsettled deposit amount.");
 
-        for (uint i = 0; i < reqs.withdrawRequestList.length; i++) {
-            WithdrawRequest memory request = reqs.withdrawRequestList[i];
-            uint256 _withdrawAmountMLP = reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
+        for (uint i = 0; i < _reqs.withdrawRequestList.length; i++) {
+            WithdrawRequest memory request = _reqs.withdrawRequestList[i];
+            uint256 _withdrawAmountMLP = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
             (bool success, bytes memory returnData) = address(protocolDrivers[STG_DRIVER_ID]).delegatecall(abi.encodeWithSelector(SELECTOR_CONVERTSDTOLD,request.token,  _withdrawAmountMLP.div(_mozaicLpPerStablecoinMil).mul(1000000)));
             require(success, "Failed to access convertSDtoLD in _settleRequests");
             uint256 _coinToGiveLD = abi.decode(returnData, (uint256));
             uint256 _vaultBalance = IERC20(request.token).balanceOf(address(this));
             // Reduce Handled Amount from Buffer
-            reqs.totalWithdrawRequestMLP = reqs.totalWithdrawRequestMLP.sub(_withdrawAmountMLP);
-            reqs.withdrawForUserMLP[request.user] = reqs.withdrawForUserMLP[request.user].sub(_withdrawAmountMLP);
-            reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = reqs.withdrawRequestLookup[request.user][request.chainId][request.token].sub(_withdrawAmountMLP);
+            _reqs.totalWithdrawRequestMLP = _reqs.totalWithdrawRequestMLP.sub(_withdrawAmountMLP);
+            _reqs.withdrawForUserMLP[request.user] = _reqs.withdrawForUserMLP[request.user].sub(_withdrawAmountMLP);
+            _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token].sub(_withdrawAmountMLP);
             if (_vaultBalance <= _coinToGiveLD) {
                 // The vault does not have enough balance. Only give as much as it has.
                 // TODO: Check numerical logic.
@@ -411,11 +412,12 @@ contract SecondaryVault is NonblockingLzApp {
             // Give Stablecoin
             _giveStablecoin(request.user, request.token, _coinToGiveLD);
         }
+        require(_reqs.totalWithdrawRequestMLP==0, "Has unsettled withdrawal amount.");
     }
 
     function reportSettled() public payable {
-        require(_stagedReqs().totalDepositRequestSD==0);
-        require(_stagedReqs().totalWithdrawRequestMLP==0);
+        require(_stagedReqs().totalDepositRequestSD==0, "Has unsettled deposit amount.");
+        require(_stagedReqs().totalWithdrawRequestMLP==0, "Has unsettled withdrawal amount.");
         // report to primary vault
         bytes memory lzPayload = abi.encode(PT_SETTLED_REQUESTS);
         _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
