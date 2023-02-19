@@ -26,3 +26,6 @@ overall, avoid using contract types directly, instead use address type, and use 
 
 #### Performance Fee Collection
 ...
+#### Cancel Pending Request
+
+#### Probably Issue New Token for Pending and Staged Assets?
