@@ -132,10 +132,10 @@ describe('SecondaryVault', () => {
             // Chris -> PrimaryVault Token A
             await tokenASecondary.connect(alice).approve(secondaryVault.address, aliceDeposit1LD);
             await secondaryVault.connect(alice).addDepositRequest(aliceDeposit1LD, tokenASecondary.address, secondaryChainId);
-            // Ben deposit tokenASecondary to secondaryVault
+            // Beed deposit tokenASecondary's to secondaryVault request 4k now turns into staged from pending.
             await tokenBSecondary.connect(ben).approve(secondaryVault.address, benDeposit1LD);
             await secondaryVault.connect(ben).addDepositRequest(benDeposit1LD, tokenBSecondary.address, secondaryChainId);
-            // Chris deposit tokenBSecondary to primaryVault
+            // Chried deposit tokenBSecondary's to primaryVault request 4k now turns into staged from pending.
             await tokenAPrimary.connect(chris).approve(primaryVault.address, chrisDeposit1LD);
             await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);
             
@@ -152,7 +152,7 @@ describe('SecondaryVault', () => {
             for (const chainId of exportData.localTestConstants.chainIds) {
                 // TODO: optimize lz native token fee.
                 console.log("vault address", chainId, mozaicDeployments.get(chainId)!.mozaicVault.address);
-                await mozaicDeployments.get(chainId)!.mozaicVault.snapshotAndReport({value:ethers.utils.parseEther("0.1")});
+                await mozaicDeployments.get(chainId)!.mozaicVault.snapshotAndReport(); //{value:ethers.utils.parseEther("0.1")}
             }
 
             // Alice adds to pending request pool, but this should not affect minted mLP amount.
@@ -185,9 +185,34 @@ describe('SecondaryVault', () => {
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
 
             // Second Round:
-            // Alice books deposit
+            console.log("Second Round:");
+            // Alice's booked deposit request 4k now turns into staged from pending.
             // Ben books withdraw (half of his mLP)
-            // snapshot requests
+            const benMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
+            const benCoinBefore = await tokenBSecondary.balanceOf(ben.address);
+            console.log("ben:", ben.address);
+            console.log("benMLPBefore", benMLPBefore, "benCoinBefore", benCoinBefore);
+            await secondaryVault.connect(ben).addWithdrawRequest(benWithdraw2MLP, tokenBSecondary.address, secondaryChainId);
+            // Settle Requests
+            await primaryVault.connect(owner).initOptimizationSession();
+            await primaryVault.connect(owner).snapshotAndReport({value:ethers.utils.parseEther("0")});
+            await secondaryVault.connect(owner).snapshotAndReport({value:ethers.utils.parseEther("0.1")}); //{value:ethers.utils.parseEther("0.1")}
+            console.log("before", await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(alice.address));
+            const txresult = await primaryVault.settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
+            console.log("after", await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(alice.address));
+
+            expect(await secondaryVault.getTotalDepositRequest(true)).to.eq(0);
+            console.log(await secondaryVault.getTotalDepositRequest(true));
+            // console.log(txresult);
+            // console.log("wait for settling");
+            // await new Promise( resolve => setTimeout(resolve, 5000) );
+            // console.log("settled");
+            await secondaryVault.reportSettled({value:ethers.utils.parseEther("0.1")});
+            const benMLPAfter = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
+            const benCoinAfter = await tokenBSecondary.balanceOf(ben.address);
+            console.log("benMLPAfter", benMLPAfter, "benCoinAfter", benCoinAfter);
+            expect(benMLPBefore.sub(benMLPAfter)).to.eq(benWithdraw2MLP);
+            expect(benCoinAfter.sub(benCoinBefore)).to.eq(benWithdraw2MLP);
             // settle requests
         })
     })
