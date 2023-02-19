@@ -13,9 +13,8 @@ contract StargateDriver is ProtocolDriver{
         address stgLpStaking;
     }
     bytes32 public constant CONFIG_SLOT = keccak256("StargateDriver.config");
-    // StargateDriverConfig public stargateDriverConfig;
     function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory response) {
-        // Unpack into _getConfig().stgRouter, stgLpStaking, stgToken
+        // Unpack into _getConfig().stgRouter, stgLpStaking
         (address _stgRouter, address _stgLpStaking) = abi.decode(params, (address, address));
         StargateDriverConfig storage _config = _getConfig();
         _config.stgRouter = _stgRouter;
