@@ -201,7 +201,7 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     if (chainId == primaryChainId) {
       // Deploy PrimaryVault
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
-      const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, primaryChainId, stgRouter, stgLpStaking, stgToken, mozaicLp.address, {gasLimit:BigNumber.from("30000000")});
+      const primaryVault = await primaryVaultFactory.deploy(layerzeroDeployments.get(chainId)!.address, chainId, primaryChainId, stgRouter, stgLpStaking, stgToken, mozaicLp.address);
       await primaryVault.deployed();
       console.log("Deployed PrimaryVault:", primaryVault.address);
       vault = primaryVault;
