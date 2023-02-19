@@ -3,7 +3,7 @@ const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { MockToken, PrimaryVault, MockDex__factory, SecondaryVault } from '../types/typechain';
-import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments } from './TestUtils';
+import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
 import { StargateDeployments, StableCoinDeployments, MozaicDeployments, ProtocolStatus, VaultStatus } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
@@ -41,6 +41,9 @@ describe('SecondaryVault', () => {
         // Deploy Mozaic
         mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols);
         console.log("Deployed mozaics");
+
+        // LZEndpointMock setDestLzEndpoint
+        await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
 
         // Set deltaparam
         for (const chainId of stargateDeployments.keys()!) {
@@ -140,6 +143,8 @@ describe('SecondaryVault', () => {
 
             // snapshot requests
             for (const chainId of exportData.localTestConstants.chainIds) {
+                // TODO: optimize lz native token fee.
+                console.log("vault address", chainId, mozaicDeployments.get(chainId)!.mozaicVault.address);
                 await mozaicDeployments.get(chainId)!.mozaicVault.snapshotAndReport({value:ethers.utils.parseEther("0.1")});
             }
             // check: primary vault now has all snapshot reports

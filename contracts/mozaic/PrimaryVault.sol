@@ -8,7 +8,6 @@ import "./MozaicLP.sol";
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "hardhat/console.sol";
 
 contract PrimaryVault is SecondaryVault {
     using SafeMath for uint256;
@@ -129,7 +128,7 @@ contract PrimaryVault is SecondaryVault {
     function _acceptSnapshotReport(uint16 _srcChainId, SnapshotReport memory _report) internal {
         require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
         snapshotReport[_srcChainId] = _report;
-        secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTED;
+        secondaryVaultStatus[_srcChainId]=VaultStatus.SNAPSHOTTED;
         if (checkAllSnapshotReportReady()) {
             calculateMozLpPerStablecoinMil();
         }

@@ -3,7 +3,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory } from '../types/typechain';
 // import { ERC20Mock } from '../types/typechain';
 // import { ERC20Mock__factory } from '../types/typechain';
-import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment } from '../constants/types';
+import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import exportData from '../constants';
 
@@ -65,6 +65,8 @@ export const bridgeStargateEndpoints = async (stargateDeployments: StargateDeplo
         // console.log("TestUtils.bridgeStargateEndpoints: setBridge: ", srcChainId, dstChainId, stargateDst.bridgeContract.address);
       }
 
+      // TODO: change the following logic to be optional.
+      // LzEndpointMock: setDestLzEndpoint
       const destLzEndpoint = await stargateSrc.lzEndpoint.lzEndpointLookup(stargateDst.bridgeContract.address);
       if (destLzEndpoint === "0x0000000000000000000000000000000000000000") {
         // set it if its not set
@@ -230,13 +232,14 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
   for (const [chainIdLeft] of stargateDeployments) {
     for (const [chainIdRight] of stargateDeployments) {
       if (chainIdLeft == chainIdRight) continue;
-      await mozDeploys.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemoteAddress(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicVault.address);
-      await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemoteAddress(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicLp.address);
+      await mozDeploys.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicVault.address);
+      await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozDeploys.get(chainIdRight)!.mozaicLp.address);
     }
     // TODO: Transfer ownership of MozaicLP to Vault
     await mozDeploys.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozDeploys.get(chainIdLeft)!.mozaicVault.address);
   }
-  return mozDeploys;  
+  return mozDeploys;
+  // Register
 }
 
 export const getLayerzeroDeploymentsFromStargateDeployments = (stargateDeployments: StargateDeployments) => {
@@ -245,4 +248,18 @@ export const getLayerzeroDeploymentsFromStargateDeployments = (stargateDeploymen
     lzDeploys.set(chainId, stgDeploy.lzEndpoint);
   }
   return lzDeploys;
+}
+
+export const lzEndpointMockSetDestEndpoints = async (lzDeploys: LayerZeroDeployments, mozDeploys: MozaicDeployments) => {
+  for (const chainId of lzDeploys.keys()!) {
+    for (const destChainId of lzDeploys.keys()!) {
+      if (chainId == destChainId) continue;
+      const lzEndpoint = lzDeploys.get(chainId)!;
+      const destLzEndpoint = lzDeploys.get(destChainId)!;
+      const mozaicLp = mozDeploys.get(destChainId)!.mozaicLp;
+      const mozaicVault = mozDeploys.get(destChainId)!.mozaicVault;
+      await lzEndpoint.setDestLzEndpoint(mozaicLp.address, destLzEndpoint.address);
+      await lzEndpoint.setDestLzEndpoint(mozaicVault.address, destLzEndpoint.address);
+    }
+  }
 }
