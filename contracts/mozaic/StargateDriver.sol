@@ -12,12 +12,21 @@ contract StargateDriver is ProtocolDriver{
         address stgRouter;
         address stgLpStaking;
     }
-    StargateDriverConfig public stargateDriverConfig;
+    bytes32 public constant CONFIG_SLOT = keccak256("StargateDriver.config");
+    // StargateDriverConfig public stargateDriverConfig;
     function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory response) {
-        // Unpack into stargateDriverConfig.stgRouter, stgLpStaking, stgToken
+        // Unpack into _getConfig().stgRouter, stgLpStaking, stgToken
         (address _stgRouter, address _stgLpStaking) = abi.decode(params, (address, address));
-        stargateDriverConfig.stgRouter = _stgRouter;
-        stargateDriverConfig.stgLpStaking = _stgLpStaking;
+        StargateDriverConfig storage _config = _getConfig();
+        _config.stgRouter = _stgRouter;
+        _config.stgLpStaking = _stgLpStaking;
+    }
+    function _getConfig() internal view returns (StargateDriverConfig storage _config) {
+        // pure?
+        bytes32 slotAddress = CONFIG_SLOT;
+        assembly {
+            _config.slot := slotAddress
+        }
     }
     function execute(ActionType _actionType, bytes calldata _payload) public override returns (bytes memory response) {
         if (_actionType == ActionType.Stake) {
@@ -40,19 +49,19 @@ contract StargateDriver is ProtocolDriver{
         uint256 _poolId = _pool.poolId();
         // Approve coin transfer from OrderTaker to STG.Pool
         IERC20 coinContract = IERC20(_pool.token());
-        coinContract.approve(stargateDriverConfig.stgRouter, _amountLD);
+        coinContract.approve(_getConfig().stgRouter, _amountLD);
         // Stake coin from OrderTaker to STG.Pool
         uint256 balancePre = _pool.balanceOf(address(this));
-        Router(stargateDriverConfig.stgRouter).addLiquidity(_poolId, _amountLD, address(this));
+        Router(_getConfig().stgRouter).addLiquidity(_poolId, _amountLD, address(this));
         uint256 balanceAfter = _pool.balanceOf(address(this));
         uint256 amountLPToken = balanceAfter - balancePre;
         // Find the Liquidity Pool's index in the Farming Pool.
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
         // Approve LPToken transfer from OrderTaker to LPStaking
-        _pool.approve(stargateDriverConfig.stgLpStaking, amountLPToken);
+        _pool.approve(_getConfig().stgLpStaking, amountLPToken);
         // Stake LPToken from OrderTaker to LPStaking
-        LPStaking(stargateDriverConfig.stgLpStaking).deposit(stkPoolIndex, amountLPToken);
+        LPStaking(_getConfig().stgLpStaking).deposit(stkPoolIndex, amountLPToken);
     }
 
     function _unstake(uint256 _amountLPToken, address _token) private {
@@ -64,10 +73,10 @@ contract StargateDriver is ProtocolDriver{
         require(found, "The LP token not acceptable.");
 
         // Unstake LPToken from LPStaking to OrderTaker
-        LPStaking(stargateDriverConfig.stgLpStaking).withdraw(stkPoolIndex, _amountLPToken);
+        LPStaking(_getConfig().stgLpStaking).withdraw(stkPoolIndex, _amountLPToken);
         
         // Unstake coin from STG.Pool to OrderTaker
-        Router(stargateDriverConfig.stgRouter).instantRedeemLocal(uint16(_poolId), _amountLPToken, address(this));
+        Router(_getConfig().stgRouter).instantRedeemLocal(uint16(_poolId), _amountLPToken, address(this));
         
         IERC20 _coinContract = IERC20(_pool.token());
         uint256 _userToken = _coinContract.balanceOf(address(this));
@@ -78,13 +87,13 @@ contract StargateDriver is ProtocolDriver{
         uint256 _srcPoolId = getStargatePoolFromToken(_srcToken).poolId();
         uint256 _dstPoolId = getStargatePoolFromToken(_dstToken).poolId();
 
-        IERC20(_srcToken).approve(stargateDriverConfig.stgRouter, _amountLD);
-        Router(stargateDriverConfig.stgRouter).swap(_dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
+        IERC20(_srcToken).approve(_getConfig().stgRouter, _amountLD);
+        Router(_getConfig().stgRouter).swap(_dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
     }
 
     function getStargatePoolFromToken(address _token) public view returns (Pool) {
-        for (uint i = 0; i < Factory(Router(stargateDriverConfig.stgRouter).factory()).allPoolsLength(); i++) {
-            Pool _pool = Pool(Factory(Router(stargateDriverConfig.stgRouter).factory()).allPools(i));
+        for (uint i = 0; i < Factory(Router(_getConfig().stgRouter).factory()).allPoolsLength(); i++) {
+            Pool _pool = Pool(Factory(Router(_getConfig().stgRouter).factory()).allPools(i));
             if (_pool.token() == _token) {
                 return _pool;
             }
@@ -95,7 +104,7 @@ contract StargateDriver is ProtocolDriver{
 
     
     function getPool(uint256 _poolId) internal view returns (Pool) {
-        return Router(stargateDriverConfig.stgRouter).factory().getPool(_poolId);
+        return Router(_getConfig().stgRouter).factory().getPool(_poolId);
     }
 
     function convertSDtoLD(address _token, uint256 _amountSD) public view returns (uint256) {
@@ -113,8 +122,8 @@ contract StargateDriver is ProtocolDriver{
     function getPoolIndexInFarming(uint256 _poolId) public view returns (bool, uint256) {
         Pool pool = getPool(_poolId);
         
-        for (uint i = 0; i < LPStaking(stargateDriverConfig.stgLpStaking).poolLength(); i++ ) {
-            if (address(LPStaking(stargateDriverConfig.stgLpStaking).getPoolInfo(i)) == address(pool)) {
+        for (uint i = 0; i < LPStaking(_getConfig().stgLpStaking).poolLength(); i++ ) {
+            if (address(LPStaking(_getConfig().stgLpStaking).getPoolInfo(i)) == address(pool)) {
                 return (true, i);
             }
         }
