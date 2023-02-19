@@ -17,12 +17,9 @@ contract PancakeSwapDriver is ProtocolDriver {
 
     function configDriver(bytes calldata params) public virtual override onlyOwner returns (bytes memory) {
         protocol = abi.decode(params, (address));
-        console.log("PancakeswapDriver.configDriver: protocol:", protocol);
     }
 
     function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public returns (bytes memory) {
-        console.log("PancakeSwapDriver.execute: msg.sender:", msg.sender);
-        console.log("PancakeSwapDriver.execute: this", address(this));
         bytes memory returnData;
         if (actionType == ProtocolDriver.ActionType.Swap) {
             (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));
@@ -35,9 +32,6 @@ contract PancakeSwapDriver is ProtocolDriver {
     // INTERNAL
 
     function _swap(uint256 _amount, address _srcToken, address _dstToken) private returns (bytes memory) {
-        console.log("PancakeSwapDriver._swap: msg.sender:", msg.sender);
-        console.log("PancakeSwapDriver._swap: this", address(this));
-        console.log("PancakeSwapDriver._swap: protocol:", protocol);
         // Approve
         IERC20(_srcToken).approve(protocol, _amount);
 
