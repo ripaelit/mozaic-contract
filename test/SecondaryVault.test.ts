@@ -162,6 +162,10 @@ describe('SecondaryVault', () => {
                 await mozaicDeployments.get(chainId)!.mozaicVault.reportSettled();
             }
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
+            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(alice.address)).to.eq(aliceDeposit1LD.div(BigNumber.from("1000000000000"))); // mLP eq to SD
+            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDeposit1LD.div(BigNumber.from("1000000000000")));
+            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(chris.address)).to.eq(chrisDeposit1LD.div(BigNumber.from("1000000000000")));
+
 
             // Second Round:
             // Alice books deposit
