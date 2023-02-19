@@ -172,7 +172,7 @@ export const newStargateEndpoint = async (
   return stargateDeploymentOnchain;
 }
 
-export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, protocols: Map<number, Map<string,string>>) => {
+export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: number, stargateDeployments: StargateDeployments, layerzeroDeployments: LayerZeroDeployments, protocols: Map<number, Map<string,string>>, tokenDeploys: StableCoinDeployments) => {
   let mozDeploys = new Map<number, MozaicDeployment>();
   for (const [chainId, stgDeploy] of stargateDeployments) {
     let vault, config;
@@ -215,13 +215,17 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
       await secondaryVault.deployed();
       console.log("Deployed SecondaryVault:", secondaryVault.address);
       vault = secondaryVault;
-      
     }
     // Set ProtocolDrivers to vault
     config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLpStaking]);
     await vault.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
     config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
     await vault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+
+    // Set Accepting Tokens
+    for (const [_, tokencontract] of tokenDeploys.get(chainId)!) {
+      await vault.addToken(tokencontract.address);
+    }
 
     let mozDeploy : MozaicDeployment = {
       mozaicLp: mozaicLp,

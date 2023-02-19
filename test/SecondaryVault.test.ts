@@ -39,7 +39,7 @@ describe('SecondaryVault', () => {
         console.log("Deployed mockDexs");
 
         // Deploy Mozaic
-        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols);
+        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols, stablecoinDeployments);
         console.log("Deployed mozaics");
 
         // LZEndpointMock setDestLzEndpoint
