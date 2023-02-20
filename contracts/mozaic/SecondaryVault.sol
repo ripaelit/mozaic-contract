@@ -193,7 +193,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
         protocolDrivers[_driverId] = _driver;
-        console.log("SecondaryVault.setProtocolDriver: _driverId, _driver: ", _driverId, address(_driver));
+        // console.log("SecondaryVault.setProtocolDriver: _driverId, _driver: ", _driverId, address(_driver));
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
         (bool _success, bytes memory _response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(_success, "Failed to access configDriver in setProtocolDriver");
@@ -242,8 +242,8 @@ contract SecondaryVault is NonblockingLzApp {
         for (uint i = 0; i < _actions.length ; i++) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverIndex];
-            console.log("SecondaryVault.executeActions: _action.driverIndex:", _action.driverIndex);
-            console.log("SecondaryVault.executeActions: _driver:", address(_driver));
+            // console.log("SecondaryVault.executeActions: _action.driverIndex:", _action.driverIndex);
+            // console.log("SecondaryVault.executeActions: _driver:", address(_driver));
             (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
             require(success, "Failed to delegate to ProtocolDriver");
         }

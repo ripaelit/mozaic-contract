@@ -187,10 +187,10 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     let vault, config;
     // Deploy MozaicLP
     const mozaicLpFactory = await ethers.getContractFactory('MozaicLP', owner) as MozaicLP__factory;
-    console.log("ETH(owner) before deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
+    // console.log("ETH(owner) before deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
     const mozaicLp = await mozaicLpFactory.deploy("MozaicLP", "mLP", layerzeroDeployments.get(chainId)!.address);
-    console.log("ETH(owner) after deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
-    console.log("Gas Price:", (await ethers.provider.getGasPrice()).toString());
+    // console.log("ETH(owner) after deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
+    // console.log("Gas Price:", (await ethers.provider.getGasPrice()).toString());
     await mozaicLp.deployed();
 
     // Deploy Protocal Drivers
@@ -198,12 +198,12 @@ export const deployMozaic = async (owner: SignerWithAddress, primaryChainId: num
     const pancakeSwapDriverFactory = await ethers.getContractFactory('PancakeSwapDriver', owner) as PancakeSwapDriver__factory;
     const pancakeSwapDriver = await pancakeSwapDriverFactory.deploy();
     await pancakeSwapDriver.deployed();
-    console.log("TestUtils.deployMozaic: chainId, pancakeSwapDriver:", chainId, pancakeSwapDriver.address);
+    console.log("Deployed pancakeSwapDriver: chainId, address:", chainId, pancakeSwapDriver.address);
     // 2. Deploy StargateDriver
     const stargateDriverFactory = await ethers.getContractFactory('StargateDriver', owner) as StargateDriver__factory;
     const stargateDriver = await stargateDriverFactory.deploy();
     await stargateDriver.deployed();
-    console.log("TestUtils.deployMozaic: chainId, stargateDriver:", chainId, stargateDriver.address);
+    console.log("Deployed stargateDriver: chainId, address:", chainId, stargateDriver.address);
 
     // Deploy Vault
     const stgRouter = stgDeploy.routerContract.address;

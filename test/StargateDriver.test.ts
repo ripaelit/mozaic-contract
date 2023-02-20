@@ -43,6 +43,7 @@ describe('StargateDriver', () => {
         
         // LZEndpointMock setDestLzEndpoint
         await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
+        console.log("Set DestLzEndpoint");
 
         // Set deltaparam
         for (const chainId of stargateDeployments.keys()!) {
@@ -59,30 +60,32 @@ describe('StargateDriver', () => {
                 );
             }
         }
+        console.log("Set deltaparam");
 
         // Update the chain path balances
         await equalize(owner, stargateDeployments);
+        console.log("Equalized");
     });
     describe('StargateDriver.execute', () => {
         it ("can stake USDC", async () => {
-            const chainId = exportData.localTestConstants.chainIds[0];  // Ethereum
+            const chainId = exportData.localTestConstants.chainIds[1];  // BSC
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const usdcContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;  // USDC in ETH
             const lpStaking = stargateDeployments.get(chainId)!.lpStakingContract;
-            console.log("LPStaking is on %s", lpStaking.address);
-            const pool = stargateDeployments.get(chainId)!.pools.get(1)!;   // USDC PoolId = 1
-            lpStaking.add(1, pool.address); // Only for local test, manually add. For testnet, it doesn't need.
+            // console.log("LPStaking is on %s", lpStaking.address);
+            // const pool = stargateDeployments.get(chainId)!.pools.get(1)!;   // USDC PoolId = 1
+            // lpStaking.add(1, pool.address); // Only for local test, manually add. For testnet, it doesn't need.
             const amountLD = BigNumber.from("123456789012345");
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
 
             // Send USDC to SecondaryVault
-            console.log("Send USDC to SecondaryVault");
+            // console.log("Send USDC to SecondaryVault");
             await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
             await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC
-            console.log("SecondaryVault stake USDC");
+            // console.log("SecondaryVault stake USDC");
             const stakeAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
@@ -91,29 +94,29 @@ describe('StargateDriver', () => {
             await secondaryVault.connect(owner).executeActions([stakeAction]);
 
             // Check LpTokens for owner in LpStaking
-            console.log("Check LpTokens for owner in LpStaking");
+            // console.log("Check LpTokens for owner in LpStaking");
             const lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
-            console.log("LpTokens for owner in LpStaking is", lpStaked);
+            console.log("LpTokens for SecondaryVault in LpStaking is", lpStaked);
             expect(lpStaked).gt(BigNumber.from("0"));
         })
         it ("can unstake USDC", async () => {
-            const chainId = exportData.localTestConstants.chainIds[0];  // Ethereum
+            const chainId = exportData.localTestConstants.chainIds[1];  // BSC
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const usdcContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;  // USDC in ETH
             const lpStaking = stargateDeployments.get(chainId)!.lpStakingContract;
-            console.log("LPStaking is on %s", lpStaking.address);
-            const pool = stargateDeployments.get(chainId)!.pools.get(1)!;   // USDC PoolId = 1
+            // console.log("LPStaking is on %s", lpStaking.address);
+            // const pool = stargateDeployments.get(chainId)!.pools.get(1)!;   // USDC PoolId = 1
             const amountLD = BigNumber.from("123456789012345");
 
             // Stake
             // Send USDC of amountLD to SecondaryVault
-            console.log("Send USDC to SecondaryVault");
+            // console.log("Send USDC to SecondaryVault");
             await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
             await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC of amountLD
-            console.log("SecondaryVault stake USDC");
+            // console.log("SecondaryVault stake USDC");
             const payloadStake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
             const stakeAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.stargateDriverId,
@@ -123,14 +126,14 @@ describe('StargateDriver', () => {
             await secondaryVault.connect(owner).executeActions([stakeAction]);
 
             // Check LpTokens for owner in LpStaking
-            console.log("Check LpTokens for owner in LpStaking");
+            // console.log("Check LpTokens for owner in LpStaking");
             const amountLPToken = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
             console.log("LpTokens for owner in LpStaking is", amountLPToken);
             expect(amountLPToken).gt(BigNumber.from("0"));
 
             // Unstake
             // SecondaryVault unstake LPToken
-            console.log("SecondaryVault unstake LPToken");
+            // console.log("SecondaryVault unstake LPToken");
             const payloadUnstake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLPToken, usdcContract.address]);
             const unstakeAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.stargateDriverId,
@@ -140,11 +143,11 @@ describe('StargateDriver', () => {
             await secondaryVault.connect(owner).executeActions([unstakeAction]);
 
             // Check USDC in secondaryVault
-            console.log("Check USDC in secondaryVault");
+            // console.log("Check USDC in secondaryVault");
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             expect(await usdcContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
-        it.only ("can swapRemote", async () => {
+        it ("can swapRemote", async () => {
             const primaryChainId = exportData.localTestConstants.chainIds[0];  // Ethereum
             const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault;
             const usdcContract = stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0]) as MockToken;  // USDC in ETH

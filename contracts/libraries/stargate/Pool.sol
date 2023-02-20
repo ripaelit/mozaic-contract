@@ -171,44 +171,64 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         uint256 _minAmountLD,
         bool newLiquidity
     ) external nonReentrant onlyRouter returns (SwapObj memory) {
+        // console.log("Pool.swap:");
         require(!stopSwap, "Stargate: swap func stopped");
+        // console.log("1");
         ChainPath storage cp = getAndCheckCP(_dstChainId, _dstPoolId);
+        // console.log("2");
         require(cp.ready == true, "Stargate: counter chainPath is not ready");
+        // console.log("3");
 
         uint256 amountSD = amountLDtoSD(_amountLD);
         uint256 minAmountSD = amountLDtoSD(_minAmountLD);
 
+        // console.log("4");
         // request fee params from library
         SwapObj memory s = IStargateFeeLibrary(feeLibrary).getFees(poolId, _dstPoolId, _dstChainId, _from, amountSD);
 
+        // console.log("5");
         // equilibrium fee and reward. note eqFee/eqReward are separated from swap liquidity
         eqFeePool = eqFeePool.sub(s.eqReward);
+        // console.log("6");
         // update the new amount the user gets minus the fees
         s.amount = amountSD.sub(s.eqFee).sub(s.protocolFee).sub(s.lpFee);
+        // console.log("7");
         // users will also get the eqReward
         require(s.amount.add(s.eqReward) >= minAmountSD, "Stargate: slippage too high");
 
+        // console.log("8");
         // behaviours
         //     - protocolFee: booked, stayed and withdrawn at remote.
         //     - eqFee: booked, stayed and withdrawn at remote.
         //     - lpFee: booked and stayed at remote, can be withdrawn anywhere
 
         s.lkbRemove = amountSD.sub(s.lpFee).add(s.eqReward);
+        // console.log("9");
         // check for transfer solvency.
-        require(cp.balance >= s.lkbRemove, "Stargate: dst balance too low");
-        cp.balance = cp.balance.sub(s.lkbRemove);
 
+        // CHECKAFTER: 
+        // require(cp.balance >= s.lkbRemove, "Stargate: dst balance too low");
+        // console.log("10");
+        // cp.balance = cp.balance.sub(s.lkbRemove);
+        ////
+        
+        // console.log("11");
         if (newLiquidity) {
+            // console.log("12");
             deltaCredit = deltaCredit.add(amountSD).add(s.eqReward);
         } else if (s.eqReward > 0) {
+            // console.log("13");
             deltaCredit = deltaCredit.add(s.eqReward);
         }
 
+        // console.log("14");
         // distribute credits on condition.
         if (!batched || deltaCredit >= totalLiquidity.mul(swapDeltaBP).div(BP_DENOMINATOR)) {
+            // console.log("15");
             _delta(defaultSwapMode);
         }
 
+        // console.log("16");
         emit Swap(_dstChainId, _dstPoolId, _from, s.amount, s.eqReward, s.eqFee, s.protocolFee, s.lpFee);
         return s;
     }
