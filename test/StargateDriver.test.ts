@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { PrimaryVault, MockDex__factory, SecondaryVault, MockToken__factory } from '../types/typechain';
-import { deployMozaic, deployStablecoin, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
+import { deployAllToLocalNet, deployMozaic, deployStablecoin, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
 import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
@@ -26,76 +26,8 @@ describe('StargateDriver', () => {
         mozaicDeployments = new Map<number, MozaicDeployment>();
         mockDexs = new Map<number, string>(); 
         protocols = new Map<number, Map<string, string>>();
-        const primaryChainId = exportData.localTestConstants.mozaicMainChainId;
-        const stargateChainPaths = exportData.localTestConstants.stargateChainPaths;
-
-        // Deploy contracts
-        for (const chainId of exportData.localTestConstants.chainIds) {
-            // Deploy stable coins
-            let stablecoinDeployment = await deployStablecoin(owner, chainId, stablecoinDeployments);
-
-            // Deploy Stargate
-            let stargateDeployment = await deployStargate(owner, chainId, stablecoinDeployment, stargateChainPaths, stargateDeployments);
-            
-            // Deploy MockDex and create protocol with it
-            let mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-            let mockDex = await mockDexFactory.deploy();
-            await mockDex.deployed();
-            console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
-            mockDexs.set(chainId, mockDex.address);
-            protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
-
-            // Deploy Mozaic
-            let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment.lzEndpoint.address, stargateDeployment.routerContract.address, stargateDeployment.lpStakingContract.address, stargateDeployment.stargateToken.address, protocols, stablecoinDeployment, mozaicDeployments);
-
-        }
-
-        // Register TrustedRemote
-        for (const [chainIdLeft] of mozaicDeployments) {
-            for (const [chainIdRight] of mozaicDeployments) {
-            if (chainIdLeft == chainIdRight) continue;
-                await mozaicDeployments.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
-                await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
-            }
-            // TODO: Transfer ownership of MozaicLP to Vault
-            await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozaicDeployments.get(chainIdLeft)!.mozaicVault.address);
-        }
-        console.log("Registerd TrustedRemote");
-
-        // Register SecondaryVaults
-        for (const [chainId] of mozaicDeployments) {
-            if (chainId == primaryChainId) continue;
-            await (mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault).setSecondaryVaults(
-                chainId, 
-                {
-                    chainId,
-                    vaultAddress: mozaicDeployments.get(chainId)!.mozaicVault.address,
-                }
-            );
-        }
-        console.log("Registerd SecondaryVaults");
-
-        // LZEndpointMock setDestLzEndpoint
-        await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
-
-        // Set deltaparam
-        for (const chainId of stargateDeployments.keys()!) {
-            for (const [poolId, pool] of stargateDeployments.get(chainId)!.pools) {
-                let router = stargateDeployments.get(chainId)!.routerContract;
-                await router.setFees(poolId, 2);
-                await router.setDeltaParam(
-                    poolId,
-                    true,
-                    500, // 5%
-                    500, // 5%
-                    true, //default
-                    true //default
-                );
-            }
-        }
-
-        // Update the chain path balances
-        await equalize(owner, stargateDeployments);
+        
+        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments, mockDexs, protocols);
     });
     describe('StargateDriver.execute', () => {
         it ("can stake USDC", async () => {
