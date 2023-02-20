@@ -15,7 +15,6 @@ describe('SecondaryVault', () => {
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
-    let mockDexs: Map<number, string>;
     let protocols: Map<number, Map<string, string>>;
 
     beforeEach(async () => {
@@ -24,10 +23,9 @@ describe('SecondaryVault', () => {
         stablecoinDeployments = new Map<number, Map<string, string>>();
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
-        mockDexs = new Map<number, string>(); 
         protocols = new Map<number, Map<string, string>>();
 
-        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments, mockDexs, protocols);
+        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments, protocols);
     });
     describe('SecondaryVault.addDepositRequest', () => {
         it('add request to pending buffer', async () => {

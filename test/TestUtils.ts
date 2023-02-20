@@ -271,27 +271,30 @@ export const deployNew = async (contractName: string, params = []) => {
 export const deployAllToTestNet = async (
     owner: SignerWithAddress, 
     mozaicDeployments: Map<number, MozaicDeployment>, 
-    mockDexs: Map<number, string>, 
     protocols: Map<number, Map<string, string>>
 ) => {
+    const stgMainChainId = exportData.testnetTestConstants.stgMainChainId;
+    const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
     const routerFactory = (await ethers.getContractFactory('Router', owner)) as Router__factory;
     const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
     const stargateTokenFactory = (await ethers.getContractFactory('StargateToken', owner)) as StargateToken__factory;
     const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
     const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-    let router, bridge, lzEndpoint, stargateToken, lpStaking, latestBlockNumber, mockDex;
-    const stgMainChainId = exportData.testnetTestConstants.stgMainChainId;
-    const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
+    let router, bridge, lzEndpoint, stargateToken, lpStaking, mockDex, latestBlockNumber;
     
     for (const chainId of exportData.testnetTestConstants.chainIds) {
+        console.log("chainId %d", chainId);
         // Get router contract
         router = routerFactory.attach(exportData.testnetTestConstants.routers.get(chainId)!);
+        console.log("router %s", router.address);
         
         // Get bridge contract
         bridge = bridgeFactory.attach(exportData.testnetTestConstants.bridges.get(chainId)!);
+        console.log("bridge", bridge);
 
         // Get LzEndpoint contract
         lzEndpoint = await bridge.layerZeroEndpoint();
+        console.log("lzEndpoint %s", lzEndpoint);
 
         // Deploy Stargate Token
         stargateToken = await stargateTokenFactory.deploy(
@@ -314,7 +317,6 @@ export const deployAllToTestNet = async (
         mockDex = await mockDexFactory.deploy();
         await mockDex.deployed();
         console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
-        mockDexs.set(chainId, mockDex.address);
         protocols.set(chainId, new Map<string,string>([
             ["PancakeSwapSmartRouter", mockDex.address],
         ]));
@@ -355,13 +357,11 @@ export const deployAllToLocalNet = async (
     stablecoinDeployments: Map<number, Map<string, string>>,
     stargateDeployments: Map<number, StargateDeploymentOnchain>,
     mozaicDeployments: Map<number, MozaicDeployment>, 
-    mockDexs: Map<number, string>, 
     protocols: Map<number, Map<string, string>>
 ) => {
     const primaryChainId = exportData.localTestConstants.mozaicMainChainId;
     const stargateChainPaths = exportData.localTestConstants.stargateChainPaths;
-    
-    // Deploy contracts
+
     for (const chainId of exportData.localTestConstants.chainIds) {
         // Deploy stable coins
         let stablecoinDeployment = await deployStablecoin(owner, chainId, stablecoinDeployments);
@@ -374,7 +374,6 @@ export const deployAllToLocalNet = async (
         let mockDex = await mockDexFactory.deploy();
         await mockDex.deployed();
         console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
-        mockDexs.set(chainId, mockDex.address);
         protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
 
         // Deploy Mozaic

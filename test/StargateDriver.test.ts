@@ -12,7 +12,6 @@ describe('StargateDriver', () => {
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
-    let mockDexs: Map<number, string>;
     let protocols: Map<number, Map<string, string>>;
 
     beforeEach(async () => {
@@ -21,10 +20,9 @@ describe('StargateDriver', () => {
         stablecoinDeployments = new Map<number, Map<string, string>>();
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
-        mockDexs = new Map<number, string>(); 
         protocols = new Map<number, Map<string, string>>();
         
-        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments, mockDexs, protocols);
+        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments, protocols);
     });
     describe('StargateDriver.execute', () => {
         it ("can stake USDC", async () => {
