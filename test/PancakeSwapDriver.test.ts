@@ -1,16 +1,13 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault, MockDex__factory, SecondaryVault, MockToken__factory, StargateToken } from '../types/typechain';
-import { deployAllToLocalNet, deployMozaic, deployStablecoin, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
+import { SecondaryVault, MockToken__factory, StargateToken } from '../types/typechain';
+import { deployAllToLocalNet } from './TestUtils';
 import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
 describe('PancakeSwapDriver', () => {
     let owner: SignerWithAddress;
-    let alice: SignerWithAddress;
-    let ben: SignerWithAddress;
-    let chris: SignerWithAddress;
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
@@ -18,7 +15,7 @@ describe('PancakeSwapDriver', () => {
     let protocols: Map<number, Map<string, string>>;
 
     beforeEach(async () => {
-        [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
+        [owner] = await ethers.getSigners();  // owner is control center
         
         stablecoinDeployments = new Map<number, Map<string, string>>();
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
