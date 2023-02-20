@@ -271,8 +271,7 @@ export const deployNew = async (contractName: string, params = []) => {
 export const deployAllToTestNet = async (
     owner: SignerWithAddress, 
     chainId: number,
-    mozaicDeployments: Map<number, MozaicDeployment>, 
-    protocols: Map<number, Map<string, string>>
+    mozaicDeployments: Map<number, MozaicDeployment>
 ) => {
     const stgMainChainId = exportData.testnetTestConstants.stgMainChainId;
     const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
@@ -282,6 +281,7 @@ export const deployAllToTestNet = async (
     const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
     const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
     let router, bridge, lzEndpoint, stargateToken, lpStaking, mockDex, latestBlockNumber;
+    let protocols = new Map<number, Map<string, string>>();
     
     console.log("chainId %d", chainId);
     // Get router contract
@@ -330,11 +330,11 @@ export const deployAllToLocalNet = async (
     owner: SignerWithAddress, 
     stablecoinDeployments: Map<number, Map<string, string>>,
     stargateDeployments: Map<number, StargateDeploymentOnchain>,
-    mozaicDeployments: Map<number, MozaicDeployment>, 
-    protocols: Map<number, Map<string, string>>
+    mozaicDeployments: Map<number, MozaicDeployment>
 ) => {
     const primaryChainId = exportData.localTestConstants.mozaicMainChainId;
     const stargateChainPaths = exportData.localTestConstants.stargateChainPaths;
+    let protocols = new Map<number, Map<string, string>>();
 
     for (const chainId of exportData.localTestConstants.chainIds) {
         // Deploy stable coins
@@ -355,30 +355,7 @@ export const deployAllToLocalNet = async (
 
     }
 
-    // Register TrustedRemote
-    for (const [chainIdLeft] of mozaicDeployments) {
-        for (const [chainIdRight] of mozaicDeployments) {
-        if (chainIdLeft == chainIdRight) continue;
-            await mozaicDeployments.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
-            await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
-        }
-        // TODO: Transfer ownership of MozaicLP to Vault
-        await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozaicDeployments.get(chainIdLeft)!.mozaicVault.address);
-    }
-    console.log("Registerd TrustedRemote");
-
-    // Register SecondaryVaults
-    for (const [chainId] of mozaicDeployments) {
-        if (chainId == primaryChainId) continue;
-        await (mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault).setSecondaryVaults(
-            chainId, 
-            {
-                chainId,
-                vaultAddress: mozaicDeployments.get(chainId)!.mozaicVault.address,
-            }
-        );
-    }
-    console.log("Registerd SecondaryVaults");
+    initMozaics(owner, mozaicDeployments);
 
     // LZEndpointMock setDestLzEndpoint
     await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);

@@ -10,16 +10,14 @@ import { BigNumber } from 'ethers';
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
     let mozaicDeployments: MozaicDeployments;
-    let protocols: Map<number, Map<string, string>>;
 
     beforeEach(async () => {
         [owner] = await ethers.getSigners();
 
         mozaicDeployments = new Map<number, MozaicDeployment>();
-        protocols = new Map<number, Map<string, string>>();
  
-        await deployAllToTestNet(owner, 10121, mozaicDeployments, protocols);
-        await deployAllToTestNet(owner, 10102, mozaicDeployments, protocols);
+        await deployAllToTestNet(owner, 10121, mozaicDeployments);
+        // await deployAllToTestNet(owner, 10102, mozaicDeployments);
         await initMozaics(owner, mozaicDeployments);
     })
     describe('StargateDriver.execute', () => {

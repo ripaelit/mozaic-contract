@@ -15,7 +15,6 @@ describe('SecondaryVault', () => {
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
-    let protocols: Map<number, Map<string, string>>;
 
     beforeEach(async () => {
         [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
@@ -23,9 +22,8 @@ describe('SecondaryVault', () => {
         stablecoinDeployments = new Map<number, Map<string, string>>();
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
-        protocols = new Map<number, Map<string, string>>();
 
-        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments, protocols);
+        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
     });
     describe('SecondaryVault.addDepositRequest', () => {
         it('add request to pending buffer', async () => {

@@ -12,7 +12,6 @@ describe('StargateDriver', () => {
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
-    let protocols: Map<number, Map<string, string>>;
 
     beforeEach(async () => {
         [owner] = await ethers.getSigners();  // owner is control center
@@ -20,9 +19,8 @@ describe('StargateDriver', () => {
         stablecoinDeployments = new Map<number, Map<string, string>>();
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
-        protocols = new Map<number, Map<string, string>>();
         
-        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments, protocols);
+        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
     });
     describe('StargateDriver.execute', () => {
         it ("can stake USDC", async () => {
