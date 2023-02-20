@@ -1,10 +1,9 @@
 import { expect } from 'chai';
-const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MockToken, PrimaryVault, MockDex__factory, SecondaryVault, ERC20, StargateToken } from '../types/typechain';
+import { PrimaryVault, MockDex__factory, SecondaryVault, MockToken__factory, StargateToken } from '../types/typechain';
 import { deployMozaic, deployStablecoin, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, VaultStatus, StargateDeploymentOnchain, ActionTypeEnum } from '../constants/types'
+import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
 describe('PancakeSwapDriver', () => {
@@ -21,12 +20,12 @@ describe('PancakeSwapDriver', () => {
     beforeEach(async () => {
         [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
         
-        stablecoinDeployments = new Map<number, Map<string, ERC20>>();
+        stablecoinDeployments = new Map<number, Map<string, string>>();
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
         mockDexs = new Map<number, string>(); 
         protocols = new Map<number, Map<string, string>>();
-        const primaryChainId = exportData.localTestConstants.chainIds[0];   // Ethereum
+        const primaryChainId = exportData.localTestConstants.mozaicMainChainId;
         const stargateChainPaths = exportData.localTestConstants.stargateChainPaths;
 
         // Deploy contracts
@@ -46,7 +45,7 @@ describe('PancakeSwapDriver', () => {
             protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
 
             // Deploy Mozaic
-            let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment, protocols, stablecoinDeployment, mozaicDeployments);
+            let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment.lzEndpoint.address, stargateDeployment.routerContract.address, stargateDeployment.lpStakingContract.address, stargateDeployment.stargateToken.address, protocols, stablecoinDeployment, mozaicDeployments);
 
         }
 
@@ -101,8 +100,9 @@ describe('PancakeSwapDriver', () => {
         it ("can swap USDC->USDT", async () => {
             const chainId = exportData.localTestConstants.chainIds[0];// Ethereum
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const usdcContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;  // USDC in ETH
-            const usdtContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1]) as MockToken;  // USDT in ETH
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
+            const usdtContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
             const amountLD = BigNumber.from("1234567890");
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcContract.address, usdtContract.address]);
             
@@ -129,7 +129,8 @@ describe('PancakeSwapDriver', () => {
             const chainId = exportData.localTestConstants.chainIds[1];// Bsc
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const stgContract = stargateDeployments.get(chainId)!.stargateToken as StargateToken;
-            const usdtContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1]) as MockToken;  // USDT in ETH
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const usdtContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
             const amountLD = BigNumber.from("1234567890");
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgContract.address, usdtContract.address]);
 

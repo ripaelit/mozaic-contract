@@ -2,9 +2,9 @@ import { expect } from 'chai';
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MockToken, PrimaryVault, MockDex__factory, SecondaryVault, ERC20 } from '../types/typechain';
+import { PrimaryVault, MockDex__factory, SecondaryVault, MockToken__factory } from '../types/typechain';
 import { deployMozaic, deployStablecoin, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, VaultStatus, StargateDeploymentOnchain } from '../constants/types'
+import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, StargateDeploymentOnchain } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
 describe('SecondaryVault', () => {
@@ -21,12 +21,12 @@ describe('SecondaryVault', () => {
     beforeEach(async () => {
         [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
         
-        stablecoinDeployments = new Map<number, Map<string, ERC20>>();
+        stablecoinDeployments = new Map<number, Map<string, string>>();
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
         mockDexs = new Map<number, string>(); 
         protocols = new Map<number, Map<string, string>>();
-        const primaryChainId = exportData.localTestConstants.chainIds[0];   // Ethereum
+        const primaryChainId = exportData.localTestConstants.mozaicMainChainId;
         const stargateChainPaths = exportData.localTestConstants.stargateChainPaths;
 
         // Deploy contracts
@@ -46,7 +46,7 @@ describe('SecondaryVault', () => {
             protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
 
             // Deploy Mozaic
-            let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment, protocols, stablecoinDeployment, mozaicDeployments);
+            let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment.lzEndpoint.address, stargateDeployment.routerContract.address, stargateDeployment.lpStakingContract.address, stargateDeployment.stargateToken.address, protocols, stablecoinDeployment, mozaicDeployments);
 
         }
 
@@ -100,7 +100,8 @@ describe('SecondaryVault', () => {
     describe('SecondaryVault.addDepositRequest', () => {
         it('add request to pending buffer', async () => {
             const chainId = exportData.localTestConstants.chainIds[0];
-            const coinContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const coinContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
             const amountLD =  BigNumber.from("10000000000000000000000");
             await coinContract.connect(owner).mint(alice.address, amountLD);
@@ -119,7 +120,8 @@ describe('SecondaryVault', () => {
         it('add request to pending buffer', async() => {
             // NOTE: Run this test case without transferring ownership from `owner` to `vault`
             const chainId = exportData.localTestConstants.chainIds[0];
-            const coinContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const coinContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
             const amountMLP =  BigNumber.from("1000000000000000");
             const mozaicLpContract = mozaicDeployments.get(chainId)!.mozaicLp;
@@ -138,9 +140,10 @@ describe('SecondaryVault', () => {
         it.only('normal flow', async () => {
             const primaryChainId = exportData.localTestConstants.chainIds[0];
             const secondaryChainId = exportData.localTestConstants.chainIds[1];
-            const tokenAPrimary = stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0]) as MockToken;
-            const tokenASecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![0]) as MockToken;
-            const tokenBSecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![1]) as MockToken;
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const tokenAPrimary = MockTokenFactory.attach(stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0])!);
+            const tokenASecondary = MockTokenFactory.attach(stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![0])!);
+            const tokenBSecondary = MockTokenFactory.attach(stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![1])!);
             const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
             const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault as SecondaryVault;
             const aliceTotalLD = BigNumber.from("10000000000000000000000"); // $10000

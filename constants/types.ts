@@ -28,7 +28,7 @@ export type StargateDeployments = Map<number, StargateDeploymentOnchain>; // Map
 
 export type LayerZeroDeployments = Map<number, LZEndpointMock>;           // Map<chainId, ILayerZeroEndpoint>
 
-export type StableCoinDeployments = Map<number, Map<string, ERC20>>;      // Map<chainId, Map<coinName, ERC20>>
+export type StableCoinDeployments = Map<number, Map<string, string>>;      // Map<chainId, Map<coinName, coinAddress>>
 
 export type MozaicDeployments = Map<number, MozaicDeployment>;
 

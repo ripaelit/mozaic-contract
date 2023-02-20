@@ -7,6 +7,8 @@ const localTestConstants = {
         101, // ETH
         102, // BSC
     ],
+    mozaicMainChainId: 101,
+    stgMainChainId: 101, // main chain ID of Stargate Token
     stablecoins: new Map<number, Array<string>>([
         [101, new Array<string>('USDC', 'USDT')],
         [102, new Array<string>('USDT', 'BUSD')],
@@ -74,8 +76,6 @@ const localTestConstants = {
             weight: 1,
         },
     ),
-    stgMainChainId: 101, // main chain ID of Stargate Token
-    mozaicPrimaryChainId: 101,
     coinTotal:      ethers.BigNumber.from("1000000000000000000000"),        // 1000*1e18
     coinEachPool:   ethers.BigNumber.from("50000000000000000000"),          // 50*1e18
     coinOrderTaker: ethers.BigNumber.from("20000000000000000000"),          // 20*1e18
@@ -90,6 +90,8 @@ const testnetTestConstants = {
         10121,  // Goerli(Ethereum Testnet)
         10102,  // BNB Chain(Testnet)
     ],
+    stgMainChainId: 10121,  // BNB Chain(Testnet)
+    mozaicMainChainId: 10121,
     routers: new Map<number, string>([
         [10121, "0x7612aE2a34E5A363E137De748801FB4c86499152"],
         [10102, "0xbB0f1be1E9CE9cB27EA5b0c3a85B7cc3381d8176"],
