@@ -1,44 +1,82 @@
 import { expect } from 'chai';
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MockToken, StargateToken, SecondaryVault, MockDex, MockDex__factory } from '../types/typechain';
-import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployments, ActionTypeEnum } from '../constants/types'
+import { MockToken, PrimaryVault, MockDex__factory, SecondaryVault, ERC20, StargateToken } from '../types/typechain';
+import { deployMozaic, deployStablecoin, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
+import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, VaultStatus, StargateDeploymentOnchain, ActionTypeEnum } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
-
 describe('PancakeSwapDriver', () => {
     let owner: SignerWithAddress;
     let alice: SignerWithAddress;
+    let ben: SignerWithAddress;
+    let chris: SignerWithAddress;
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
+    let mockDexs: Map<number, string>;
+    let protocols: Map<number, Map<string, string>>;
 
     beforeEach(async () => {
-        [owner, alice] = await ethers.getSigners();  // owner is control center
-
-        // Deploy Stablecoins
-        stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
+        [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
         
-        // Deploy Stargate
-        stargateDeployments = await deployStargate(owner, stablecoinDeployments, exportData.localTestConstants.poolIds, exportData.localTestConstants.stgMainChainId, exportData.localTestConstants.stargateChainPaths);
+        stablecoinDeployments = new Map<number, Map<string, ERC20>>();
+        stargateDeployments = new Map<number, StargateDeploymentOnchain>();
+        mozaicDeployments = new Map<number, MozaicDeployment>();
+        mockDexs = new Map<number, string>(); 
+        protocols = new Map<number, Map<string, string>>();
+        const primaryChainId = exportData.localTestConstants.chainIds[0];   // Ethereum
+        const stargateChainPaths = exportData.localTestConstants.stargateChainPaths;
 
-        // Deploy MockDex and create protocols
-        let mockDexs = new Map<number, string>(); 
-        let protocols = new Map<number, Map<string, string>>();
+        // Deploy contracts
         for (const chainId of exportData.localTestConstants.chainIds) {
-            const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-            const mockDex = await mockDexFactory.deploy();
+            // Deploy stable coins
+            let stablecoinDeployment = await deployStablecoin(owner, chainId, stablecoinDeployments);
+
+            // Deploy Stargate
+            let stargateDeployment = await deployStargate(owner, chainId, stablecoinDeployment, stargateChainPaths, stargateDeployments);
+            
+            // Deploy MockDex and create protocol with it
+            let mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
+            let mockDex = await mockDexFactory.deploy();
             await mockDex.deployed();
             console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
             mockDexs.set(chainId, mockDex.address);
             protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
-        }
-        console.log("Deployed mockDexs");
 
-        // Deploy Mozaic
-        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols, stablecoinDeployments);
-        console.log("Deployed mozaics");
+            // Deploy Mozaic
+            let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment, protocols, stablecoinDeployment, mozaicDeployments);
+
+        }
+
+        // Register TrustedRemote
+        for (const [chainIdLeft] of mozaicDeployments) {
+            for (const [chainIdRight] of mozaicDeployments) {
+            if (chainIdLeft == chainIdRight) continue;
+                await mozaicDeployments.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
+                await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
+            }
+            // TODO: Transfer ownership of MozaicLP to Vault
+            await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozaicDeployments.get(chainIdLeft)!.mozaicVault.address);
+        }
+        console.log("Registerd TrustedRemote");
+
+        // Register SecondaryVaults
+        for (const [chainId] of mozaicDeployments) {
+            if (chainId == primaryChainId) continue;
+            await (mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault).setSecondaryVaults(
+                chainId, 
+                {
+                    chainId,
+                    vaultAddress: mozaicDeployments.get(chainId)!.mozaicVault.address,
+                }
+            );
+        }
+        console.log("Registerd SecondaryVaults");
+
+        // LZEndpointMock setDestLzEndpoint
+        await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
 
         // Set deltaparam
         for (const chainId of stargateDeployments.keys()!) {
