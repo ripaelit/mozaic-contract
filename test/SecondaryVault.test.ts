@@ -2,9 +2,9 @@ import { expect } from 'chai';
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MockToken, PrimaryVault, MockDex__factory, SecondaryVault } from '../types/typechain';
-import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments, lzEndpointMockSetDestEndpoints } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployments, ProtocolStatus, VaultStatus } from '../constants/types'
+import { PrimaryVault, SecondaryVault, MockToken__factory } from '../types/typechain';
+import { deployAllToLocalNet } from './TestUtils';
+import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, StargateDeploymentOnchain } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
 describe('SecondaryVault', () => {
@@ -19,55 +19,17 @@ describe('SecondaryVault', () => {
     beforeEach(async () => {
         [owner, alice, ben, chris] = await ethers.getSigners();  // owner is control center
         
-        // Deploy Stablecoins
-        stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
-        
-        // Deploy Stargate
-        stargateDeployments = await deployStargate(owner, stablecoinDeployments, exportData.localTestConstants.poolIds, exportData.localTestConstants.stgMainChainId, exportData.localTestConstants.stargateChainPaths);
+        stablecoinDeployments = new Map<number, Map<string, string>>();
+        stargateDeployments = new Map<number, StargateDeploymentOnchain>();
+        mozaicDeployments = new Map<number, MozaicDeployment>();
 
-        // Deploy MockDex and create protocols
-        let mockDexs = new Map<number, string>(); 
-        let protocols = new Map<number, Map<string, string>>();
-        for (const chainId of exportData.localTestConstants.chainIds) {
-            const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-            const mockDex = await mockDexFactory.deploy();
-            await mockDex.deployed();
-            console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
-            mockDexs.set(chainId, mockDex.address);
-            protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
-        }
-        console.log("Deployed mockDexs");
-
-        // Deploy Mozaic
-        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols, stablecoinDeployments);
-        console.log("Deployed mozaics");
-
-        // LZEndpointMock setDestLzEndpoint
-        await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
-
-        // Set deltaparam
-        for (const chainId of stargateDeployments.keys()!) {
-            for (const [poolId, pool] of stargateDeployments.get(chainId)!.pools) {
-                let router = stargateDeployments.get(chainId)!.routerContract;
-                await router.setFees(poolId, 2);
-                await router.setDeltaParam(
-                    poolId,
-                    true,
-                    500, // 5%
-                    500, // 5%
-                    true, //default
-                    true //default
-                );
-            }
-        }
-
-        // Update the chain path balances
-        await equalize(owner, stargateDeployments);
+        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
     });
     describe('SecondaryVault.addDepositRequest', () => {
         it('add request to pending buffer', async () => {
             const chainId = exportData.localTestConstants.chainIds[0];
-            const coinContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const coinContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
             const amountLD =  BigNumber.from("10000000000000000000000");
             await coinContract.connect(owner).mint(alice.address, amountLD);
@@ -86,7 +48,8 @@ describe('SecondaryVault', () => {
         it('add request to pending buffer', async() => {
             // NOTE: Run this test case without transferring ownership from `owner` to `vault`
             const chainId = exportData.localTestConstants.chainIds[0];
-            const coinContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const coinContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
             const amountMLP =  BigNumber.from("1000000000000000");
             const mozaicLpContract = mozaicDeployments.get(chainId)!.mozaicLp;
@@ -105,9 +68,10 @@ describe('SecondaryVault', () => {
         it.only('normal flow', async () => {
             const primaryChainId = exportData.localTestConstants.chainIds[0];
             const secondaryChainId = exportData.localTestConstants.chainIds[1];
-            const tokenAPrimary = stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0]) as MockToken;
-            const tokenASecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![0]) as MockToken;
-            const tokenBSecondary = stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![1]) as MockToken;
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const tokenAPrimary = MockTokenFactory.attach(stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0])!);
+            const tokenASecondary = MockTokenFactory.attach(stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![0])!);
+            const tokenBSecondary = MockTokenFactory.attach(stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![1])!);
             const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
             const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault as SecondaryVault;
             const aliceTotalLD = BigNumber.from("10000000000000000000000"); // $10000
@@ -140,9 +104,12 @@ describe('SecondaryVault', () => {
             await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);
             
             // Check Pending Request Buffer
+            console.log("1");
             expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit1LD.add(benDeposit1LD));
+            console.log("2");
             expect(await secondaryVault.getDepositRequestAmount(false, alice.address, tokenASecondary.address, secondaryChainId)).to.eq(aliceDeposit1LD);
 
+            console.log("PrimaryVault %s owner %s", primaryVault.address, owner.address);
             // Algostory: #### 3-1. Session Start (Protocol Status: Idle -> Optimizing)
             await primaryVault.connect(owner).initOptimizationSession();
             // Protocol Status : IDLE -> OPTIMIZING

@@ -60,6 +60,7 @@ contract Bridge is Ownable, ILayerZeroReceiver, ILayerZeroUserApplicationConfig 
         uint64 _nonce,
         bytes memory _payload
     ) external override {
+        console.log("Bridge.lzReceive: _srcChainId", _srcChainId);
         require(msg.sender == address(layerZeroEndpoint), "Stargate: only LayerZero endpoint can call lzReceive");
         require(
             _srcAddress.length == bridgeLookup[_srcChainId].length && keccak256(_srcAddress) == keccak256(bridgeLookup[_srcChainId]),

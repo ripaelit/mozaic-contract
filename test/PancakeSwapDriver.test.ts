@@ -1,70 +1,33 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MockToken, StargateToken, SecondaryVault, MockDex, MockDex__factory } from '../types/typechain';
-import { deployMozaic, deployStablecoins, deployStargate, equalize, getLayerzeroDeploymentsFromStargateDeployments } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployments, ActionTypeEnum } from '../constants/types'
+import { SecondaryVault, MockToken__factory, StargateToken } from '../types/typechain';
+import { deployAllToLocalNet } from './TestUtils';
+import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../constants/types'
 import exportData from '../constants/index';
 import { BigNumber } from 'ethers';
-
 describe('PancakeSwapDriver', () => {
     let owner: SignerWithAddress;
-    let alice: SignerWithAddress;
     let stablecoinDeployments: StableCoinDeployments;
     let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
 
     beforeEach(async () => {
-        [owner, alice] = await ethers.getSigners();  // owner is control center
-
-        // Deploy Stablecoins
-        stablecoinDeployments = await deployStablecoins(owner, exportData.localTestConstants.stablecoins);
+        [owner] = await ethers.getSigners();  // owner is control center
         
-        // Deploy Stargate
-        stargateDeployments = await deployStargate(owner, stablecoinDeployments, exportData.localTestConstants.poolIds, exportData.localTestConstants.stgMainChainId, exportData.localTestConstants.stargateChainPaths);
-
-        // Deploy MockDex and create protocols
-        let mockDexs = new Map<number, string>(); 
-        let protocols = new Map<number, Map<string, string>>();
-        for (const chainId of exportData.localTestConstants.chainIds) {
-            const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-            const mockDex = await mockDexFactory.deploy();
-            await mockDex.deployed();
-            console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
-            mockDexs.set(chainId, mockDex.address);
-            protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
-        }
-        console.log("Deployed mockDexs");
-
-        // Deploy Mozaic
-        mozaicDeployments = await deployMozaic(owner, exportData.localTestConstants.mozaicPrimaryChainId, stargateDeployments, getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), protocols);
-        console.log("Deployed mozaics");
-
-        // Set deltaparam
-        for (const chainId of stargateDeployments.keys()!) {
-            for (const [poolId, pool] of stargateDeployments.get(chainId)!.pools) {
-                let router = stargateDeployments.get(chainId)!.routerContract;
-                await router.setFees(poolId, 2);
-                await router.setDeltaParam(
-                    poolId,
-                    true,
-                    500, // 5%
-                    500, // 5%
-                    true, //default
-                    true //default
-                );
-            }
-        }
-
-        // Update the chain path balances
-        await equalize(owner, stargateDeployments);
+        stablecoinDeployments = new Map<number, Map<string, string>>();
+        stargateDeployments = new Map<number, StargateDeploymentOnchain>();
+        mozaicDeployments = new Map<number, MozaicDeployment>();
+        
+        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
     });
     describe('PancakeSwapDriver.execute', () => {
         it ("can swap USDC->USDT", async () => {
             const chainId = exportData.localTestConstants.chainIds[0];// Ethereum
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const usdcContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0]) as MockToken;  // USDC in ETH
-            const usdtContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1]) as MockToken;  // USDT in ETH
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
+            const usdtContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
             const amountLD = BigNumber.from("1234567890");
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcContract.address, usdtContract.address]);
             
@@ -91,7 +54,8 @@ describe('PancakeSwapDriver', () => {
             const chainId = exportData.localTestConstants.chainIds[1];// Bsc
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const stgContract = stargateDeployments.get(chainId)!.stargateToken as StargateToken;
-            const usdtContract = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1]) as MockToken;  // USDT in ETH
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const usdtContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
             const amountLD = BigNumber.from("1234567890");
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgContract.address, usdtContract.address]);
 

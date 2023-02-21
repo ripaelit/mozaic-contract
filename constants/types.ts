@@ -1,5 +1,5 @@
 import { Contract } from 'ethers';
-import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault, ILayerZeroEndpoint } from '../types/typechain';
+import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault, ILayerZeroEndpoint, MockToken } from '../types/typechain';
 
 export type StargateChainPath = {
   sourceChainId: number,
@@ -28,7 +28,7 @@ export type StargateDeployments = Map<number, StargateDeploymentOnchain>; // Map
 
 export type LayerZeroDeployments = Map<number, LZEndpointMock>;           // Map<chainId, ILayerZeroEndpoint>
 
-export type StableCoinDeployments = Map<number, Map<string, ERC20>>;      // Map<chainId, Map<coinname, coincontract>>
+export type StableCoinDeployments = Map<number, Map<string, string>>;      // Map<chainId, Map<coinName, coinAddress>>
 
 export type MozaicDeployments = Map<number, MozaicDeployment>;
 
