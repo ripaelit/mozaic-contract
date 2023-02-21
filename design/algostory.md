@@ -62,7 +62,7 @@ Each (Secondary Vault) does the following:
 
 - Prepare snapshot report.
   ```sol
-      struct SnapshotReport {
+      struct Snapshot {
         uint256 depositRequestAmountSD;
         uint256 withdrawRequestAmountMLP;
         uint256 totalStargate;
@@ -126,7 +126,7 @@ The primary vault will get notified via LayerZero message that all requests are 
 Happens when: primary vault received REQUESTS_SETTLED messages from all secondary vaults.
 
 - Set protocol status as `Idle`
-- Clear snapshotReports. (flags) Getting ready to accept new SnapshotReports.
+- Clear snapshotReported. (flags) Getting ready to accept new Snapshots.
 
 # At every moment, User state is composed of
 

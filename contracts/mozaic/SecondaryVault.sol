@@ -69,7 +69,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     //KEVIN-TODO: rename to Snapshot
-    struct SnapshotReport {
+    struct Snapshot {
         uint256 depositRequestAmount;
         uint256 withdrawRequestAmountMLP;
         uint256 totalStargate;
@@ -113,7 +113,7 @@ contract SecondaryVault is NonblockingLzApp {
     * -> DEFAULT : Receiving "settle" message, settle all requests and turn into DEFAULT status.
      */
     VaultStatus public status;
-    SnapshotReport public snapshot;
+    Snapshot public snapshot;
     address public stargateRouter;
     address public stargateLpStaking;
     address public stargateToken;
@@ -377,7 +377,7 @@ contract SecondaryVault is NonblockingLzApp {
     * NOTE:
     * Turn vault status into SNAPSHOTTED, not allowing snapshotting again in a session.
     **/
-    function takeSnapshot() public onlyOwner returns (SnapshotReport memory report) {
+    function takeSnapshot() public onlyOwner returns (Snapshot memory result) {
         if (status == VaultStatus.DEFAULT) {
             status = VaultStatus.SNAPSHOTTED;
             return _snapshot();
@@ -396,7 +396,7 @@ contract SecondaryVault is NonblockingLzApp {
     * Does not turn into SNAPSHOTREPORTED status.
     * Allowing double execution. Just giving freedom to report again at additional cost.
     **/
-    function reportSnapshot() public payable onlyOwner {
+    function reportSnapshot() virtual public payable onlyOwner {
         require(status == VaultStatus.SNAPSHOTTED, "reportSnapshotted: Not snapshotted yet.");
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
         _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
@@ -411,7 +411,7 @@ contract SecondaryVault is NonblockingLzApp {
         delete pending.withdrawRequestList;
     }
 
-    function _snapshot() internal virtual returns (SnapshotReport memory _snapshot){
+    function _snapshot() internal virtual returns (Snapshot memory result){
         require(_stagedReqs().totalDepositRequest==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
 
@@ -435,13 +435,13 @@ contract SecondaryVault is NonblockingLzApp {
                 _totalStablecoin = _totalStablecoin.add(_totalLiquidityLD.mul(_lpAmount).div(_pool.totalSupply()));
             }
         }
-        _snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
+        result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-        _snapshot.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositRequest).sub(_pendingReqs().totalDepositRequest);
-        _snapshot.depositRequestAmount = _stagedReqs().totalDepositRequest;
-        _snapshot.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
-        _snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        snapshot = _snapshot;
+        result.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositRequest).sub(_pendingReqs().totalDepositRequest);
+        result.depositRequestAmount = _stagedReqs().totalDepositRequest;
+        result.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
+        result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
+        snapshot = result;
     }
 
     //---------------------------------------------------------------------------
