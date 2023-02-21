@@ -376,7 +376,7 @@ contract SecondaryVault is NonblockingLzApp {
     * NOTE:
     * Turn vault status into SNAPSHOTTED, not allowing snapshotting again in a session.
     **/
-    function snapshot() public onlyOwner returns (SnapshotReport memory report) {
+    function takeSnapshot() public onlyOwner returns (SnapshotReport memory report) {
         if (status == VaultStatus.DEFAULT) {
             return _snapshot();
             status = VaultStatus.SNAPSHOTTED;
