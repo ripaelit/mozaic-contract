@@ -191,6 +191,7 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
     }
+
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
         protocolDrivers[_driverId] = _driver;
         // console.log("SecondaryVault.setProtocolDriver: _driverId, _driver: ", _driverId, address(_driver));
@@ -198,6 +199,7 @@ contract SecondaryVault is NonblockingLzApp {
         (bool _success, bytes memory _response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(_success, "Failed to access configDriver in setProtocolDriver");
     }
+
     function addToken(address _token) public onlyOwner {
         for (uint i = 0; i < acceptingTokens.length; i++) {
             if (acceptingTokens[i] == _token) {
@@ -206,6 +208,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
         acceptingTokens.push(_token);
     }
+
     function removeToken(address _token) public onlyOwner {
         // TODO: Make sure there's no asset as this token.
         uint _idxToken = acceptingTokens.length;
@@ -221,6 +224,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
         acceptingTokens.pop();
     }
+
     function isAcceptingToken(address _token) public view returns (bool) {
         for (uint i = 0; i < acceptingTokens.length; i++) {
             if (acceptingTokens[i] == _token) {
@@ -248,6 +252,7 @@ contract SecondaryVault is NonblockingLzApp {
             require(success, "Failed to delegate to ProtocolDriver");
         }
     }
+
     /**
      * Add Deposit Request
      */
@@ -349,6 +354,7 @@ contract SecondaryVault is NonblockingLzApp {
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, report);
         _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
     }
+
     function _clearPendingBuffer() internal {
         // Clear Pending
         RequestBuffer storage pending = _pendingReqs();
@@ -357,6 +363,7 @@ contract SecondaryVault is NonblockingLzApp {
         delete pending.depositRequestList;
         delete pending.withdrawRequestList;
     }
+
     function _snapshot() internal virtual returns (SnapshotReport memory report){
         // Take Snapshot: Pending --> Processing
         bufferFlag = !bufferFlag;
@@ -402,7 +409,7 @@ contract SecondaryVault is NonblockingLzApp {
         (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0x23b872dd, _from, _to, _value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), "Mozaic: TRANSFER_FROM_FAILED");
     }
-    
+
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
         uint16 packetType;
         assembly {
@@ -416,7 +423,7 @@ contract SecondaryVault is NonblockingLzApp {
             emit UnexpectedLzMessage(packetType, _payload);
         }
     }
-    
+
     function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
         // console.log("_settleRequests: chain: %d mlp/$*kk: %d", chainId,  _mozaicLpPerStablecoinMil);
         // for all dpeposit requests, mint MozaicLp

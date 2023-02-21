@@ -35,8 +35,14 @@ contract PancakeSwapDriver is ProtocolDriver {
         if (actionType == ProtocolDriver.ActionType.Swap) {
             (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));
             returnData = _swap(_amountLD, _srcToken, _dstToken);
+            return returnData;
         }
-        return returnData;
+        else if (actionType == ProtocolDriver.ActionType.GetPriceMil) {
+            // Define price getting logic here.
+        }
+        else {
+            revert ("Undefined Action");
+        }
     }
 
     //---------------------------------------------------------------------------
