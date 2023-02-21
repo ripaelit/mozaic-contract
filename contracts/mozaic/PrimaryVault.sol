@@ -62,7 +62,8 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function setSecondaryVaults(uint16 _chainId, VaultDescriptor calldata _vault) external onlyOwner {
-        require(_chainId != chainId, "Cannot be primary chainID");
+        if (_chainId == chainId)    return;
+        // require(_chainId != chainId, "Cannot be primary chainID");
         bool _already = false;
         for (uint i = 0; i < secondaryChainIds.length; i++) {
             if (secondaryChainIds[i]==_chainId) {
@@ -108,7 +109,7 @@ contract PrimaryVault is SecondaryVault {
             _acceptSnapshot(_srcChainId, _newSnapshot);
         } 
         else if (packetType == PT_SETTLED_REQUESTS) {
-            secondaryVaultStatus[_srcChainId] = VaultStatus.DEFAULT;
+            secondaryVaultStatus[_srcChainId] = VaultStatus.IDLE;
             if (_checkRequestsSettledAllVaults()) {
                 _resetProtocolStatus();
             }
@@ -162,7 +163,7 @@ contract PrimaryVault is SecondaryVault {
 
     function _checkRequestsSettledAllVaults() internal view returns (bool) {
         for (uint i=0; i < secondaryChainIds.length; i++) {
-            if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.DEFAULT) {
+            if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.IDLE) {
                 return false;
             }
         }
@@ -173,7 +174,7 @@ contract PrimaryVault is SecondaryVault {
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
         _settleRequests(mozaicLpPerStablecoinMil);
-        secondaryVaultStatus[chainId] = VaultStatus.DEFAULT;
+        secondaryVaultStatus[chainId] = VaultStatus.IDLE;
         for (uint i = 0; i < secondaryChainIds.length; i++) {
             VaultDescriptor memory vd = secondaryVaults[secondaryChainIds[i]];
             secondaryVaultStatus[secondaryChainIds[i]] = VaultStatus.SETTLING;

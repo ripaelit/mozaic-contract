@@ -47,7 +47,7 @@ contract SecondaryVault is NonblockingLzApp {
     
     enum VaultStatus {
         // No staged requests. Neutral status.
-        DEFAULT, 
+        IDLE, 
 
         // (Primary Vault vision) Primary Vault thinks Secondary Vault is snapshotting. But haven't got report yet.
         SNAPSHOTTING, 
@@ -105,13 +105,6 @@ contract SecondaryVault is NonblockingLzApp {
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    /**
-    * Status
-    * DEFAULT : Initial status. Neutral. No staged requests.
-    * -> SNAPSHOTTED : Receiving "snapshot" message, stage requests, make snapshot and turn into SNAPSHOTTED status.
-    * -> SNAPSHOTTED : Receiving "sendSnapshot" call, send snapshot. But doesn't change status. Allowing double call.
-    * -> DEFAULT : Receiving "settle" message, settle all requests and turn into DEFAULT status.
-     */
     VaultStatus public status;
     Snapshot public snapshot;
     address public stargateRouter;
@@ -216,7 +209,7 @@ contract SecondaryVault is NonblockingLzApp {
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
-        status = VaultStatus.DEFAULT;
+        status = VaultStatus.IDLE;
     }
 
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
@@ -378,9 +371,9 @@ contract SecondaryVault is NonblockingLzApp {
     * Turn vault status into SNAPSHOTTED, not allowing snapshotting again in a session.
     **/
     function takeSnapshot() public onlyOwner returns (Snapshot memory result) {
-        if (status == VaultStatus.DEFAULT) {
+        if (status == VaultStatus.IDLE) {
             status = VaultStatus.SNAPSHOTTED;
-            return _snapshot();
+            return _takeSnapshot();
         }
         else if (status == VaultStatus.SNAPSHOTTED) {
             return snapshot;
@@ -411,7 +404,7 @@ contract SecondaryVault is NonblockingLzApp {
         delete pending.withdrawRequestList;
     }
 
-    function _snapshot() internal virtual returns (Snapshot memory result){
+    function _takeSnapshot() internal virtual returns (Snapshot memory result){
         require(_stagedReqs().totalDepositRequest==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
 
@@ -529,7 +522,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
         require(_reqs.totalWithdrawRequestMLP == 0, "Has unsettled withdrawal amount.");
         console.log("_settleRequests: done: chain: %d", chainId);
-        status = VaultStatus.DEFAULT;
+        status = VaultStatus.IDLE;
     }
 
     function reportSettled() public payable {

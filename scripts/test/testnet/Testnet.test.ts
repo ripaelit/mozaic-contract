@@ -15,6 +15,7 @@ describe('SecondaryVault.executeActions', () => {
     let mozaicDeployments: Map<number, MozaicDeployment>;
     let json;
     let mozaicDeployment: MozaicDeployment;
+    let primaryChainId: number;
 
     before(async () => {
         mozaicDeployments = new Map<number, MozaicDeployment>();
@@ -33,10 +34,11 @@ describe('SecondaryVault.executeActions', () => {
             mozaicVault: json.mozaicVault,
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
+        primaryChainId = await mozaicDeployment.mozaicVault.primaryChainId();
     })
     beforeEach(async () => {
         [owner] = await ethers.getSigners();
-        await initMozaics(owner, mozaicDeployments);
+        await initMozaics(owner, primaryChainId, mozaicDeployments);
     })
     describe('StargateDriver.execute', () => {
         it.only ("can stake USDC", async () => {

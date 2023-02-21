@@ -61,13 +61,13 @@ describe('SecondaryVault', () => {
         })
     })
 
-    describe('SecondaryVault.snapshotAndReport', () => {
-        it('only owner can call', async() => {
-            const chainId = exportData.localTestConstants.chainIds[1];
-            const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
-            await expect(vaultContract.connect(alice).snapshotAndReport()).to.revertedWith('Ownable: caller is not the owner')
-        })
-    })
+    // describe('SecondaryVault.snapshotAndReport', () => {
+    //     it('only owner can call', async() => {
+    //         const chainId = exportData.localTestConstants.chainIds[1];
+    //         const vaultContract = mozaicDeployments.get(chainId)!.mozaicVault;
+    //         await expect(vaultContract.connect(alice).snapshotAndReport()).to.revertedWith('Ownable: caller is not the owner')
+    //     })
+    // })
 
     describe.only('Flow Test', () => {
         it.only('normal flow', async () => {
@@ -121,10 +121,11 @@ describe('SecondaryVault', () => {
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
 
             // Algostory: #### 3-2. Take Snapshot and Report
-            for (const chainId of exportData.localTestConstants.chainIds) {
+            for (const [chainId, mozaicDeployment] of mozaicDeployments) {
                 // TODO: optimize lz native token fee.
                 console.log("vault address", chainId, mozaicDeployments.get(chainId)!.mozaicVault.address);
-                await mozaicDeployments.get(chainId)!.mozaicVault.snapshotAndReport(); //{value:ethers.utils.parseEther("0.1")}
+                await mozaicDeployment.mozaicVault.takeSnapshot();
+                await mozaicDeployment.mozaicVault.reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
             }
 
             // Alice adds to pending request pool, but this should not affect minted mLP amount.
@@ -167,8 +168,10 @@ describe('SecondaryVault', () => {
             await secondaryVault.connect(ben).addWithdrawRequest(benWithdraw2MLP, tokenBSecondary.address, secondaryChainId);
             // Settle Requests
             await primaryVault.connect(owner).initOptimizationSession();
-            await primaryVault.connect(owner).snapshotAndReport({value:ethers.utils.parseEther("0")});
-            await secondaryVault.connect(owner).snapshotAndReport({value:ethers.utils.parseEther("0.1")}); //{value:ethers.utils.parseEther("0.1")}
+            await primaryVault.connect(owner).takeSnapshot();
+            await primaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0")});
+            await secondaryVault.connect(owner).takeSnapshot();
+            await secondaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0.1")});
             console.log("before", await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(alice.address));
             const txresult = await primaryVault.settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
             console.log("after", await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(alice.address));

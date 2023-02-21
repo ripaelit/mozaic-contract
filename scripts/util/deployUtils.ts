@@ -355,7 +355,7 @@ export const deployAllToLocalNet = async (
 
     }
 
-    initMozaics(owner, mozaicDeployments);
+    initMozaics(owner, primaryChainId, mozaicDeployments);
 
     // LZEndpointMock setDestLzEndpoint
     await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
@@ -382,6 +382,7 @@ export const deployAllToLocalNet = async (
 
 export const initMozaics = async (
     owner: SignerWithAddress,
+    primaryChainId: number,
     mozaicDeployments: Map<number, MozaicDeployment>, 
 ) => {
 
@@ -398,14 +399,14 @@ export const initMozaics = async (
     console.log("Registerd TrustedRemote");
 
     // Register SecondaryVaults
-    const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
-    for (const [chainId] of mozaicDeployments) {
-        if (chainId == primaryChainId) continue;
-        await (mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault).setSecondaryVaults(
+    const primaryValut = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
+    for (const [chainId, mozaicDeployment] of mozaicDeployments) {
+        // if (chainId == primaryChainId) continue;
+        await primaryValut.setSecondaryVaults(
             chainId, 
             {
                 chainId,
-                vaultAddress: mozaicDeployments.get(chainId)!.mozaicVault.address,
+                vaultAddress: mozaicDeployment.mozaicVault.address,
             }
         );
     }
