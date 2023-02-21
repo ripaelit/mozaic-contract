@@ -1,9 +1,9 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { StargateToken__factory, MockToken__factory, SecondaryVault, LPStaking__factory } from '../../types/typechain';
+import { StargateToken__factory, MockToken__factory, SecondaryVault, LPStaking__factory } from '../../../types/typechain';
 import { ActionTypeEnum, MozaicDeployments, MozaicDeployment } from '../../constants/types';
-import { deployAllToTestNet, initMozaics } from '../TestUtils';
+import { initMozaics } from '../../util/deployUtils';
 import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
 

@@ -2,11 +2,12 @@ import { expect } from 'chai';
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault, SecondaryVault, MockToken__factory } from '../types/typechain';
-import { deployAllToLocalNet } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, StargateDeploymentOnchain } from '../constants/types'
-import exportData from '../constants/index';
+import { PrimaryVault, SecondaryVault, MockToken__factory } from '../../../types/typechain';
+import { deployAllToLocalNet } from '../../util/deployUtils';
+import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, StargateDeploymentOnchain } from '../../constants/types'
+import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
+
 describe('SecondaryVault', () => {
     let owner: SignerWithAddress;
     let alice: SignerWithAddress;
