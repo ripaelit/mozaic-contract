@@ -137,7 +137,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function getTotalDepositRequest(bool _staged) public view returns (uint256) {
-        console.log("getTotalDepositRequest: staged: %d pending: %d", _stagedReqs().totalDepositRequest, _pendingReqs().totalDepositRequest);
+        // console.log("getTotalDepositRequest: staged: %d pending: %d", _stagedReqs().totalDepositRequest, _pendingReqs().totalDepositRequest);
         if (_staged) {
             return _stagedReqs().totalDepositRequest;
         }
@@ -418,7 +418,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
     
     function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
-        console.log("_settleRequests: chain: %d mlp/$*kk: %d", chainId,  _mozaicLpPerStablecoinMil);
+        // console.log("_settleRequests: chain: %d mlp/$*kk: %d", chainId,  _mozaicLpPerStablecoinMil);
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
@@ -430,17 +430,17 @@ contract SecondaryVault is NonblockingLzApp {
                 continue;
             }
             uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
-            console.log("_settleRequests: depo: %d lp: %d", _depositAmount, _amountToMint);
+            // console.log("_settleRequests: depo: %d lp: %d", _depositAmount, _amountToMint);
             mozaicLpContract.mint(request.user, _amountToMint);
             // Reduce Handled Amount from Buffer
-            console.log("_settleReqs: totalDepo Before: %d", _reqs.totalDepositRequest);
+            // console.log("_settleReqs: totalDepo Before: %d", _reqs.totalDepositRequest);
             _reqs.totalDepositRequest = _reqs.totalDepositRequest.sub(_depositAmount);
             _reqs.depositRequestLookup[request.user][request.token][request.chainId] = _reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmount);
-            console.log("_settleReqs: totalDepo After: %d", _reqs.totalDepositRequest);
+            // console.log("_settleReqs: totalDepo After: %d", _reqs.totalDepositRequest);
         }
-        console.log("_settleReqs: totalDepo: %d", _reqs.totalDepositRequest);
-        console.log("_settleReqs: left %d", leftBuffer.totalDepositRequest);
-        console.log("_settleReqs: right %d", rightBuffer.totalDepositRequest);
+        // console.log("_settleReqs: totalDepo: %d", _reqs.totalDepositRequest);
+        // console.log("_settleReqs: left %d", leftBuffer.totalDepositRequest);
+        // console.log("_settleReqs: right %d", rightBuffer.totalDepositRequest);
         require(_reqs.totalDepositRequest == 0, "Has unsettled deposit amount.");
 
         for (uint i = 0; i < _reqs.withdrawRequestList.length; i++) {
@@ -470,13 +470,13 @@ contract SecondaryVault is NonblockingLzApp {
             _giveStablecoin(request.user, request.token, _cointToGive);
         }
         require(_reqs.totalWithdrawRequestMLP == 0, "Has unsettled withdrawal amount.");
-        console.log("_settleRequests: done: chain: %d", chainId);
+        // console.log("_settleRequests: done: chain: %d", chainId);
     }
 
     function reportSettled() public payable {
-        console.log("reportSettled: totalDepReq: %d", _stagedReqs().totalDepositRequest);
-        console.log("reportSettled: left %d", leftBuffer.totalDepositRequest);
-        console.log("reportSettled: right %d", rightBuffer.totalDepositRequest);
+        // console.log("reportSettled: totalDepReq: %d", _stagedReqs().totalDepositRequest);
+        // console.log("reportSettled: left %d", leftBuffer.totalDepositRequest);
+        // console.log("reportSettled: right %d", rightBuffer.totalDepositRequest);
         require(_stagedReqs().totalDepositRequest == 0, "Has unsettled deposit amount.");
         require(_stagedReqs().totalWithdrawRequestMLP == 0, "Has unsettled withdrawal amount.");
         // report to primary vault
