@@ -20,13 +20,6 @@ contract PrimaryVault is SecondaryVault {
         IDLE,
         OPTIMIZING
     }
-    enum VaultStatus {
-        IDLE,
-        SNAPSHOTTING,
-        SNAPSHOTTED,
-        SETTLING,
-        SETTLED
-    }
 
     //--------------------------------------------------------------------------
     // STRUCTS
@@ -41,7 +34,7 @@ contract PrimaryVault is SecondaryVault {
 
     uint16[] public secondaryChainIds;
     mapping(uint16 => VaultDescriptor) public secondaryVaults;
-    mapping(uint16 => VaultStatus) public secondaryVaultStatus;
+    mapping(uint16 => SecondaryVault.VaultStatus) public secondaryVaultStatus;
 
     function secondaryChainIdsLength() public view returns (uint256) {
         return secondaryChainIds.length;
@@ -97,13 +90,11 @@ contract PrimaryVault is SecondaryVault {
     /**
      * Call this with zero gas
      */
-    function snapshotAndReport() virtual override public payable onlyOwner {
+    function reportSnapshot() virtual override public payable onlyOwner {
         // Processing Amount Should be Zero!
-        require(_stagedReqs().totalDepositRequest==0, "Still has processing requests");
-        require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
-        SnapshotReport memory report = _snapshot();
+        require(status == VaultStatus.SNAPSHOTTED, "reportSnapshotted: Not snapshotted yet.");
         // Send Report
-        _acceptSnapshotReport(chainId, report);
+        _acceptSnapshotReport(chainId, snapshot);
     }
 
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
@@ -117,8 +108,8 @@ contract PrimaryVault is SecondaryVault {
             _acceptSnapshotReport(_srcChainId, _report);
         } 
         else if (packetType == PT_SETTLED_REQUESTS) {
-            secondaryVaultStatus[_srcChainId] = VaultStatus.SETTLED;
-            if (checkRequestsSettledAllVaults()) {
+            secondaryVaultStatus[_srcChainId] = VaultStatus.DEFAULT;
+            if (_checkRequestsSettledAllVaults()) {
                 _resetProtocolStatus();
             }
         }
@@ -169,9 +160,9 @@ contract PrimaryVault is SecondaryVault {
         return true;
     }
 
-    function checkRequestsSettledAllVaults() public view returns (bool) {
+    function _checkRequestsSettledAllVaults() internal view returns (bool) {
         for (uint i=0; i < secondaryChainIds.length; i++) {
-            if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.SETTLED) {
+            if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.DEFAULT) {
                 return false;
             }
         }
@@ -182,7 +173,7 @@ contract PrimaryVault is SecondaryVault {
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
         _settleRequests(mozaicLpPerStablecoinMil);
-        secondaryVaultStatus[chainId] = VaultStatus.SETTLED;
+        secondaryVaultStatus[chainId] = VaultStatus.DEFAULT;
         for (uint i = 0; i < secondaryChainIds.length; i++) {
             VaultDescriptor memory vd = secondaryVaults[secondaryChainIds[i]];
             secondaryVaultStatus[secondaryChainIds[i]] = VaultStatus.SETTLING;
@@ -192,9 +183,6 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function _resetProtocolStatus() internal {
-        for (uint i=0; i < secondaryChainIds.length; i++) {
-            secondaryVaultStatus[secondaryChainIds[i]] = VaultStatus.IDLE;
-        }
         protocolStatus = ProtocolStatus.IDLE;
     }
     //---------------------------------------------------------------------------
