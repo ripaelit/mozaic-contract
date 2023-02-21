@@ -68,6 +68,7 @@ contract SecondaryVault is NonblockingLzApp {
         bytes payload;
     }
 
+    //KEVIN-TODO: rename to Snapshot
     struct SnapshotReport {
         uint256 depositRequestAmount;
         uint256 withdrawRequestAmountMLP;

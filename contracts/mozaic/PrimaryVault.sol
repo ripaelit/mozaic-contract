@@ -194,6 +194,7 @@ contract PrimaryVault is SecondaryVault {
     function _getStargatePriceMil() internal returns (uint256) {
         // PoC: right now deploy to TestNet only. We work with MockSTG token and Mocked Stablecoins.
         // And thus we don't have real DEX market.
+        // KEVIN-TODO:
         return 1000000;
     }
 }
