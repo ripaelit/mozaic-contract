@@ -16,7 +16,7 @@ describe('SecondaryVault.executeActions', () => {
 
         mozaicDeployments = new Map<number, MozaicDeployment>();
  
-        await deployAllToTestNet(owner, 10121, mozaicDeployments);
+        // await deployAllToTestNet(owner, 10121, mozaicDeployments);
         // await deployAllToTestNet(owner, 10102, mozaicDeployments);
         await initMozaics(owner, mozaicDeployments);
     })

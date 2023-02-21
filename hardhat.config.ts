@@ -9,6 +9,7 @@ import '@nomiclabs/hardhat-solhint';
 import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomiclabs/hardhat-ethers';
 import "hardhat-contract-sizer";
+const { mnemonic, bscscanApiKey } = require('./secrets.json');
 
 const ALCHEMY_API_KEY = "SdxE5xrDm_WJBQSMjcHb3qKh68T5ILxD";
 
@@ -17,50 +18,58 @@ const GOERLI_PRIVATE_KEY = "3bcdb1523b4dae87e050231735b6c7f0464ef65b8487f61092b8
 const INFURA_ID = 'e254d35aa64b4c16816163824d9d5b83'
 
 const config: HardhatUserConfig = {
-  defaultNetwork: 'hardhat',
-  solidity: {
-    compilers: [{
-        version: '0.8.9', 
-        settings: {
-            optimizer: {
-                enabled:true, 
-                runs:1
+    defaultNetwork: 'hardhat',
+    solidity: {
+        compilers: [{
+            version: '0.8.9', 
+            settings: {
+                optimizer: {
+                    enabled:true, 
+                    runs:1
+                }
             }
-        }
-    }],
-  },
-  // redirect typechain output for the frontend
-  typechain: {
-    outDir: './types/typechain',
-  },
-  networks: {
-    hardhat: {
-      gas: 30000000, //"auto", // 30000000
-      gasPrice: "auto",// 8000000000
+        }],
     },
-    localhost: {},
-    goerli: {
-        // url: `https://eth-goerli.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
-        url: "https://goerli.infura.io/v3/" + INFURA_ID,
-        chainId: 5,
-        gasPrice: 20000000000,
-        accounts: [GOERLI_PRIVATE_KEY],
+    // redirect typechain output for the frontend
+    typechain: {
+        outDir: './types/typechain',
+    },
+    networks: {
+        hardhat: {
+        gas: 30000000, //"auto", // 30000000
+        gasPrice: "auto",// 8000000000
+        },
+        localhost: {},
+        goerli: {
+            // url: `https://eth-goerli.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+            url: "https://goerli.infura.io/v3/" + INFURA_ID,
+            chainId: 5,
+            gasPrice: 20000000000,
+            accounts: [GOERLI_PRIVATE_KEY],
+        },
+        bsctest: {
+            url: `https://data-seed-prebsc-1-s3.binance.org:8545/`,
+            chainId: 97,
+            gasPrice: 20000000000,
+            accounts: {mnemonic: mnemonic}
+        },
+    },
+    etherscan: {
+        // Your API key for Etherscan
+        // Obtain one at https://etherscan.io/
+
+        // apiKey: "S1VH5HN4RW22314GI9APVKVFIJ36IH5SXV"
+        apiKey: bscscanApiKey
+    },
+    paths: {
+        sources: "./contracts",
+        tests: "./test",
+        cache: "./cache",
+        artifacts: "./artifacts"
+    },
+    mocha: {
+        timeout: 400000
     }
-  },
-  etherscan: {
-    // Your API key for Etherscan
-    // Obtain one at https://etherscan.io/
-    apiKey: "S1VH5HN4RW22314GI9APVKVFIJ36IH5SXV"
-  },
-  paths: {
-    sources: "./contracts",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts"
-  },
-  mocha: {
-    timeout: 400000
-  }
 };
 
 export default config;
