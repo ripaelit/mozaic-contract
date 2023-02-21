@@ -378,8 +378,8 @@ contract SecondaryVault is NonblockingLzApp {
     **/
     function takeSnapshot() public onlyOwner returns (SnapshotReport memory report) {
         if (status == VaultStatus.DEFAULT) {
-            return _snapshot();
             status = VaultStatus.SNAPSHOTTED;
+            return _snapshot();
         }
         else if (status == VaultStatus.SNAPSHOTTED) {
             return snapshot;
@@ -414,7 +414,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(_stagedReqs().totalDepositRequest==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
 
-        // Take Snapshot: Pending --> Processing
+        // Stage Requests: Pending --> Processing
         bufferFlag = !bufferFlag;
 
         // Make Report
