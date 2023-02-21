@@ -68,6 +68,7 @@ contract SecondaryVault is NonblockingLzApp {
         bytes payload;
     }
 
+    //KEVIN-TODO: rename to Snapshot
     struct SnapshotReport {
         uint256 depositRequestAmount;
         uint256 withdrawRequestAmountMLP;
@@ -376,10 +377,10 @@ contract SecondaryVault is NonblockingLzApp {
     * NOTE:
     * Turn vault status into SNAPSHOTTED, not allowing snapshotting again in a session.
     **/
-    function snapshot() public onlyOwner returns (SnapshotReport memory report) {
+    function takeSnapshot() public onlyOwner returns (SnapshotReport memory report) {
         if (status == VaultStatus.DEFAULT) {
-            return _snapshot();
             status = VaultStatus.SNAPSHOTTED;
+            return _snapshot();
         }
         else if (status == VaultStatus.SNAPSHOTTED) {
             return snapshot;
@@ -414,7 +415,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(_stagedReqs().totalDepositRequest==0, "Still has processing requests");
         require(_stagedReqs().totalWithdrawRequestMLP==0, "Still has processing requests");
 
-        // Take Snapshot: Pending --> Processing
+        // Stage Requests: Pending --> Processing
         bufferFlag = !bufferFlag;
 
         // Make Report
