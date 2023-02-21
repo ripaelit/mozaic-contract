@@ -40,6 +40,12 @@ contract StargateDriver is ProtocolDriver{
             (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint16 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint16));
             _swapRemote(_amountLD, _srcToken, _dstChainId, _dstPoolId);
         }
+        else if (_actionType == ActionType.GetStakedAmount) {
+            // Define Actions here.
+        }
+        else {
+            revert("Undefined Action");
+        }
     }
     function _stake(uint256 _amountLD, address _token) private {
         // CHECKLATER: try internal
