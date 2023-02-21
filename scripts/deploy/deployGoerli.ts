@@ -3,10 +3,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { deployAllToTestNet } from '../util/deployUtils';
 import { MozaicDeployment } from '../constants/types'
 import exportData from '../constants/index';
+const fs = require('fs');
 
 async function main() {
     let owner: SignerWithAddress;
     const mozaicDeployments = new Map<number, MozaicDeployment>();
+    let mozaicDeployment: MozaicDeployment;
     
     [owner] = await ethers.getSigners();
     console.log("Deploying contracts with the account:", owner.address);
@@ -14,7 +16,10 @@ async function main() {
 
     const chainId = exportData.testnetTestConstants.chainIds[0];
     await deployAllToTestNet(owner, chainId, mozaicDeployments);
-    console.log("Goerli: chainId %d, MozaicLP %s, PrimaryVault %s", chainId, mozaicDeployments.get(chainId)!.mozaicLp.address, mozaicDeployments.get(chainId)!.mozaicVault.address);
+    mozaicDeployment = mozaicDeployments.get(chainId)!;
+    console.log("Goerli: chainId %d, MozaicLP %s, PrimaryVault %s", chainId, mozaicDeployment.mozaicLp.address, mozaicDeployment.mozaicVault.address);
+    let res = JSON.stringify({chainId: chainId, mozaicLP: mozaicDeployment.mozaicLp.address, mozaicVault: mozaicDeployment.mozaicVault.address});
+    fs.writeFileSync("deployGoerliResult.json", res);
 }
   
 main()

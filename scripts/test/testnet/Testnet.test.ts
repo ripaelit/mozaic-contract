@@ -6,18 +6,36 @@ import { ActionTypeEnum, MozaicDeployments, MozaicDeployment } from '../../const
 import { initMozaics } from '../../util/deployUtils';
 import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
+const fs = require('fs');
+
+    
 
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
-    let mozaicDeployments: MozaicDeployments;
+    let mozaicDeployments: Map<number, MozaicDeployment>;
+    let json;
+    let mozaicDeployment: MozaicDeployment;
 
+    before(async () => {
+        mozaicDeployments = new Map<number, MozaicDeployment>();
+        // Parse goerli deploy info
+        json = JSON.parse(fs.readFileSync('deployGoerliResult.json', 'utf-8'));
+        mozaicDeployment = {
+            mozaicLp: json.mozaicLP,
+            mozaicVault: json.mozaicVault,
+        }
+        mozaicDeployments.set(json.chainId, mozaicDeployment);
+
+        // Parse bsc deploy info
+        json = JSON.parse(fs.readFileSync('deployBscResult.json', 'utf-8'));
+        mozaicDeployment = {
+            mozaicLp: json.mozaicLP,
+            mozaicVault: json.mozaicVault,
+        }
+        mozaicDeployments.set(json.chainId, mozaicDeployment);
+    })
     beforeEach(async () => {
         [owner] = await ethers.getSigners();
-
-        mozaicDeployments = new Map<number, MozaicDeployment>();
- 
-        // await deployAllToTestNet(owner, 10121, mozaicDeployments);
-        // await deployAllToTestNet(owner, 10102, mozaicDeployments);
         await initMozaics(owner, mozaicDeployments);
     })
     describe('StargateDriver.execute', () => {
