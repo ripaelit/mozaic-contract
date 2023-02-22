@@ -1,10 +1,13 @@
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// imports
 import "./ProtocolDriver.sol";
-import "hardhat/console.sol";
+
+// libraries
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract PancakeSwapDriver is ProtocolDriver {
+    
     //---------------------------------------------------------------------------
     // VARIABLES
     struct PancakeSwapDriverConfig {
@@ -27,17 +30,13 @@ contract PancakeSwapDriver is ProtocolDriver {
         }
     }
 
-    function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public returns (bytes memory) {
-        console.log("PancakeSwapDriver.execute: msg.sender:", msg.sender);
-        console.log("PancakeSwapDriver.execute: this", address(this));
-        bytes memory returnData;
+    function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public returns (bytes memory response) {
         if (actionType == ProtocolDriver.ActionType.Swap) {
             (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));
-            returnData = _swap(_amountLD, _srcToken, _dstToken);
-            return returnData;
+            response = _swap(_amountLD, _srcToken, _dstToken);
         }
         else if (actionType == ProtocolDriver.ActionType.GetPriceMil) {
-            // Define price getting logic here.
+            response = _getStargatePriceMil();
         }
         else {
             revert ("Undefined Action");
@@ -48,15 +47,19 @@ contract PancakeSwapDriver is ProtocolDriver {
     // INTERNAL
 
     function _swap(uint256 _amount, address _srcToken, address _dstToken) private returns (bytes memory) {
-        console.log("PancakeSwapDriver._swap: msg.sender:", msg.sender);
-        console.log("PancakeSwapDriver._swap: this", address(this));
-        console.log("PancakeSwapDriver._swap: _getConofig():", _getConfig().pancakeSwapSmartRouter);
         // Approve
         IERC20(_srcToken).approve( _getConfig().pancakeSwapSmartRouter, _amount);
 
         // Swap
-        (bool success, bytes memory returnData) = address( _getConfig().pancakeSwapSmartRouter).call(abi.encodeWithSignature("swap(address,address,uint256,uint256,uint8)", _srcToken, _dstToken, _amount, 0, 0));
+        (bool success, bytes memory returnData) = address(_getConfig().pancakeSwapSmartRouter).call(abi.encodeWithSignature("swap(address,address,uint256,uint256,uint8)", _srcToken, _dstToken, _amount, 0, 0));
         require(success, "Failed to access Pancakeswap smart router");
+        return returnData;
+    }
+
+    function _getStargatePriceMil() internal view returns (bytes memory) {
+        // PoC: right now deploy to TestNet only. We work with MockSTG token and Mocked Stablecoins.
+        // And thus we don't have real DEX market.
+        bytes memory returnData = abi.encode((1000000));
         return returnData;
     }
 }
