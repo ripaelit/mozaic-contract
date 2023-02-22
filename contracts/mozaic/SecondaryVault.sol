@@ -389,11 +389,10 @@ contract SecondaryVault is NonblockingLzApp {
         // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
         uint256 _totalStablecoin = 0;
 
-        // Add stablecoins remnant in vault
+        // Add stablecoins transfered to vault
         for (uint i = 0; i < acceptingTokens.length; i++) {
             _totalStablecoin = _totalStablecoin.add(IERC20(acceptingTokens[i]).balanceOf(address(this)));
         }
-        console.log("_totalStablecoin 1:", _totalStablecoin);
 
         // Add stablecoins staked in stargate using stargateDriver
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
@@ -401,22 +400,16 @@ contract SecondaryVault is NonblockingLzApp {
         bytes memory _payload;
         (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
         require(success, "Failed to delegate to ProtocolDriver in _takeSnapshot");
-        uint256 _amountStaked = abi.decode(data, (uint256));
+        (uint256 _amountStaked) = abi.decode(abi.decode(data, (bytes)), (uint256));
         _totalStablecoin = _totalStablecoin.add(_amountStaked);
-        console.log("_totalStablecoin 2:", _totalStablecoin);
 
         result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
-        console.log("result.totalStargate", result.totalStargate);
 
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
         result.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositRequest).sub(_pendingReqs().totalDepositRequest);
-        console.log("result.totalStablecoin", result.totalStablecoin);
         result.depositRequestAmount = _stagedReqs().totalDepositRequest;
-        console.log("result.depositRequestAmount", result.depositRequestAmount);
         result.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
-        console.log("result.withdrawRequestAmountMLP", result.withdrawRequestAmountMLP);
         result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        console.log("result.totalMozaicLp", result.totalMozaicLp);
         snapshot = result;
     }
 

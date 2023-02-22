@@ -130,16 +130,13 @@ contract PrimaryVault is SecondaryVault {
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
         for (uint i = 0; i < secondaryChainIds.length ; i++) {
             Snapshot memory report = snapshotReported[secondaryChainIds[i]];
-            console.log("i = %d, report.totalMozaicLp = %d, report.totalStablecoin = %d", i, report.totalMozaicLp, report.totalStablecoin);
             _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
         if (_totalStablecoinValue > 0) {
-            console.log("mozaicLpPerStablecoinMil 1: _mintedMozLp:", _mintedMozLp);
             mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
         }
         else {
-            console.log("mozaicLpPerStablecoinMil 2:");
             mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
         }
     }
@@ -168,7 +165,6 @@ contract PrimaryVault is SecondaryVault {
     function settleRequestsAllVaults() public payable {
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
-        console.log("settleRequestsAllVaults: mozaicLpPerStablecoinMil =", mozaicLpPerStablecoinMil);
         _settleRequests(mozaicLpPerStablecoinMil);
         secondaryVaultStatus[chainId] = VaultStatus.IDLE;
         for (uint i = 0; i < secondaryChainIds.length; i++) {

@@ -8,8 +8,6 @@ import "./ProtocolDriver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "hardhat/console.sol";
-
 contract StargateDriver is ProtocolDriver{
     using SafeMath for uint256;
 
@@ -25,14 +23,13 @@ contract StargateDriver is ProtocolDriver{
         _config.stgRouter = _stgRouter;
         _config.stgLPStaking = _stgLPStaking;
     }
-    function _getConfig() internal pure returns (StargateDriverConfig storage _config) {
+    function _getConfig() internal view returns (StargateDriverConfig storage _config) {
         // pure?
         bytes32 slotAddress = CONFIG_SLOT;
         assembly {
             _config.slot := slotAddress
         }
     }
-    
     function execute(ActionType _actionType, bytes calldata _payload) public override returns (bytes memory response) {
         if (_actionType == ActionType.Stake) {
             (uint256 _amountLD, address _token) = abi.decode(_payload, (uint256, address));
@@ -61,7 +58,7 @@ contract StargateDriver is ProtocolDriver{
         
         // Get pool and poolId
         address _pool = getStargatePoolFromToken(_token);
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId"));
+        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId()"));
         require(_success, "Failed to call poolId");
         uint256 _poolId = abi.decode(_response, (uint256));
         
@@ -101,7 +98,7 @@ contract StargateDriver is ProtocolDriver{
 
         // Get pool and poolId
         address _pool = getStargatePoolFromToken(_token);
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId"));
+        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId()"));
         require(_success, "Failed to call poolId");
         uint256 _poolId = abi.decode(_response, (uint256));
 
@@ -124,7 +121,7 @@ contract StargateDriver is ProtocolDriver{
         require (_amountLD > 0, "Cannot stake zero amount");
         // Get srcPoolId
         address _srcPool = getStargatePoolFromToken(_srcToken);
-        (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId"));
+        (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
         require(_success, "Failed to call poolId");
         uint256 _srcPoolId = abi.decode(_response, (uint256));
 
@@ -138,7 +135,6 @@ contract StargateDriver is ProtocolDriver{
     }
 
     function _getStakedAmount() private returns (uint256 _amountStaked) {
-        console.log("_getStakedAmount:");
         _amountStaked = 0;
         address _stgLPStaking = _getConfig().stgLPStaking;
         (bool _success, bytes memory _response) = address(_stgLPStaking).call(abi.encodeWithSignature("poolLength()"));
@@ -172,11 +168,9 @@ contract StargateDriver is ProtocolDriver{
             (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
             require(_success, "Failed to Pool.totalSupply");
             uint256 _totalSupply = abi.decode(_response, (uint256));
-            console.log("_totalSupply", _totalSupply);
             
             if (_totalSupply > 0) {
                 _amountStaked = _amountStaked.add(_totalLiquidityLD.mul(_amountLPToken).div(_totalSupply));
-                console.log("_totalLiquidityLD %d, _amountLPToken %d, _amountStaked %d", _totalLiquidityLD, _amountLPToken, _amountStaked);
             }
         }
     }
@@ -184,11 +178,11 @@ contract StargateDriver is ProtocolDriver{
     function getStargatePoolFromToken(address _token) public returns (address) {
         address _router = _getConfig().stgRouter;
         
-        (bool _success, bytes memory _response) = _router.call(abi.encodeWithSignature("factory"));
+        (bool _success, bytes memory _response) = address(_router).call(abi.encodeWithSignature("factory()"));
         require(_success, "Failed to get factory in StargateDriver");
         address _factory = abi.decode(_response, (address));
 
-        (_success, _response) = _factory.call(abi.encodeWithSignature("allPoolsLength"));
+        (_success, _response) = _factory.call(abi.encodeWithSignature("allPoolsLength()"));
         require(_success, "Failed to get allPoolsLength");
         uint256 _allPoolsLength = abi.decode(_response, (uint256));
 
@@ -213,7 +207,7 @@ contract StargateDriver is ProtocolDriver{
     function _getPool(uint256 _poolId) internal returns (address _pool) {
         address _router = _getConfig().stgRouter;
 
-        (bool _success, bytes memory _response) = _router.call(abi.encodeWithSignature("factory"));
+        (bool _success, bytes memory _response) = _router.call(abi.encodeWithSignature("factory()"));
         require(_success, "Failed to get factory in StargateDriver");
         address _factory = abi.decode(_response, (address));
 
@@ -226,7 +220,7 @@ contract StargateDriver is ProtocolDriver{
         // TODO: gas fee optimization by avoiding duplicate calculation.
         address _pool = getStargatePoolFromToken(_token);
 
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("convertRate"));
+        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("convertRate()"));
         require(_success, "Failed to call convertRate");
         uint256 _convertRate = abi.decode(_response, (uint256));
 
@@ -237,7 +231,7 @@ contract StargateDriver is ProtocolDriver{
         // TODO: gas fee optimization by avoiding duplicate calculation.
         address _pool = getStargatePoolFromToken(_token);
 
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("convertRate"));
+        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("convertRate()"));
         require(_success, "Failed to call convertRate");
         uint256 _convertRate = abi.decode(_response, (uint256));
 
@@ -260,12 +254,7 @@ contract StargateDriver is ProtocolDriver{
                 return (true, poolIndex);
             }
         }
-        // for (uint i = 0; i < LPStaking(_lpStaking).poolLength(); i++ ) {
-        //     if (address(LPStaking(_lpStaking).getPoolInfo(i)) == address(pool)) {
-        //         return (true, i);
-        //     }
-        // }
-        // not found
+       
         return (false, 0);
     }
 }
