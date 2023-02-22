@@ -11,8 +11,10 @@ abstract contract ProtocolDriver is Ownable {
         Stake,
         Unstake
     }
+
     function configDriver(bytes calldata params) public virtual onlyOwner returns (bytes memory) {
     }
+
     function execute(ActionType _actionType, bytes calldata _payload) public virtual returns (bytes memory) {
     }
 }
