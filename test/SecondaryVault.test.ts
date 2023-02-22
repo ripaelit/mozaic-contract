@@ -25,6 +25,7 @@ describe('SecondaryVault', () => {
 
         await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
     });
+
     describe('SecondaryVault.addDepositRequest', () => {
         it('add request to pending buffer', async () => {
             const chainId = exportData.localTestConstants.chainIds[0];
@@ -44,6 +45,7 @@ describe('SecondaryVault', () => {
             expect(await vaultContract.getDepositRequestAmount(false, alice.address, coinContract.address, chainId)).to.gt(0);
         })
     });
+
     describe('SecondaryVault.addWithdrawRequest', () => {
         it('add request to pending buffer', async() => {
             // NOTE: Run this test case without transferring ownership from `owner` to `vault`
@@ -57,6 +59,7 @@ describe('SecondaryVault', () => {
             await expect(vaultContract.connect(alice).addWithdrawRequest(amountMLP, coinContract.address, chainId)).to.emit(vaultContract, 'WithdrawRequestAdded').withArgs(alice.address,coinContract.address,chainId,amountMLP);
         })
     })
+
     describe('SecondaryVault.snapshotAndReport', () => {
         it('only owner can call', async() => {
             const chainId = exportData.localTestConstants.chainIds[1];
@@ -64,6 +67,7 @@ describe('SecondaryVault', () => {
             await expect(vaultContract.connect(alice).snapshotAndReport()).to.revertedWith('Ownable: caller is not the owner')
         })
     })
+
     describe.only('Flow Test', () => {
         it.only('normal flow', async () => {
             const primaryChainId = exportData.localTestConstants.chainIds[0];
@@ -87,7 +91,7 @@ describe('SecondaryVault', () => {
             tokenASecondary.mint(alice.address, aliceTotalLD);
             tokenBSecondary.mint(ben.address, benTotalLD);
             tokenAPrimary.mint(chris.address, chrisTotalLD);
-            
+
             // ----------------------- First Round: ----------------------------
 
             // Algostory: ### 1. User Books Deposit
@@ -102,7 +106,7 @@ describe('SecondaryVault', () => {
             // Chried deposit tokenBSecondary's to primaryVault request 4k now turns into staged from pending.
             await tokenAPrimary.connect(chris).approve(primaryVault.address, chrisDeposit1LD);
             await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);
-            
+
             // Check Pending Request Buffer
             console.log("1");
             expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit1LD.add(benDeposit1LD));
@@ -114,7 +118,7 @@ describe('SecondaryVault', () => {
             await primaryVault.connect(owner).initOptimizationSession();
             // Protocol Status : IDLE -> OPTIMIZING
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
-            
+
             // Algostory: #### 3-2. Take Snapshot and Report
             for (const chainId of exportData.localTestConstants.chainIds) {
                 // TODO: optimize lz native token fee.
@@ -183,16 +187,20 @@ describe('SecondaryVault', () => {
             // settle requests
         })
     })
+
     describe('Snapshot Flow', () => {
         it('It needs to begin with PrimaryVault.initOptimizationSession()', async() => {
 
         })
+
         it('Reports flow from SecondaryVault to PrimaryVault', async() => {
 
         })
+
         it('When all reports are collected PrimaryVault calculate mozaicLpPerStablecoin; Flags and other variables set correctly', async() => {
 
         })
+
     })
 });
 
