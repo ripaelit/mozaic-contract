@@ -67,6 +67,7 @@ contract PrimaryVault is SecondaryVault {
         protocolStatus = ProtocolStatus.IDLE;
         // setMainChainId(_chainId);
     }
+
     function setSecondaryVaults(uint16 _chainId, VaultDescriptor calldata _vault) external onlyOwner {
         require(_chainId != chainId, "Cannot be primary chainID");
         bool _already = false;
@@ -104,6 +105,7 @@ contract PrimaryVault is SecondaryVault {
         // Send Report
         _acceptSnapshotReport(chainId, report);
     }
+
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
         uint16 packetType;
         assembly {
@@ -125,6 +127,7 @@ contract PrimaryVault is SecondaryVault {
             // super._nonblockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
         }
     }
+
     function _acceptSnapshotReport(uint16 _srcChainId, SnapshotReport memory _report) internal {
         require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
         snapshotReport[_srcChainId] = _report;
@@ -133,6 +136,7 @@ contract PrimaryVault is SecondaryVault {
             calculateMozLpPerStablecoinMil();
         }
     }
+
     function calculateMozLpPerStablecoinMil() public {
         require(allVaultsSnapshotted(), "Some SnapshotReports not reached");
         uint256 _stargatePriceMil = _getStargatePriceMil();
@@ -152,6 +156,7 @@ contract PrimaryVault is SecondaryVault {
         }
         console.log("total mLP: %d / total$: %d * kk = %d", _totalStablecoinValue, _mintedMozLp, mozaicLpPerStablecoinMil);
     }
+
     function allVaultsSnapshotted() public view returns (bool) {
         if (secondaryVaultStatus[chainId]!=VaultStatus.SNAPSHOTTED) {
             return false;
@@ -163,6 +168,7 @@ contract PrimaryVault is SecondaryVault {
         }
         return true;
     }
+
     function checkRequestsSettledAllVaults() public view returns (bool) {
         for (uint i=0; i < secondaryChainIds.length; i++) {
             if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.SETTLED) {
