@@ -20,13 +20,14 @@ contract StargateDriver is ProtocolDriver{
         _config.stgRouter = _stgRouter;
         _config.stgLpStaking = _stgLpStaking;
     }
-    function _getConfig() internal view returns (StargateDriverConfig storage _config) {
+    function _getConfig() internal pure returns (StargateDriverConfig storage _config) {
         // pure?
         bytes32 slotAddress = CONFIG_SLOT;
         assembly {
             _config.slot := slotAddress
         }
     }
+    
     function execute(ActionType _actionType, bytes calldata _payload) public override returns (bytes memory response) {
         if (_actionType == ActionType.Stake) {
             (uint256 _amountLD, address _token) = abi.decode(_payload, (uint256, address));

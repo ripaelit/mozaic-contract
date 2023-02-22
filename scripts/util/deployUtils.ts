@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import {Bridge, Bridge__factory, contracts, ERC20, ERC20__factory, Factory, Factory__factory, LPStaking, LPStaking__factory, Pool, Pool__factory, Router, Router__factory, StargateToken, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, ILayerZeroEndpoint, MockDex__factory, PancakeSwapDriver__factory, MockToken, MockToken__factory, StargateDriver, StargateDriver__factory, PrimaryVault, StargateFeeLibraryV02__factory} from '../types/typechain';
+import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, PrimaryVault, StargateFeeLibraryV02__factory} from '../../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import exportData from '../constants';
@@ -165,7 +165,7 @@ export const deployMozaic = async (
     if (chainId == primaryChainId) {
       // Deploy PrimaryVault
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
-      const primaryVault = await primaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgRouter, stgLPStaking, stgToken, mozaicLp.address);
+      const primaryVault = await primaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgLPStaking, stgToken, mozaicLp.address);
       await primaryVault.deployed();
       console.log("Deployed PrimaryVault:", primaryVault.address);
       vault = primaryVault;
@@ -173,13 +173,14 @@ export const deployMozaic = async (
     else {
       // Deploy SecondaryVault
       const secondaryVaultFactory = await ethers.getContractFactory('SecondaryVault', owner) as SecondaryVault__factory;
-      const secondaryVault = await secondaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgRouter, stgLPStaking, stgToken, mozaicLp.address);
+      const secondaryVault = await secondaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgLPStaking, stgToken, mozaicLp.address);
       await secondaryVault.deployed();
       console.log("Deployed SecondaryVault:", secondaryVault.address);
       vault = secondaryVault;
     }
     // Set ProtocolDrivers to vault
     config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLPStaking]);
+    // config = ethers.utils.defaultAbiCoder.encode(["address", "address", "address"], [stgRouter, stgLPStaking, stgToken]);
     await vault.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
     config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
     await vault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
@@ -355,7 +356,7 @@ export const deployAllToLocalNet = async (
 
     }
 
-    initMozaics(owner, mozaicDeployments);
+    initMozaics(owner, primaryChainId, mozaicDeployments);
 
     // LZEndpointMock setDestLzEndpoint
     await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
@@ -382,6 +383,7 @@ export const deployAllToLocalNet = async (
 
 export const initMozaics = async (
     owner: SignerWithAddress,
+    primaryChainId: number,
     mozaicDeployments: Map<number, MozaicDeployment>, 
 ) => {
 
@@ -398,14 +400,14 @@ export const initMozaics = async (
     console.log("Registerd TrustedRemote");
 
     // Register SecondaryVaults
-    const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
-    for (const [chainId] of mozaicDeployments) {
-        if (chainId == primaryChainId) continue;
-        await (mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault).setSecondaryVaults(
+    const primaryValut = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
+    for (const [chainId, mozaicDeployment] of mozaicDeployments) {
+        // if (chainId == primaryChainId) continue;
+        await primaryValut.setSecondaryVaults(
             chainId, 
             {
                 chainId,
-                vaultAddress: mozaicDeployments.get(chainId)!.mozaicVault.address,
+                vaultAddress: mozaicDeployment.mozaicVault.address,
             }
         );
     }

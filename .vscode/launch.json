@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "type": "solidity",
+            "request": "launch",
+            "name": "Debug Solidity (via contract entry point)"
+        },
+        {
+            "type": "solidityMeadow",
+            "request": "launch",
+            "name": "Debug Solidity (via unit test run)"
+        },
+        {
             "type": "node",
             "request": "launch",
             "name": "Yarn Test",
@@ -12,7 +22,7 @@
                 "<node_internals>/**"
             ],
             "runtimeExecutable": "yarn",
-            "args": ["test"],
+            "args": ["testsec"],
             // "program": "${workspaceFolder}\\test\\OrderTaker.test.ts",
             // "outFiles": [
             //     "${workspaceFolder}/**/*.js"

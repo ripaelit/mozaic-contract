@@ -13,7 +13,8 @@ const { mnemonic, bscscanApiKey } = require('./secrets.json');
 
 const ALCHEMY_API_KEY = "SdxE5xrDm_WJBQSMjcHb3qKh68T5ILxD";
 
-const GOERLI_PRIVATE_KEY = "3bcdb1523b4dae87e050231735b6c7f0464ef65b8487f61092b8fe6c5fb59f6a";
+// const GOERLI_PRIVATE_KEY = "3bcdb1523b4dae87e050231735b6c7f0464ef65b8487f61092b8fe6c5fb59f6a";   // acount2
+const GOERLI_PRIVATE_KEY = "694602b4c1ec4c15e43b8fb7d897fe387536f93a771b9f33c5b01deab76623c9";      // acount1
 
 const INFURA_ID = 'e254d35aa64b4c16816163824d9d5b83'
 
@@ -58,7 +59,7 @@ const config: HardhatUserConfig = {
         // Your API key for Etherscan
         // Obtain one at https://etherscan.io/
 
-        // apiKey: "S1VH5HN4RW22314GI9APVKVFIJ36IH5SXV"
+        // apiKey: goerliApiKey
         apiKey: bscscanApiKey
     },
     paths: {

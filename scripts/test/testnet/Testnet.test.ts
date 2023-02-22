@@ -1,24 +1,44 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { StargateToken__factory, MockToken__factory, SecondaryVault, LPStaking__factory } from '../../types/typechain';
+import { StargateToken__factory, MockToken__factory, SecondaryVault, LPStaking__factory } from '../../../types/typechain';
 import { ActionTypeEnum, MozaicDeployments, MozaicDeployment } from '../../constants/types';
-import { deployAllToTestNet, initMozaics } from '../TestUtils';
+import { initMozaics } from '../../util/deployUtils';
 import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
+const fs = require('fs');
+
+    
 
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
-    let mozaicDeployments: MozaicDeployments;
+    let mozaicDeployments: Map<number, MozaicDeployment>;
+    let json;
+    let mozaicDeployment: MozaicDeployment;
+    let primaryChainId: number;
 
+    before(async () => {
+        mozaicDeployments = new Map<number, MozaicDeployment>();
+        // Parse goerli deploy info
+        json = JSON.parse(fs.readFileSync('deployGoerliResult.json', 'utf-8'));
+        mozaicDeployment = {
+            mozaicLp: json.mozaicLP,
+            mozaicVault: json.mozaicVault,
+        }
+        mozaicDeployments.set(json.chainId, mozaicDeployment);
+
+        // Parse bsc deploy info
+        json = JSON.parse(fs.readFileSync('deployBscResult.json', 'utf-8'));
+        mozaicDeployment = {
+            mozaicLp: json.mozaicLP,
+            mozaicVault: json.mozaicVault,
+        }
+        mozaicDeployments.set(json.chainId, mozaicDeployment);
+        primaryChainId = await mozaicDeployment.mozaicVault.primaryChainId();
+    })
     beforeEach(async () => {
         [owner] = await ethers.getSigners();
-
-        mozaicDeployments = new Map<number, MozaicDeployment>();
- 
-        // await deployAllToTestNet(owner, 10121, mozaicDeployments);
-        // await deployAllToTestNet(owner, 10102, mozaicDeployments);
-        await initMozaics(owner, mozaicDeployments);
+        await initMozaics(owner, primaryChainId, mozaicDeployments);
     })
     describe('StargateDriver.execute', () => {
         it.only ("can stake USDC", async () => {

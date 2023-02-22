@@ -1,13 +1,7 @@
 pragma solidity ^0.8.0;
 
 // imports
-import "../libraries/stargate/Router.sol";
 import "./SecondaryVault.sol";
-import "./MozaicLP.sol";
-
-// libraries
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract PrimaryVault is SecondaryVault {
     using SafeMath for uint256;
@@ -41,7 +35,7 @@ contract PrimaryVault is SecondaryVault {
     }
     // mapping (uint16 => uint256) public secondaryVaultIndex; // chainId -> index in secondaryVaults
 
-    mapping (uint16 => SnapshotReport) public snapshotReport; // chainId -> SnapshotReport
+    mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
 
     uint256 public mozaicLpPerStablecoinMil=0; // mozLP/stablecoinSD*1_000_000
     uint256 public constant INITIAL_MLP_PER_COIN_MIL=1000000;
@@ -52,17 +46,17 @@ contract PrimaryVault is SecondaryVault {
         address _lzEndpoint,
         uint16 _chainId,
         uint16 _primaryChainId,
-        address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp
-    ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateRouter, _stargateLpStaking, _stargateToken, _mozaicLp) {
+    ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
         // setMainChainId(_chainId);
     }
 
     function setSecondaryVaults(uint16 _chainId, VaultDescriptor calldata _vault) external onlyOwner {
-        require(_chainId != chainId, "Cannot be primary chainID");
+        if (_chainId == chainId)    return;
+        // require(_chainId != chainId, "Cannot be primary chainID");
         bool _already = false;
         for (uint i = 0; i < secondaryChainIds.length; i++) {
             if (secondaryChainIds[i]==_chainId) {
@@ -92,9 +86,9 @@ contract PrimaryVault is SecondaryVault {
      */
     function reportSnapshot() virtual override public payable onlyOwner {
         // Processing Amount Should be Zero!
-        require(status == VaultStatus.SNAPSHOTTED, "reportSnapshotted: Not snapshotted yet.");
+        require(status == VaultStatus.SNAPSHOTTED, "reportSnapshot: Not snapshotted yet.");
         // Send Report
-        _acceptSnapshotReport(chainId, snapshot);
+        _acceptSnapshot(chainId, snapshot);
     }
 
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
@@ -104,11 +98,11 @@ contract PrimaryVault is SecondaryVault {
         }
 
         if (packetType == PT_REPORTSNAPSHOT) {
-            (, SnapshotReport memory _report) = abi.decode(_payload, (uint16, SnapshotReport));
-            _acceptSnapshotReport(_srcChainId, _report);
+            (, Snapshot memory _newSnapshot) = abi.decode(_payload, (uint16, Snapshot));
+            _acceptSnapshot(_srcChainId, _newSnapshot);
         } 
         else if (packetType == PT_SETTLED_REQUESTS) {
-            secondaryVaultStatus[_srcChainId] = VaultStatus.DEFAULT;
+            secondaryVaultStatus[_srcChainId] = VaultStatus.IDLE;
             if (_checkRequestsSettledAllVaults()) {
                 _resetProtocolStatus();
             }
@@ -119,9 +113,9 @@ contract PrimaryVault is SecondaryVault {
         }
     }
 
-    function _acceptSnapshotReport(uint16 _srcChainId, SnapshotReport memory _report) internal {
+    function _acceptSnapshot(uint16 _srcChainId, Snapshot memory _newSnapshot) internal {
         require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
-        snapshotReport[_srcChainId] = _report;
+        snapshotReported[_srcChainId] = _newSnapshot;
         secondaryVaultStatus[_srcChainId]=VaultStatus.SNAPSHOTTED;
         if (allVaultsSnapshotted()) {
             calculateMozLpPerStablecoinMil();
@@ -129,13 +123,13 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function calculateMozLpPerStablecoinMil() public {
-        require(allVaultsSnapshotted(), "Some SnapshotReports not reached");
+        require(allVaultsSnapshotted(), "Some Snapshots not reached");
         uint256 _stargatePriceMil = _getStargatePriceMil();
         uint256 _totalStablecoinValue = 0;
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
         for (uint i = 0; i < secondaryChainIds.length ; i++) {
-            SnapshotReport memory report = snapshotReport[secondaryChainIds[i]];
+            Snapshot memory report = snapshotReported[secondaryChainIds[i]];
             _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
@@ -145,7 +139,6 @@ contract PrimaryVault is SecondaryVault {
         else {
             mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
         }
-        console.log("total mLP: %d / total$: %d * kk = %d", _totalStablecoinValue, _mintedMozLp, mozaicLpPerStablecoinMil);
     }
 
     function allVaultsSnapshotted() public view returns (bool) {
@@ -162,7 +155,7 @@ contract PrimaryVault is SecondaryVault {
 
     function _checkRequestsSettledAllVaults() internal view returns (bool) {
         for (uint i=0; i < secondaryChainIds.length; i++) {
-            if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.DEFAULT) {
+            if (secondaryVaultStatus[secondaryChainIds[i]] != VaultStatus.IDLE) {
                 return false;
             }
         }
@@ -173,7 +166,7 @@ contract PrimaryVault is SecondaryVault {
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
         _settleRequests(mozaicLpPerStablecoinMil);
-        secondaryVaultStatus[chainId] = VaultStatus.DEFAULT;
+        secondaryVaultStatus[chainId] = VaultStatus.IDLE;
         for (uint i = 0; i < secondaryChainIds.length; i++) {
             VaultDescriptor memory vd = secondaryVaults[secondaryChainIds[i]];
             secondaryVaultStatus[secondaryChainIds[i]] = VaultStatus.SETTLING;

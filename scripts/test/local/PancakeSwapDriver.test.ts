@@ -1,11 +1,12 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { SecondaryVault, MockToken__factory, StargateToken } from '../types/typechain';
-import { deployAllToLocalNet } from './TestUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../constants/types'
-import exportData from '../constants/index';
+import { SecondaryVault, MockToken__factory, StargateToken } from '../../../types/typechain';
+import { deployAllToLocalNet } from '../../util/deployUtils';
+import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../../constants/types'
+import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
+
 describe('PancakeSwapDriver', () => {
     let owner: SignerWithAddress;
     let stablecoinDeployments: StableCoinDeployments;
