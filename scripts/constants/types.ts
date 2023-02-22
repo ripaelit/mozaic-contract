@@ -1,4 +1,5 @@
-import {Bridge, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault } from '../../types/typechain';
+import { Contract } from 'ethers';
+import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault, ILayerZeroEndpoint, MockToken } from '../types/typechain';
 
 export type StargateChainPath = {
   sourceChainId: number,
@@ -49,5 +50,4 @@ export enum VaultStatus {
   SNAPSHOTTING = 1,
   SNAPSHOTTED = 2,
   SETTLING = 3,
-  SETTLED = 4,
 }
