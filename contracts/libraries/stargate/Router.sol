@@ -18,8 +18,6 @@ import "../../interfaces/IStargateReceiver.sol";
 // libraries
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "hardhat/console.sol";
-
 contract Router is IStargateRouter, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
