@@ -1,5 +1,5 @@
 import { Contract } from 'ethers';
-import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault, ILayerZeroEndpoint, MockToken } from '../types/typechain';
+import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault, ILayerZeroEndpoint, MockToken } from '../../types/typechain';
 
 export type StargateChainPath = {
   sourceChainId: number,
