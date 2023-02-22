@@ -23,7 +23,7 @@ contract PancakeSwapDriver is ProtocolDriver {
         PancakeSwapDriverConfig storage _config = _getConfig();
         _config.pancakeSwapSmartRouter = _pancakeSwapSmartRouter;
     }
-    function _getConfig() internal pure returns (PancakeSwapDriverConfig storage _config) {
+    function _getConfig() internal view returns (PancakeSwapDriverConfig storage _config) {
         bytes32 slotAddress = CONFIG_SLOT;
         assembly {
             _config.slot := slotAddress
