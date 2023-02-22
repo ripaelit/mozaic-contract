@@ -15,9 +15,11 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
         address _lzEndpoint
     ) ERC20(_name, _symbol) OFTCore(_lzEndpoint) {
     }
+
     function decimals() public view virtual override returns (uint8) {
         return 6;
     }
+
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -73,6 +75,7 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
     function mint(address _account, uint256 _amount) public onlyOwner {
         _mint(_account, _amount);
     }
+
     function burn(address _account, uint256 _amount) public onlyOwner {
         _burn(_account, _amount);
     }
