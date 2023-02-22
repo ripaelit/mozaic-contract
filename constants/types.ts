@@ -50,5 +50,4 @@ export enum VaultStatus {
   SNAPSHOTTING = 1,
   SNAPSHOTTED = 2,
   SETTLING = 3,
-  SETTLED = 4,
 }
