@@ -109,9 +109,7 @@ describe('SecondaryVault', () => {
             await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);
 
             // Check Pending Request Buffer
-            console.log("1");
             expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit1LD.add(benDeposit1LD));
-            console.log("2");
             expect(await secondaryVault.getDepositRequestAmount(false, alice.address, tokenASecondary.address, secondaryChainId)).to.eq(aliceDeposit1LD);
 
             console.log("PrimaryVault %s owner %s", primaryVault.address, owner.address);
@@ -123,7 +121,7 @@ describe('SecondaryVault', () => {
             // Algostory: #### 3-2. Take Snapshot and Report
             for (const [chainId, mozaicDeployment] of mozaicDeployments) {
                 // TODO: optimize lz native token fee.
-                console.log("vault address", chainId, mozaicDeployments.get(chainId)!.mozaicVault.address);
+                console.log("vault address", chainId, mozaicDeployment.mozaicVault.address);
                 await mozaicDeployment.mozaicVault.takeSnapshot();
                 await mozaicDeployment.mozaicVault.reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
             }

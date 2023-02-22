@@ -165,7 +165,7 @@ export const deployMozaic = async (
     if (chainId == primaryChainId) {
       // Deploy PrimaryVault
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
-      const primaryVault = await primaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgRouter, stgLPStaking, stgToken, mozaicLp.address);
+      const primaryVault = await primaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgLPStaking, stgToken, mozaicLp.address);
       await primaryVault.deployed();
       console.log("Deployed PrimaryVault:", primaryVault.address);
       vault = primaryVault;
@@ -173,13 +173,14 @@ export const deployMozaic = async (
     else {
       // Deploy SecondaryVault
       const secondaryVaultFactory = await ethers.getContractFactory('SecondaryVault', owner) as SecondaryVault__factory;
-      const secondaryVault = await secondaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgRouter, stgLPStaking, stgToken, mozaicLp.address);
+      const secondaryVault = await secondaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgLPStaking, stgToken, mozaicLp.address);
       await secondaryVault.deployed();
       console.log("Deployed SecondaryVault:", secondaryVault.address);
       vault = secondaryVault;
     }
     // Set ProtocolDrivers to vault
     config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLPStaking]);
+    // config = ethers.utils.defaultAbiCoder.encode(["address", "address", "address"], [stgRouter, stgLPStaking, stgToken]);
     await vault.setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
     config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
     await vault.setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);

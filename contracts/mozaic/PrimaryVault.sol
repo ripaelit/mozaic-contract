@@ -1,13 +1,7 @@
 pragma solidity ^0.8.0;
 
 // imports
-import "../libraries/stargate/Router.sol";
 import "./SecondaryVault.sol";
-import "./MozaicLP.sol";
-
-// libraries
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract PrimaryVault is SecondaryVault {
     using SafeMath for uint256;
@@ -52,11 +46,10 @@ contract PrimaryVault is SecondaryVault {
         address _lzEndpoint,
         uint16 _chainId,
         uint16 _primaryChainId,
-        address _stargateRouter,
         address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp
-    ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateRouter, _stargateLpStaking, _stargateToken, _mozaicLp) {
+    ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
         // setMainChainId(_chainId);
     }
@@ -146,7 +139,6 @@ contract PrimaryVault is SecondaryVault {
         else {
             mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
         }
-        console.log("total mLP: %d / total$: %d * kk = %d", _totalStablecoinValue, _mintedMozLp, mozaicLpPerStablecoinMil);
     }
 
     function allVaultsSnapshotted() public view returns (bool) {
