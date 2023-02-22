@@ -12,6 +12,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract SecondaryVault is NonblockingLzApp {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+
     //--------------------------------------------------------------------------
     // EVENTS
     event UnexpectedLzMessage(uint16 packetType, bytes payload);
@@ -64,7 +66,6 @@ contract SecondaryVault is NonblockingLzApp {
         bytes payload;
     }
 
-    //KEVIN-TODO: rename to Snapshot
     struct Snapshot {
         uint256 depositRequestAmount;
         uint256 withdrawRequestAmountMLP;
@@ -343,7 +344,7 @@ contract SecondaryVault is NonblockingLzApp {
     * NOTE:
     * Turn vault status into SNAPSHOTTED, not allowing snapshotting again in a session.
     **/
-    function takeSnapshot() public onlyOwner returns (Snapshot memory result) {
+    function takeSnapshot() public onlyOwner returns (Snapshot memory) {
         if (status == VaultStatus.IDLE) {
             status = VaultStatus.SNAPSHOTTED;
             return _takeSnapshot();
@@ -387,55 +388,35 @@ contract SecondaryVault is NonblockingLzApp {
         // Make Report
         // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
         uint256 _totalStablecoin = 0;
+
+        // Add stablecoins remnant in vault
         for (uint i = 0; i < acceptingTokens.length; i++) {
             _totalStablecoin = _totalStablecoin.add(IERC20(acceptingTokens[i]).balanceOf(address(this)));
         }
+        console.log("_totalStablecoin 1:", _totalStablecoin);
 
-        // for (uint i = 0; i < LPStaking(stargateLpStaking).poolLength(); i++) {
-        (bool _success, bytes memory _response) = address(stargateLpStaking).call(abi.encodeWithSignature("poolLength()"));
-        require(_success, "Failed to get LPStaking.poolLength");
-        uint256 _poolLength = abi.decode(_response, (uint256));
-        for (uint256 i = 0; i < _poolLength; i++) {
-            // 1. Collect pending STG rewards
-            // LPStaking(stargateLpStaking).withdraw(i, 0);
-            (_success, _response) = address(stargateLpStaking).call(abi.encodeWithSignature("withdraw(uint256,uint256)", i, 0));
-            require(_success, "Failed to LPStaking.withdraw");
+        // Add stablecoins staked in stargate using stargateDriver
+        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+        ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmount;
+        bytes memory _payload;
+        (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
+        require(success, "Failed to delegate to ProtocolDriver in _takeSnapshot");
+        uint256 _amountStaked = abi.decode(data, (uint256));
+        _totalStablecoin = _totalStablecoin.add(_amountStaked);
+        console.log("_totalStablecoin 2:", _totalStablecoin);
 
-            // 2. Check total staked assets measured as stablecoin
-            // Pool _pool_ = Pool(address(LPStaking(stargateLpStaking).getPoolInfo(i))); // TODO: Check type conv
-            // uint256 _lpAmount_ = _pool_.balanceOf(address(this));
-            // uint256 _totalLiquidityLD_ = _pool_.totalLiquidity().mul(_pool_.convertRate());
-            // if (_pool.totalSupply() > 0) {
-            //     _totalStablecoin = _totalStablecoin.add(_totalLiquidityLD.mul(_lpAmount).div(_pool.totalSupply()));
-            // }
-            (_success, _response) = address(stargateLpStaking).call(abi.encodeWithSignature("getPoolInfo(uint256)", i));
-            require(_success, "Failed to LPStaking.getPoolInfo");
-            address _pool = abi.decode(_response, (address));
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-            require(_success, "Failed to Pool.balanceOf");
-            uint256 _lpAmount = abi.decode(_response, (uint256));
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalLiquidity()"));
-            require(_success, "Failed to Pool.totalLiquidity");
-            uint256 _totalLiquidity = abi.decode(_response, (uint256));
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("convertRate()"));
-            require(_success, "Failed to Pool.convertRate");
-            uint256 _convertRate = abi.decode(_response, (uint256));
-            uint256 _totalLiquidityLD = _totalLiquidity.mul(_convertRate);
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
-            require(_success, "Failed to Pool.totalSupply");
-            uint256 _totalSupply = abi.decode(_response, (uint256));
-            if (_totalSupply > 0) {
-                _totalStablecoin = _totalStablecoin.add(_totalLiquidityLD.mul(_lpAmount).div(_totalSupply));
-            }
-        }
-        
         result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
+        console.log("result.totalStargate", result.totalStargate);
 
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
         result.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositRequest).sub(_pendingReqs().totalDepositRequest);
+        console.log("result.totalStablecoin", result.totalStablecoin);
         result.depositRequestAmount = _stagedReqs().totalDepositRequest;
+        console.log("result.depositRequestAmount", result.depositRequestAmount);
         result.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawRequestMLP;
+        console.log("result.withdrawRequestAmountMLP", result.withdrawRequestAmountMLP);
         result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
+        console.log("result.totalMozaicLp", result.totalMozaicLp);
         snapshot = result;
     }
 

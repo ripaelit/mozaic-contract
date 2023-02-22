@@ -122,8 +122,8 @@ describe('SecondaryVault', () => {
             for (const [chainId, mozaicDeployment] of mozaicDeployments) {
                 // TODO: optimize lz native token fee.
                 console.log("vault address", chainId, mozaicDeployment.mozaicVault.address);
-                await mozaicDeployment.mozaicVault.takeSnapshot();
-                await mozaicDeployment.mozaicVault.reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
+                await mozaicDeployment.mozaicVault.connect(owner).takeSnapshot();
+                await mozaicDeployment.mozaicVault.connect(owner).reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
             }
 
             // Alice adds to pending request pool, but this should not affect minted mLP amount.
