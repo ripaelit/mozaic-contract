@@ -59,18 +59,18 @@ describe('StargateDriver', () => {
     });
     describe('StargateDriver.execute', () => {
         it ("can stake USDC", async () => {
-            const chainId = exportData.localTestConstants.chainIds[1];  // BSC
+            const chainId = exportData.localTestConstants.chainIds[0];  // BSC
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const lpStaking = lpStakings.get(chainId)!;
-            // const lpStaking = stargateDeployments.get(chainId)!.lpStakingContract;
             const amountLD = BigNumber.from("100000000000000000000");   // 100$
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
 
-            // Send USDC to SecondaryVault
-            await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
-            await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
+            // Mint USDC to SecondaryVault
+            await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
+            // await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
+            // await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC
@@ -134,22 +134,21 @@ describe('StargateDriver', () => {
             const dstChainId = exportData.localTestConstants.chainIds[1];  // BSC
             const dstPoolId = exportData.localTestConstants.poolIds.get("USDT")!;
             const srcVault = mozaicDeployments.get(srcChainId)!.mozaicVault;
+            const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
             const srcToken = MockTokenFactory.attach(stablecoinDeployments.get(srcChainId)!.get(exportData.localTestConstants.stablecoins.get(srcChainId)![1])!);   // Ethereum USDT
             const dstToken = MockTokenFactory.attach(stablecoinDeployments.get(dstChainId)!.get(exportData.localTestConstants.stablecoins.get(dstChainId)![0])!);   // BSC USDT
-            const amountSrc = BigNumber.from("200000000000000000000");  // 200$
+            const amountSrc = BigNumber.from("300000000000000000000");  // 200$
             const amountDst = BigNumber.from("300000000000000000000");  // 300$
             const amountStakeSrc = BigNumber.from("100000000000000000000");  // 100$
-            const amountStakeDst = BigNumber.from("150000000000000000000");  // 150$
+            const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
             const amountSwap = BigNumber.from("40000000000000000000");   // 40$
 
-            // Send srcToken, dstToken to srcVault
+            // Send srcToken to srcVault
             await srcToken.connect(owner).approve(srcVault.address, amountSrc);
             await srcToken.connect(owner).transfer(srcVault.address, amountSrc);
-            await dstToken.connect(owner).approve(srcVault.address, amountDst);
-            await dstToken.connect(owner).transfer(srcVault.address, amountDst);
-            console.log("srcVault has srcToken %d dstToken %d:", (await srcToken.balanceOf(srcVault.address)), (await dstToken.balanceOf(srcVault.address)));
+            console.log("srcVault has srcToken %d:", (await srcToken.balanceOf(srcVault.address)));
             
-            // srcVault stake srcToken, dstToken
+            // srcVault stake srcToken
             const srcPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeSrc, srcToken.address]);
             const stakeActionSrc: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.stargateDriverId,
@@ -157,16 +156,22 @@ describe('StargateDriver', () => {
                 payload : srcPayload
             };
             await srcVault.connect(owner).executeActions([stakeActionSrc]);
-            console.log("After src stake, srcValut has srcToken %d, dstToken %d", (await srcToken.balanceOf(srcVault.address)), (await dstToken.balanceOf(srcVault.address)));
+            console.log("After src stake, srcValut has srcToken %d", (await srcToken.balanceOf(srcVault.address)));
 
+            // Send dstToken to dstVault
+            await dstToken.connect(owner).approve(dstVault.address, amountDst);
+            await dstToken.connect(owner).transfer(dstVault.address, amountDst);
+            console.log("dstVault has dstToken %d:", (await dstToken.balanceOf(dstVault.address)));
+            
+            // dstVault stake dstToken
             const dstPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeDst, dstToken.address]);
             const stakeActionDst: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
                 payload : dstPayload
             };
-            await srcVault.connect(owner).executeActions([stakeActionDst]);
-            console.log("After dst stake, srcValut has srcToken %d, dstToken %d", (await srcToken.balanceOf(srcVault.address)), (await dstToken.balanceOf(srcVault.address)));
+            await dstVault.connect(owner).executeActions([stakeActionDst]);
+            console.log("After dst stake, dstVault has dstToken %d", (await dstToken.balanceOf(dstVault.address)));
             
             // SwapRemote: Ethereum USDT -> BSC USDT
             const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256"], [amountSwap, srcToken.address, dstChainId, dstPoolId]);
@@ -179,8 +184,8 @@ describe('StargateDriver', () => {
 
             // Check both tokens
             const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
-            const amountDstRemain = await dstToken.balanceOf(srcVault.address);
-            console.log("After swapRemote, srcVault has srcToken %d, dstToken %d", amountSrcRemain, amountDstRemain);
+            const amountDstRemain = await dstToken.balanceOf(dstVault.address);
+            console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain, amountDstRemain);
             // expect(amountSrcRemain).lessThan(amountSrc);
             // expect(amountDstRemain).greaterThan(amountDst);
         })

@@ -95,6 +95,7 @@ contract StargateDriver is ProtocolDriver{
         // Stake LPToken from vault to LPStaking
         (_success, ) = _stgLPStaking.call(abi.encodeWithSignature("deposit(uint256,uint256)", stkPoolIndex, amountLPToken));
         require(_success, "Failed to call deposit");
+        console.log("_stake ended");
     }
 
     function _unstake(uint256 _amountLPToken, address _token) private {
@@ -122,7 +123,7 @@ contract StargateDriver is ProtocolDriver{
     }
 
     function _swapRemote(uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) private {
-        console.log("_swapRemote: _amountLD", _amountLD);
+        console.log("_swapRemote called: _amountLD", _amountLD);
         require (_amountLD > 0, "Cannot stake zero amount");
         // Get srcPoolId
         address _srcPool = getStargatePoolFromToken(_srcToken);
@@ -141,6 +142,7 @@ contract StargateDriver is ProtocolDriver{
         bytes memory funcSignature = abi.encodeWithSignature("swap(uint16,uint256,uint256,address,uint256,uint256,(uint256,uint256,bytes),bytes,bytes)", _dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
         (_success, ) = address(_router).call(funcSignature);
         require(_success, "Failed to call swap");
+        console.log("_swapRemote ended:");
     }
 
     function _getStakedAmount() private returns (uint256 _amountStaked) {

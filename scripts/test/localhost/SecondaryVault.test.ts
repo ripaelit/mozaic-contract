@@ -102,7 +102,7 @@ describe('SecondaryVault', () => {
     // })
 
     describe.only('Flow Test', () => {
-        it.only('normal flow', async () => {
+        it('normal flow', async () => {
             const primaryChainId = exportData.localTestConstants.chainIds[0];
             const secondaryChainId = exportData.localTestConstants.chainIds[1];
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
@@ -121,9 +121,9 @@ describe('SecondaryVault', () => {
             const chrisDeposit1LD = BigNumber.from("15000000000000000000000"); // $15000
 
             // Mint tokens
-            tokenASecondary.mint(alice.address, aliceTotalLD);
-            tokenBSecondary.mint(ben.address, benTotalLD);
-            tokenAPrimary.mint(chris.address, chrisTotalLD);
+            tokenASecondary.mint(alice.address, aliceTotalLD);  // Bsc USDT
+            tokenBSecondary.mint(ben.address, benTotalLD);      // Bsc BUSD
+            tokenAPrimary.mint(chris.address, chrisTotalLD);    // Eth USDC
 
             // ----------------------- First Round: ----------------------------
 
@@ -141,6 +141,8 @@ describe('SecondaryVault', () => {
             await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);
 
             // Check Pending Request Buffer
+            console.log("totalDepositRequest", (await secondaryVault.getTotalDepositRequest(false)));
+            console.log("alice %d, ben %d", aliceDeposit1LD, benDeposit1LD);
             expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit1LD.add(benDeposit1LD));
             expect(await secondaryVault.getDepositRequestAmount(false, alice.address, tokenASecondary.address, secondaryChainId)).to.eq(aliceDeposit1LD);
 
