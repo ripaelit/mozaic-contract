@@ -8,7 +8,9 @@ import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-solhint';
 import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomiclabs/hardhat-ethers';
-import "hardhat-contract-sizer";
+import '@openzeppelin/hardhat-upgrades';
+import 'hardhat-contract-sizer';
+
 const { mnemonic, bscscanApiKey } = require('./secrets.json');
 
 const ALCHEMY_API_KEY = "SdxE5xrDm_WJBQSMjcHb3qKh68T5ILxD";
@@ -37,10 +39,14 @@ const config: HardhatUserConfig = {
     },
     networks: {
         hardhat: {
-        gas: 30000000, //"auto", // 30000000
-        gasPrice: "auto",// 8000000000
+            gas: 30000000, //"auto", // 30000000
+            gasPrice: "auto",// 8000000000
         },
-        localhost: {},
+        localhost: {
+            url: "http://127.0.0.1:8545",
+            gas: 30000000, //"auto", // 30000000
+            gasPrice: 20000000000,
+        },
         goerli: {
             // url: `https://eth-goerli.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
             url: "https://goerli.infura.io/v3/" + INFURA_ID,

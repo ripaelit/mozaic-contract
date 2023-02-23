@@ -44,7 +44,7 @@ export const deployStargate = async (
     const routerFactory = (await ethers.getContractFactory('Router', owner)) as Router__factory;
     const router = await routerFactory.deploy();
     await router.deployed();
-    //   console.log("Deployed Router: chainId, address:", _chainId, router.address);
+    //   console.log("Deployed Router: chainId, address:", chainId, router.address);
     stargateDeploymentOnchain.routerContract = router;
 
     // Deploy Bridge
@@ -327,13 +327,13 @@ export const deployAllToTestNet = async (
     let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, lzEndpoint, router.address, lpStaking.address, stargateToken.address, protocols, stablecoin, mozaicDeployments);
 }
 
-export const deployAllToLocalNet = async (
+export const deployAllToLocalNets = async (
     owner: SignerWithAddress, 
+    primaryChainId: number,
     stablecoinDeployments: Map<number, Map<string, string>>,
     stargateDeployments: Map<number, StargateDeploymentOnchain>,
     mozaicDeployments: Map<number, MozaicDeployment>
 ) => {
-    const primaryChainId = exportData.localTestConstants.mozaicMainChainId;
     const stargateChainPaths = exportData.localTestConstants.stargateChainPaths;
     let protocols = new Map<number, Map<string, string>>();
 

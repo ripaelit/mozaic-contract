@@ -18,7 +18,11 @@ async function main() {
     await deployAllToTestNet(owner, chainId, mozaicDeployments);
     mozaicDeployment = mozaicDeployments.get(chainId)!;
     console.log("BSC: chainId %d, MozaicLP %s, SecondaryVault %s", chainId, mozaicDeployment.mozaicLp.address, mozaicDeployment.mozaicVault.address);
-    let res = JSON.stringify({chainId: chainId, mozaicLP: mozaicDeployment.mozaicLp.address, mozaicVault: mozaicDeployment.mozaicVault.address});
+    let res = JSON.stringify({
+        chainId: chainId, 
+        mozaicLP: mozaicDeployment.mozaicLp.address, 
+        mozaicVault: mozaicDeployment.mozaicVault.address
+    });
     fs.writeFileSync("deployBscResult.json", res);
 }
   

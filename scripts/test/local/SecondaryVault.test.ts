@@ -2,11 +2,11 @@ import { expect } from 'chai';
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault, SecondaryVault, MockToken__factory } from '../../../types/typechain';
-import { deployAllToLocalNet } from '../../util/deployUtils';
+import { PrimaryVault, PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken__factory, MozaicLP__factory } from '../../../types/typechain';
 import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, StargateDeploymentOnchain } from '../../constants/types'
 import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
+const fs = require('fs');
 
 describe('SecondaryVault', () => {
     let owner: SignerWithAddress;
@@ -24,7 +24,39 @@ describe('SecondaryVault', () => {
         stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
 
-        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
+        // Parse local deploy info
+        const dataArray = JSON.parse(fs.readFileSync('deployLocalResult.json', 'utf-8'));
+        const mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
+        const primaryVaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
+        const secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
+        for (const obj of dataArray) {
+            let chainId = obj.chainId;
+            let primaryChainId = obj.primaryChainId;
+
+            // Get mozaicDeployment
+            let mozVault;
+            if (chainId == primaryChainId) {
+                mozVault = primaryVaultFactory.attach(obj.mozaicVault);
+            } else {
+                mozVault = secondaryVaultFactory.attach(obj.mozaicVault);
+            }
+            let mozLp = mozaicLpFactory.attach(obj.mozaicLp);
+            let mozaicDeployment = {
+                mozaicLp: mozLp,
+                mozaicVault: mozVault
+            }
+            mozaicDeployments.set(chainId, mozaicDeployment);
+
+            // Get stablecoinDeployment
+            let stablecoinDeployment = new Map<string, string>();
+            for (const coin of obj.coins) {
+                stablecoinDeployment.set(coin.name, coin.token);
+            }
+            stablecoinDeployments.set(chainId, stablecoinDeployment);
+
+        }
+
+        // await deployAllToLocalNets(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
     });
 
     describe('SecondaryVault.addDepositRequest', () => {

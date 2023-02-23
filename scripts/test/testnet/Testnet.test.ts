@@ -1,37 +1,38 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { StargateToken__factory, MockToken__factory, SecondaryVault, LPStaking__factory } from '../../../types/typechain';
-import { ActionTypeEnum, MozaicDeployments, MozaicDeployment } from '../../constants/types';
+import { MozaicLP__factory, SecondaryVault__factory, StargateToken__factory, MockToken__factory, SecondaryVault, LPStaking__factory } from '../../../types/typechain';
+import { ActionTypeEnum, MozaicDeployment } from '../../constants/types';
 import { initMozaics } from '../../util/deployUtils';
 import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
 const fs = require('fs');
 
-    
-
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
     let mozaicDeployments: Map<number, MozaicDeployment>;
-    let json;
-    let mozaicDeployment: MozaicDeployment;
     let primaryChainId: number;
+    let mozaicDeployment = {} as MozaicDeployment;
 
     before(async () => {
         mozaicDeployments = new Map<number, MozaicDeployment>();
         // Parse goerli deploy info
-        json = JSON.parse(fs.readFileSync('deployGoerliResult.json', 'utf-8'));
+        let json = JSON.parse(fs.readFileSync('deployGoerliResult.json', 'utf-8'));
+        const mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
+        const secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
+        
         mozaicDeployment = {
-            mozaicLp: json.mozaicLP,
-            mozaicVault: json.mozaicVault,
+            mozaicLp: mozaicLpFactory.attach(json.mozaicLP),
+            mozaicVault: secondaryVaultFactory.attach(json.mozaicVault),
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
 
         // Parse bsc deploy info
         json = JSON.parse(fs.readFileSync('deployBscResult.json', 'utf-8'));
+        
         mozaicDeployment = {
-            mozaicLp: json.mozaicLP,
-            mozaicVault: json.mozaicVault,
+            mozaicLp: mozaicLpFactory.attach(json.mozaicLP),
+            mozaicVault: secondaryVaultFactory.attach(json.mozaicVault),
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
         primaryChainId = await mozaicDeployment.mozaicVault.primaryChainId();

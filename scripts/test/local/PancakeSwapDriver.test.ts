@@ -1,45 +1,80 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { SecondaryVault, MockToken__factory, StargateToken } from '../../../types/typechain';
-import { deployAllToLocalNet } from '../../util/deployUtils';
-import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../../constants/types'
+import { SecondaryVault, MozaicLP__factory, MockToken__factory, StargateToken, StargateToken__factory, PrimaryVault__factory, SecondaryVault__factory } from '../../../types/typechain';
+import { StableCoinDeployments, StargateDeployments, MozaicDeployment, MozaicDeployments, StargateDeploymentOnchain, ActionTypeEnum } from '../../constants/types'
 import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
+const fs = require('fs');
 
 describe('PancakeSwapDriver', () => {
     let owner: SignerWithAddress;
     let stablecoinDeployments: StableCoinDeployments;
-    let stargateDeployments: StargateDeployments;
+    // let stargateDeployments: StargateDeployments;
     let mozaicDeployments: MozaicDeployments;
+    let stgTokens: Map<number, StargateToken>;
 
     beforeEach(async () => {
         [owner] = await ethers.getSigners();  // owner is control center
         
         stablecoinDeployments = new Map<number, Map<string, string>>();
-        stargateDeployments = new Map<number, StargateDeploymentOnchain>();
         mozaicDeployments = new Map<number, MozaicDeployment>();
+        stgTokens = new Map<number, StargateToken>();
         
-        await deployAllToLocalNet(owner, stablecoinDeployments, stargateDeployments, mozaicDeployments);
+        // Parse local deploy info
+        const dataArray = JSON.parse(fs.readFileSync('deployLocalResult.json', 'utf-8'));
+        const mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
+        const primaryVaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
+        const secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
+        const stgTokenFactory = (await ethers.getContractFactory('StargateToken', owner)) as StargateToken__factory;
+        for (const obj of dataArray) {
+            let chainId = obj.chainId;
+            let primaryChainId = obj.primaryChainId;
+
+            // Get mozaicDeployment
+            let mozVault;
+            if (chainId == primaryChainId) {
+                mozVault = primaryVaultFactory.attach(obj.mozaicVault);
+            } else {
+                mozVault = secondaryVaultFactory.attach(obj.mozaicVault);
+            }
+            let mozLp = mozaicLpFactory.attach(obj.mozaicLp);
+            let mozaicDeployment = {
+                mozaicLp: mozLp,
+                mozaicVault: mozVault
+            }
+            mozaicDeployments.set(chainId, mozaicDeployment);
+
+            // Get stablecoinDeployment
+            let stablecoinDeployment = new Map<string, string>();
+            for (const coin of obj.coins) {
+                stablecoinDeployment.set(coin.name, coin.token);
+            }
+            stablecoinDeployments.set(chainId, stablecoinDeployment);
+
+            // Get stgToken
+            let stgToken = stgTokenFactory.attach(obj.stgToken);
+            stgTokens.set(chainId, stgToken);
+        }
     });
     describe('PancakeSwapDriver.execute', () => {
         it ("can swap USDC->USDT", async () => {
             const chainId = exportData.localTestConstants.chainIds[0];// Ethereum
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
-            const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
-            const usdtContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
+            const mockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const usdcCoinAddr = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!;
+            const usdcCoin = mockTokenFactory.attach(usdcCoinAddr);
+            const usdtCoinAddr = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!;
+            const usdtCoin = mockTokenFactory.attach(usdtCoinAddr);
             const amountLD = BigNumber.from("1234567890");
-            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcContract.address, usdtContract.address]);
+            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcCoin.address, usdtCoin.address]);
             
             // Send USDC to SecondaryVault
-            console.log("Send USDC to SecondaryVault");
-            await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
-            await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
-            console.log("SecondaryVault has USDC, USDT:", (await usdcContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
+            await usdcCoin.connect(owner).approve(secondaryVault.address, amountLD);
+            await usdcCoin.connect(owner).transfer(secondaryVault.address, amountLD);
+            console.log("SecondaryVault has USDC, USDT:", (await usdcCoin.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
             
             // Swap USDC to USDT
-            console.log("Swap USDC to USDT");
             const swapAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.pancakeSwapDriverId,
                 actionType: ActionTypeEnum.Swap,
@@ -48,26 +83,24 @@ describe('PancakeSwapDriver', () => {
             await secondaryVault.connect(owner).executeActions([swapAction]);
 
             // Check USDT amount of SecondaryVault
-            console.log("Now SecondaryVault has USDC, USDT:", (await usdcContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
-            expect(await usdtContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
+            console.log("Now SecondaryVault has USDC, USDT:", (await usdcCoin.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
+            expect(await usdtCoin.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
-        it ("can swap STG->USDC", async () => {
+        it ("can swap STG->USDT", async () => {
             const chainId = exportData.localTestConstants.chainIds[1];// Bsc
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const stgContract = stargateDeployments.get(chainId)!.stargateToken as StargateToken;
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
-            const usdtContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
+            const stgTokenContract = stgTokens.get(chainId)!;
+            const mockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const usdtCoin = mockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
             const amountLD = BigNumber.from("1234567890");
-            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgContract.address, usdtContract.address]);
+            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgTokenContract.address, usdtCoin.address]);
 
             // Send STG to SecondaryVault
-            console.log("Send STG to SecondaryVault");
-            await stgContract.connect(owner).approve(secondaryVault.address, amountLD);
-            await stgContract.connect(owner).transfer(secondaryVault.address, amountLD);
-            console.log("SecondaryVault has STG, USDT:", (await stgContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
+            await stgTokenContract.connect(owner).approve(secondaryVault.address, amountLD);
+            await stgTokenContract.connect(owner).transfer(secondaryVault.address, amountLD);
+            console.log("SecondaryVault has STG, USDT:", (await stgTokenContract.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
             
             // Swap STG to USDT
-            console.log("Swap STG to USDT");
             const swapAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.pancakeSwapDriverId,
                 actionType: ActionTypeEnum.Swap,
@@ -76,8 +109,8 @@ describe('PancakeSwapDriver', () => {
             await secondaryVault.connect(owner).executeActions([swapAction]);
 
              // Check USDT amount of SecondaryVault
-            console.log("Now SecondaryVault has STG, USDT:", (await stgContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
-            expect(await usdtContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
+            console.log("Now SecondaryVault has STG, USDT:", (await stgTokenContract.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
+            expect(await usdtCoin.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
     })
 })
