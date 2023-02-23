@@ -309,7 +309,7 @@ contract SecondaryVault is NonblockingLzApp {
         // check if the user has enough balance
         buffer.withdrawForUserMLP[_withdrawer] = buffer.withdrawForUserMLP[_withdrawer].add(_amountMLP);
         require (buffer.withdrawForUserMLP[_withdrawer].add(stagedBuffer.withdrawForUserMLP[_withdrawer]) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
-        
+
         // book request
         // 1. Update withdrawRequestList
         bool _exists = false;

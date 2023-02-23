@@ -117,7 +117,6 @@ contract StargateDriver is ProtocolDriver{
         revert("Pool not found for token");
     }
 
-
     function getPool(uint256 _poolId) internal view returns (Pool) {
         return Router(_getConfig().stgRouter).factory().getPool(_poolId);
     }
