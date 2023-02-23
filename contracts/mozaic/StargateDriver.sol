@@ -8,6 +8,9 @@ import "./ProtocolDriver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+import "../libraries/stargate/Router.sol";
+import "hardhat/console.sol";
+
 contract StargateDriver is ProtocolDriver{
     using SafeMath for uint256;
 
@@ -40,7 +43,7 @@ contract StargateDriver is ProtocolDriver{
             _unstake(_amountMLP, _token);
         }
         else if (_actionType == ActionType.SwapRemote) {
-            (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint16 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint16));
+            (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint256));
             _swapRemote(_amountLD, _srcToken, _dstChainId, _dstPoolId);
         }
         else if (_actionType == ActionType.GetStakedAmount) {
@@ -54,6 +57,7 @@ contract StargateDriver is ProtocolDriver{
     }
     function _stake(uint256 _amountLD, address _token) private {
         // CHECKLATER: try internal
+        console.log("_stake called");
         require (_amountLD > 0, "Cannot stake zero amount");
         
         // Get pool and poolId
@@ -117,20 +121,25 @@ contract StargateDriver is ProtocolDriver{
         require(_success, "Failed to call addLiquidity");
     }
 
-    function _swapRemote(uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint16 _dstPoolId) private {
+    function _swapRemote(uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) private {
+        console.log("_swapRemote: _amountLD", _amountLD);
         require (_amountLD > 0, "Cannot stake zero amount");
         // Get srcPoolId
         address _srcPool = getStargatePoolFromToken(_srcToken);
+        console.log("getStargatePoolFromToken: _srcPool", _srcPool);
         (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
         require(_success, "Failed to call poolId");
         uint256 _srcPoolId = abi.decode(_response, (uint256));
+        console.log("_srcPoolId", _srcPoolId);
 
         // Approve
         address _router = _getConfig().stgRouter;
         IERC20(_srcToken).approve(_router, _amountLD);
+        console.log("approve: _router", _router);
 
         // Swap
-        (_success, ) = _router.call(abi.encodeWithSignature("swap(uint16,uint256,uint256,address,uint256,uint256,lzTxObj,bytes,bytes)", _dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes("")));
+        bytes memory funcSignature = abi.encodeWithSignature("swap(uint16,uint256,uint256,address,uint256,uint256,(uint256,uint256,bytes),bytes,bytes)", _dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
+        (_success, ) = address(_router).call(funcSignature);
         require(_success, "Failed to call swap");
     }
 
