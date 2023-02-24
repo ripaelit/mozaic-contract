@@ -7,8 +7,6 @@ import "./ProtocolDriver.sol";
 // libraries
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
-import "../libraries/stargate/Router.sol";
 import "hardhat/console.sol";
 
 contract StargateDriver is ProtocolDriver{
@@ -140,7 +138,6 @@ contract StargateDriver is ProtocolDriver{
         require (_amountLD > 0, "Cannot stake zero amount");
         // Get srcPoolId
         address _srcPool = getStargatePoolFromToken(_srcToken);
-        console.log("getStargatePoolFromToken: _srcPool", _srcPool);
         (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
         require(_success, "Failed to call poolId");
         uint256 _srcPoolId = abi.decode(_response, (uint256));
@@ -149,7 +146,6 @@ contract StargateDriver is ProtocolDriver{
         // Approve
         address _router = _getConfig().stgRouter;
         IERC20(_srcToken).approve(_router, _amountLD);
-        console.log("approve: _router", _router);
 
         // Swap
         bytes memory funcSignature = abi.encodeWithSignature("swap(uint16,uint256,uint256,address,uint256,uint256,(uint256,uint256,bytes),bytes,bytes)", _dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
