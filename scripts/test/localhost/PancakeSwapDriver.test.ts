@@ -66,13 +66,13 @@ describe('PancakeSwapDriver', () => {
             const usdcCoin = mockTokenFactory.attach(usdcCoinAddr);
             const usdtCoinAddr = stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!;
             const usdtCoin = mockTokenFactory.attach(usdtCoinAddr);
-            const amountLD = BigNumber.from("1234567890");
+            const amountLD = BigNumber.from("100000000000000000000");   // 100$
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcCoin.address, usdtCoin.address]);
             
             // Mint USDC to SecondaryVault
             await usdcCoin.connect(owner).mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC, USDT:", (await usdcCoin.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
-            
+
             // Swap USDC to USDT
             const swapAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.pancakeSwapDriverId,
@@ -91,7 +91,7 @@ describe('PancakeSwapDriver', () => {
             const stgTokenContract = stgTokens.get(chainId)!;
             const mockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdtCoin = mockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![1])!);
-            const amountLD = BigNumber.from("1234567890");
+            const amountLD = BigNumber.from("100000000000000000000");   // 100$
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgTokenContract.address, usdtCoin.address]);
 
             // Send STG to SecondaryVault

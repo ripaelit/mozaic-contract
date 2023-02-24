@@ -48,7 +48,7 @@ describe('SecondaryVault.executeActions', () => {
             const chainId = exportData.testnetTestConstants.chainIds[0];// Ethereum
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
-            const usdcAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;
+            const usdcAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;        // ???kevin
             const usdcContract = MockTokenFactory.attach(usdcAddr);
             const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
             const lpStakingAddr = await secondaryVault.stargateLpStaking();
@@ -67,6 +67,7 @@ describe('SecondaryVault.executeActions', () => {
                 payload : payload
             };
             await secondaryVault.connect(owner).executeActions([stakeAction]);
+            console.log("After stake SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for owner in LpStaking
             const lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
@@ -97,6 +98,7 @@ describe('SecondaryVault.executeActions', () => {
                 payload : payloadStake
             };
             await secondaryVault.connect(owner).executeActions([stakeAction]);
+            console.log("After stake SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for owner in LpStaking
             const amountLPToken = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
@@ -123,7 +125,7 @@ describe('SecondaryVault.executeActions', () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const srcTokenAddr = exportData.testnetTestConstants.stablecoins.get(srcChainId)!.get("USDT")!;
             const srcToken = MockTokenFactory.attach(srcTokenAddr);
-            const amountSrc = BigNumber.from("1000000000000000");  // 1000$
+            const amountSrc = BigNumber.from("300000000000000000000");  // 300$
             const amountStakeSrc = BigNumber.from("100000000000000000000");  // 100$
             const amountSwap = BigNumber.from("40000000000000000000");   // 40$
 
@@ -132,7 +134,7 @@ describe('SecondaryVault.executeActions', () => {
             const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
             const dstTokenAddr = exportData.testnetTestConstants.stablecoins.get(dstChainId)!.get("USDT")!;
             const dstToken = MockTokenFactory.attach(dstTokenAddr);
-            const amountDst = BigNumber.from("3000000000000000");  // 3000$
+            const amountDst = BigNumber.from("300000000000000000000");  // 300$
             const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
 
             // Mint srcToken to srcVault
@@ -189,7 +191,7 @@ describe('SecondaryVault.executeActions', () => {
             const usdcCoin = MockTokenFactory.attach(usdcCoinAddr);
             const usdtCoinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDT")!;
             const usdtCoin = MockTokenFactory.attach(usdtCoinAddr);
-            const amountLD = BigNumber.from("1234567890");
+            const amountLD = BigNumber.from("100000000000000000000");   // 100$
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcCoinAddr, usdtCoinAddr]);
             
             // Mint USDC to SecondaryVault
@@ -209,7 +211,7 @@ describe('SecondaryVault.executeActions', () => {
             expect(await usdtCoin.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
         it ("can swap STG->USDT", async () => {
-            const chainId = exportData.localTestConstants.chainIds[1];// Bsc
+            const chainId = exportData.localTestConstants.chainIds[0];// Eth
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const stgTokenFactory = (await ethers.getContractFactory("StargateToken", owner)) as StargateToken__factory;
             const stgTokenAddr = await secondaryVault.stargateToken();
@@ -217,7 +219,7 @@ describe('SecondaryVault.executeActions', () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdtCoinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDT")!;
             const usdtCoin = MockTokenFactory.attach(usdtCoinAddr);
-            const amountLD = BigNumber.from("1234567890");
+            const amountLD = BigNumber.from("100000000000000000000");   // 100$
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgTokenAddr, usdtCoinAddr]);
     
             // Send STG to SecondaryVault
@@ -233,7 +235,7 @@ describe('SecondaryVault.executeActions', () => {
             };
             await secondaryVault.connect(owner).executeActions([swapAction]);
     
-                // Check USDT amount of SecondaryVault
+            // Check USDT amount of SecondaryVault
             console.log("Now SecondaryVault has STG, USDT:", (await stgToken.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
             expect(await usdtCoin.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })

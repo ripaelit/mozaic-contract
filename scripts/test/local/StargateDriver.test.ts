@@ -97,7 +97,7 @@ describe('StargateDriver', () => {
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             expect(await usdcContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
-        it.only ("can swapRemote", async () => {
+        it ("can swapRemote", async () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const srcChainId = exportData.localTestConstants.chainIds[0];  // Ethereum
             const dstChainId = exportData.localTestConstants.chainIds[1];  // BSC
@@ -155,41 +155,6 @@ describe('StargateDriver', () => {
             console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain, amountDstRemain);
             // expect(amountSrcRemain).lessThan(amountSrc);
             // expect(amountDstRemain).greaterThan(amountDst);
-
-
-
-            // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
-            // const primaryChainId = exportData.localTestConstants.chainIds[0];  // Ethereum
-            // const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault;
-            // const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0])!);
-            // const amountUSDC = BigNumber.from("1000000000000000");  // 1000$
-            
-            // const secondaryChainId = exportData.localTestConstants.chainIds[1];  // BSC
-            // const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault;
-            // const usdtContract = MockTokenFactory.attach(stablecoinDeployments.get(primaryChainId)!.get(exportData.localTestConstants.stablecoins.get(primaryChainId)![0])!);
-            // const poolIdSecondary = exportData.localTestConstants.poolIds.get("USDT")!;
-            // const amountUSDT = BigNumber.from("3000000000000000");  // 3000$
-
-            // // Mint USDC to primaryVault and USDT to secondaryVault
-            // await usdcContract.connect(owner).mint(primaryVault.address, amountUSDC);
-            // await usdtContract.connect(owner).mint(secondaryVault.address, amountUSDT);
-            
-            // // SwapRemote
-            // console.log("SwapRemote");
-            // const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint16"], [amountUSDC, usdcContract.address, secondaryChainId, poolIdSecondary]);
-            // const swapRemoteAction: SecondaryVault.ActionStruct  = {
-            //     driverIndex: exportData.localTestConstants.stargateDriverId,
-            //     actionType: ActionTypeEnum.SwapRemote,
-            //     payload : payloadSwapRemote
-            // };
-            // await primaryVault.connect(owner).executeActions([swapRemoteAction]);
-
-            // // Check both tokens
-            // const usdcRemain = await usdcContract.balanceOf(primaryVault.address);
-            // const usdtRemain = await usdtContract.balanceOf(secondaryVault.address);
-            // console.log("USDC, USDT", usdcRemain, usdtRemain);
-            // expect(usdcRemain).to.eq(BigNumber.from("0"));
-            // // expect(usdtRemain).gt(amountUSDT);
         })
     })
 })

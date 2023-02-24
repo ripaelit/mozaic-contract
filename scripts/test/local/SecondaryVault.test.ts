@@ -72,7 +72,7 @@ describe('SecondaryVault', () => {
     // })
 
     describe.only('Flow Test', () => {
-        it.only('normal flow', async () => {
+        it('normal flow', async () => {
             const primaryChainId = exportData.localTestConstants.chainIds[0];
             const secondaryChainId = exportData.localTestConstants.chainIds[1];
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;

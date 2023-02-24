@@ -78,6 +78,7 @@ describe('StargateDriver', () => {
                 payload : payload
             };
             await secondaryVault.connect(owner).executeActions([stakeAction]);
+            console.log("After stake SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for owner in LpStaking
             const lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
@@ -90,7 +91,8 @@ describe('StargateDriver', () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const lpStaking = lpStakings.get(chainId)!;
-            const amountLD = BigNumber.from("100000000000000000000");   // 100$
+            // const amountLD = BigNumber.from("100000000000000000000");   // 100$
+            const amountLD = BigNumber.from("5123456789012345");
 
             // Stake
             // Mint USDC to SecondaryVault
@@ -105,6 +107,7 @@ describe('StargateDriver', () => {
                 payload : payloadStake
             };
             await secondaryVault.connect(owner).executeActions([stakeAction]);
+            console.log("After stake SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for owner in LpStaking
             const amountLPToken = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
@@ -130,7 +133,7 @@ describe('StargateDriver', () => {
             const srcVault = mozaicDeployments.get(srcChainId)!.mozaicVault;
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const srcToken = MockTokenFactory.attach(stablecoinDeployments.get(srcChainId)!.get(exportData.localTestConstants.stablecoins.get(srcChainId)![1])!);   // Ethereum USDT
-            const amountSrc = BigNumber.from("300000000000000000000");  // 200$
+            const amountSrc = BigNumber.from("300000000000000000000");  // 300$
             const amountStakeSrc = BigNumber.from("100000000000000000000");  // 100$
             const amountSwap = BigNumber.from("40000000000000000000");   // 40$
 
