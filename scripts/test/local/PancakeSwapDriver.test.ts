@@ -34,14 +34,11 @@ describe('PancakeSwapDriver', () => {
             const amountLD = BigNumber.from("1234567890");
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcContract.address, usdtContract.address]);
             
-            // Send USDC to SecondaryVault
-            console.log("Send USDC to SecondaryVault");
-            await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
-            await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
+            // Mint USDC to SecondaryVault
+            await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC, USDT:", (await usdcContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
             
             // Swap USDC to USDT
-            console.log("Swap USDC to USDT");
             const swapAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.pancakeSwapDriverId,
                 actionType: ActionTypeEnum.Swap,
@@ -63,13 +60,11 @@ describe('PancakeSwapDriver', () => {
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgContract.address, usdtContract.address]);
 
             // Send STG to SecondaryVault
-            console.log("Send STG to SecondaryVault");
             await stgContract.connect(owner).approve(secondaryVault.address, amountLD);
             await stgContract.connect(owner).transfer(secondaryVault.address, amountLD);
             console.log("SecondaryVault has STG, USDT:", (await stgContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
             
             // Swap STG to USDT
-            console.log("Swap STG to USDT");
             const swapAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.pancakeSwapDriverId,
                 actionType: ActionTypeEnum.Swap,

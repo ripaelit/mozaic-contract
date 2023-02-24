@@ -25,7 +25,7 @@ describe('StargateDriver', () => {
         await deployAllToLocalNets(owner, primaryChainId, stablecoinDeployments, stargateDeployments, mozaicDeployments);
     });
     describe('StargateDriver.execute', () => {
-        it.only ("can stake USDC", async () => {
+        it ("can stake USDC", async () => {
             const chainId = exportData.localTestConstants.chainIds[1];  // BSC
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
@@ -36,8 +36,6 @@ describe('StargateDriver', () => {
 
             // Mint USDC to SecondaryVault
             await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
-            // await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
-            // await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC
@@ -62,9 +60,8 @@ describe('StargateDriver', () => {
             const amountLD = BigNumber.from("123456789012345");
 
             // Stake
-            // Send USDC of amountLD to SecondaryVault
-            await usdcContract.connect(owner).approve(secondaryVault.address, amountLD);
-            await usdcContract.connect(owner).transfer(secondaryVault.address, amountLD);
+            // Mint USDC to SecondaryVault
+            await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC of amountLD
@@ -110,10 +107,9 @@ describe('StargateDriver', () => {
             const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
             const amountSwap = BigNumber.from("40000000000000000000");   // 40$
 
-            // Send srcToken to srcVault
-            await srcToken.connect(owner).approve(srcVault.address, amountSrc);
-            await srcToken.connect(owner).transfer(srcVault.address, amountSrc);
-            console.log("srcVault has srcToken %d:", (await srcToken.balanceOf(srcVault.address)));
+            // Mint srcToken to srcVault
+            await srcToken.connect(owner).mint(srcVault.address, amountSrc);
+            console.log("srcVault has srcToken:", (await srcToken.balanceOf(srcVault.address)));
             
             // srcVault stake srcToken
             const srcPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeSrc, srcToken.address]);
@@ -125,10 +121,9 @@ describe('StargateDriver', () => {
             await srcVault.connect(owner).executeActions([stakeActionSrc]);
             console.log("After src stake, srcValut has srcToken %d", (await srcToken.balanceOf(srcVault.address)));
 
-            // Send dstToken to dstVault
-            await dstToken.connect(owner).approve(dstVault.address, amountDst);
-            await dstToken.connect(owner).transfer(dstVault.address, amountDst);
-            console.log("dstVault has dstToken %d:", (await dstToken.balanceOf(dstVault.address)));
+            // Mint srcToken to srcVault
+            await dstToken.connect(owner).mint(dstVault.address, amountDst);
+            console.log("dstVault has dstToken:", (await dstToken.balanceOf(dstVault.address)));
             
             // dstVault stake dstToken
             const dstPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeDst, dstToken.address]);

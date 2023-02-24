@@ -91,9 +91,9 @@ describe('SecondaryVault', () => {
             const chrisDeposit1LD = BigNumber.from("15000000000000000000000"); // $15000
 
             // Mint tokens
-            tokenASecondary.mint(alice.address, aliceTotalLD);
-            tokenBSecondary.mint(ben.address, benTotalLD);
-            tokenAPrimary.mint(chris.address, chrisTotalLD);
+            await tokenASecondary.mint(alice.address, aliceTotalLD);
+            await tokenBSecondary.mint(ben.address, benTotalLD);
+            await tokenAPrimary.mint(chris.address, chrisTotalLD);
 
             // ----------------------- First Round: ----------------------------
 
