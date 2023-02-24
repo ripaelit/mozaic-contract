@@ -57,7 +57,7 @@ describe('StargateDriver', () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const lpStaking = stargateDeployments.get(chainId)!.lpStakingContract;
-            const amountLD = BigNumber.from("123456789012345");
+            const amountLD = BigNumber.from("100000000000000000000");   // 100$
 
             // Stake
             // Mint USDC to SecondaryVault
@@ -72,9 +72,10 @@ describe('StargateDriver', () => {
                 payload : payloadStake
             };
             await secondaryVault.connect(owner).executeActions([stakeAction]);
+            console.log("After stake, SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for owner in LpStaking
-            const amountLPToken = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
+            let amountLPToken = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
             console.log("LpTokens for owner in LpStaking is", amountLPToken);
             expect(amountLPToken).gt(BigNumber.from("0"));
 
@@ -88,11 +89,15 @@ describe('StargateDriver', () => {
             };
             await secondaryVault.connect(owner).executeActions([unstakeAction]);
 
+            // Check LpTokens for owner in LpStaking
+            amountLPToken = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
+            console.log("After unstake LpTokens for owner in LpStaking is", amountLPToken);
+
             // Check USDC in secondaryVault
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             expect(await usdcContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
-        it ("can swapRemote", async () => {
+        it.only ("can swapRemote", async () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const srcChainId = exportData.localTestConstants.chainIds[0];  // Ethereum
             const dstChainId = exportData.localTestConstants.chainIds[1];  // BSC
@@ -101,7 +106,7 @@ describe('StargateDriver', () => {
             const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
             const srcToken = MockTokenFactory.attach(stablecoinDeployments.get(srcChainId)!.get(exportData.localTestConstants.stablecoins.get(srcChainId)![1])!);   // Ethereum USDT
             const dstToken = MockTokenFactory.attach(stablecoinDeployments.get(dstChainId)!.get(exportData.localTestConstants.stablecoins.get(dstChainId)![0])!);   // BSC USDT
-            const amountSrc = BigNumber.from("300000000000000000000");  // 200$
+            const amountSrc = BigNumber.from("300000000000000000000");  // 300$
             const amountDst = BigNumber.from("300000000000000000000");  // 300$
             const amountStakeSrc = BigNumber.from("100000000000000000000");  // 100$
             const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$

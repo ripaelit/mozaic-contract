@@ -57,7 +57,6 @@ contract StargateDriver is ProtocolDriver{
     }
     function _stake(uint256 _amountLD, address _token) private {
         // CHECKLATER: try internal
-        console.log("_stake called");
         require (_amountLD > 0, "Cannot stake zero amount");
         
         // Get pool and poolId
@@ -70,17 +69,19 @@ contract StargateDriver is ProtocolDriver{
         address _stgRouter = _getConfig().stgRouter;
         IERC20(_token).approve(_stgRouter, _amountLD);
         
-        // Stake token from vault to STG.Pool
+        // Stake token from vault to STG.Pool and get LPToken
+        // 1. Pool.LPToken of vault before
         (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
         require(_success, "Failed to call balanceOf");
         uint256 balancePre = abi.decode(_response, (uint256));
-
+        // 2. Valut adds liquidity
         (_success, ) = _stgRouter.call(abi.encodeWithSignature("addLiquidity(uint256,uint256,address)", _poolId, _amountLD, address(this)));
         require(_success, "Failed to call addLiquidity");
-
+        // 3. Pool.LPToken of vault after
         (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
         require(_success, "Failed to call balanceOf");
         uint256 balanceAfter = abi.decode(_response, (uint256));
+        // 4. Increased LPToken of vault
         uint256 amountLPToken = balanceAfter - balancePre;
         
         // Find the Liquidity Pool's index in the Farming Pool.
@@ -95,10 +96,10 @@ contract StargateDriver is ProtocolDriver{
         // Stake LPToken from vault to LPStaking
         (_success, ) = _stgLPStaking.call(abi.encodeWithSignature("deposit(uint256,uint256)", stkPoolIndex, amountLPToken));
         require(_success, "Failed to call deposit");
-        console.log("_stake ended");
     }
 
     function _unstake(uint256 _amountLPToken, address _token) private {
+        console.log("_unstake start: _token", _token);
         require (_amountLPToken > 0, "Cannot unstake zero amount");
 
         // Get pool and poolId
@@ -111,14 +112,26 @@ contract StargateDriver is ProtocolDriver{
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
 
-        // Unstake LPToken from LPStaking to vault
+        // Withdraw LPToken from LPStaking to vault
+        // 1. Pool.LPToken of vault before
+        (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(_success, "Failed to call balanceOf");
+        uint256 balancePre = abi.decode(_response, (uint256));
+        // 2. Withdraw LPToken from LPStaking to vault
         address _stgLPStaking = _getConfig().stgLPStaking;
         (_success, ) = _stgLPStaking.call(abi.encodeWithSignature("withdraw(uint256,uint256)", stkPoolIndex, _amountLPToken));
         require(_success, "Failed to call withdraw");
-        
-        // Unstake coin from STG.Pool to vault
+        // 3. Pool.LPToken of vault after
+        (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(_success, "Failed to call balanceOf");
+        uint256 balanceAfter = abi.decode(_response, (uint256));
+        // 4. Increased LPToken of vault
+        uint256 _amountLPTokenWithdrawn = balanceAfter - balancePre;
+        console.log("_amountLPTokenWithdrawn %d, balancePre %d, balanceAfter %d", _amountLPTokenWithdrawn, balancePre, balanceAfter);
+
+        // Give LPToken and redeem token from STG.Pool to vault
         address _stgRouter = _getConfig().stgRouter;
-        (_success, ) = _stgRouter.call(abi.encodeWithSignature("instantRedeemLocal(uint16,uint256,address)", uint16(_poolId), _amountLPToken, address(this)));
+        (_success, ) = _stgRouter.call(abi.encodeWithSignature("instantRedeemLocal(uint16,uint256,address)", uint16(_poolId), _amountLPTokenWithdrawn, address(this)));
         require(_success, "Failed to call addLiquidity");
     }
 

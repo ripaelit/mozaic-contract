@@ -614,7 +614,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
             }
 
             // deduct the amount of credit sent
-            deltaCredit = deltaCredit.sub(spent);
+            // deltaCredit = deltaCredit.sub(spent);    // kevin
         }
     }
 
