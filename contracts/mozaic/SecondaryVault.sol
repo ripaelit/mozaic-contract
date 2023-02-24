@@ -45,14 +45,14 @@ contract SecondaryVault is NonblockingLzApp {
     
     enum VaultStatus {
         // No staged requests. Neutral status.
-        IDLE, 
+        IDLE,
 
         // (Primary Vault vision) Primary Vault thinks Secondary Vault is snapshotting. But haven't got report yet.
-        SNAPSHOTTING, 
+        SNAPSHOTTING,
 
         // (Secondary Vault vision) Secondary Vault knows it staged requests and made snapshot. It sent snapshot report, but doesn't care the rest.
         // (Primary Vault vision) Primary Vault got snapshot report from the Secondary Vault.
-        SNAPSHOTTED, 
+        SNAPSHOTTED,
 
         // (Primary Vault vision) Primary Vault sent "settle" message to Secondary Vault. Thinks it is settling requests now.
         SETTLING
@@ -110,7 +110,7 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public primaryChainId=0;
     uint16 public chainId=0;
     address[] public acceptingTokens;
-    
+
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
@@ -309,7 +309,7 @@ contract SecondaryVault is NonblockingLzApp {
         // check if the user has enough balance
         buffer.withdrawForUserMLP[_withdrawer] = buffer.withdrawForUserMLP[_withdrawer].add(_amountMLP);
         require (buffer.withdrawForUserMLP[_withdrawer].add(stagedBuffer.withdrawForUserMLP[_withdrawer]) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
-        
+
         // book request
         // 1. Update withdrawRequestList
         bool _exists = false;
