@@ -15,6 +15,8 @@ describe('SecondaryVault.executeActions', () => {
     let mozaicDeployment = {} as MozaicDeployment;
 
     before(async () => {
+        [owner] = await ethers.getSigners();  // owner is control center
+        
         mozaicDeployments = new Map<number, MozaicDeployment>();
         const mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
         const primaryValutFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
