@@ -15,6 +15,8 @@
     "testsec": "npx hardhat test --network localhost ./scripts/test/localhost/SecondaryVault.test.ts",
     "teststa": "npx hardhat test --network localhost ./scripts/test/localhost/StargateDriver.test.ts",
     "deploy": "npx hardhat run --network localhost ./scripts/deploy/deployLocalhost.ts",
+    "deploy-goerli": "npx hardhat run --network goerli ./scripts/deploy/deployGoerli.ts",
+    "deploy-bsc": "npx hardhat run --network bsc ./scripts/deploy/deployBsc.ts",
     "coverage": "yarn build && npx hardhat coverage --temp artifacts --network coverage",
     "postinstall": "yarn compile",
     "lint": "gts lint && npx hardhat check",
