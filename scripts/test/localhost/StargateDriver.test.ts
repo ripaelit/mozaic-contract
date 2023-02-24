@@ -65,13 +65,13 @@ describe('StargateDriver', () => {
             const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const lpStaking = lpStakings.get(chainId)!;
             const amountLD = BigNumber.from("100000000000000000000");   // 100$
-            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
-
+            
             // Mint USDC to SecondaryVault
             await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
-
+            
             // SecondaryVault stake USDC
+            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
             const stakeAction: SecondaryVault.ActionStruct  = {
                 driverIndex: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
@@ -126,20 +126,21 @@ describe('StargateDriver', () => {
             expect(await usdcContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
         it ("can swapRemote", async () => {
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const srcChainId = exportData.localTestConstants.chainIds[0];  // Ethereum
-            const dstChainId = exportData.localTestConstants.chainIds[1];  // BSC
-            const dstPoolId = exportData.localTestConstants.poolIds.get("USDT")!;
             const srcVault = mozaicDeployments.get(srcChainId)!.mozaicVault;
-            const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
+            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const srcToken = MockTokenFactory.attach(stablecoinDeployments.get(srcChainId)!.get(exportData.localTestConstants.stablecoins.get(srcChainId)![1])!);   // Ethereum USDT
-            const dstToken = MockTokenFactory.attach(stablecoinDeployments.get(dstChainId)!.get(exportData.localTestConstants.stablecoins.get(dstChainId)![0])!);   // BSC USDT
             const amountSrc = BigNumber.from("300000000000000000000");  // 200$
-            const amountDst = BigNumber.from("300000000000000000000");  // 300$
             const amountStakeSrc = BigNumber.from("100000000000000000000");  // 100$
-            const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
             const amountSwap = BigNumber.from("40000000000000000000");   // 40$
 
+            const dstChainId = exportData.localTestConstants.chainIds[1];  // BSC
+            const dstPoolId = exportData.localTestConstants.poolIds.get("USDT")!;
+            const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
+            const dstToken = MockTokenFactory.attach(stablecoinDeployments.get(dstChainId)!.get(exportData.localTestConstants.stablecoins.get(dstChainId)![0])!);   // BSC USDT
+            const amountDst = BigNumber.from("300000000000000000000");  // 300$
+            const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
+            
             // Mint srcToken to srcVault
             await srcToken.connect(owner).mint(srcVault.address, amountSrc);
             console.log("srcVault has srcToken:", (await srcToken.balanceOf(srcVault.address)));

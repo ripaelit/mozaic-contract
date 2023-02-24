@@ -2,7 +2,7 @@ import { expect } from 'chai';
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault, PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken__factory, MozaicLP__factory } from '../../../types/typechain';
+import { PrimaryVault, PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, MockToken__factory, MozaicLP__factory } from '../../../types/typechain';
 import { StargateDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments, ProtocolStatus, StargateDeploymentOnchain } from '../../constants/types'
 import exportData from '../../constants/index';
 import { BigNumber } from 'ethers';
@@ -121,10 +121,16 @@ describe('SecondaryVault', () => {
             const chrisDeposit1LD = BigNumber.from("15000000000000000000000"); // $15000
 
             // Mint tokens
-            tokenASecondary.mint(alice.address, aliceTotalLD);  // Bsc USDT
-            tokenBSecondary.mint(ben.address, benTotalLD);      // Bsc BUSD
-            tokenAPrimary.mint(chris.address, chrisTotalLD);    // Eth USDC
+            await tokenASecondary.mint(alice.address, aliceTotalLD);  // Bsc USDT
+            await tokenBSecondary.mint(ben.address, benTotalLD);      // Bsc BUSD
+            await tokenAPrimary.mint(chris.address, chrisTotalLD);    // Eth USDC
 
+            const d = await tokenASecondary.balanceOf(alice.address);
+            const e = await tokenBSecondary.balanceOf(ben.address);
+            const f = await tokenAPrimary.balanceOf(chris.address);
+            const a = await tokenASecondary.balanceOf(owner.address);
+            const b = await tokenBSecondary.balanceOf(owner.address);
+            const c = await tokenAPrimary.balanceOf(owner.address);
             // ----------------------- First Round: ----------------------------
 
             // Algostory: ### 1. User Books Deposit
