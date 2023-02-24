@@ -111,19 +111,19 @@ describe('SecondaryVault', () => {
             const tokenBSecondary = MockTokenFactory.attach(stablecoinDeployments.get(secondaryChainId)!.get(exportData.localTestConstants.stablecoins.get(secondaryChainId)![1])!);
             const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
             const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault as SecondaryVault;
-            const aliceTotalLD = BigNumber.from("10000000000000000000000"); // $10000
-            const benTotalLD = BigNumber.from("20000000000000000000000"); // $20000
-            const chrisTotalLD = BigNumber.from("30000000000000000000000"); // $30000
-            const aliceDeposit1LD = BigNumber.from("5000000000000000000000"); // $5000
-            const aliceDeposit2LD = BigNumber.from("4000000000000000000000"); // $4000
-            const benDeposit1LD = BigNumber.from("10000000000000000000000"); // $10000
-            const benWithdraw2MLP = BigNumber.from("5000000000000000000000"); // 5000 mLP ~ $5000
-            const chrisDeposit1LD = BigNumber.from("15000000000000000000000"); // $15000
+            const aliceTotalLD = BigNumber.from("100000000000000000000"); // $100
+            const benTotalLD = BigNumber.from("200000000000000000000"); // $200
+            const chrisTotalLD = BigNumber.from("300000000000000000000"); // $300
+            const aliceDeposit1LD = BigNumber.from("50000000000000000000"); // $50
+            const aliceDeposit2LD = BigNumber.from("40000000000000000000"); // $40
+            const benDeposit1LD = BigNumber.from("100000000000000000000"); // $100
+            const benWithdraw2MLP = BigNumber.from("50000000000000000000"); // 50 mLP ~ $50
+            const chrisDeposit1LD = BigNumber.from("150000000000000000000"); // $150
 
             // Mint tokens
-            await tokenASecondary.mint(alice.address, aliceTotalLD);  // Bsc USDT
-            await tokenBSecondary.mint(ben.address, benTotalLD);      // Bsc BUSD
-            await tokenAPrimary.mint(chris.address, chrisTotalLD);    // Eth USDC
+            await tokenASecondary.connect(owner).mint(alice.address, aliceTotalLD);  // Bsc USDT
+            await tokenBSecondary.connect(owner).mint(ben.address, benTotalLD);      // Bsc BUSD
+            await tokenAPrimary.connect(owner).mint(chris.address, chrisTotalLD);    // Eth USDC
 
             const d = await tokenASecondary.balanceOf(alice.address);
             const e = await tokenBSecondary.balanceOf(ben.address);

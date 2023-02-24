@@ -7,7 +7,7 @@
     "clean": "npx hardhat clean",
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "test_testnet": "npx hardhat test ./scripts/test/testnet/ExecuteActions.test.ts",
+    "testnet-test": "npx hardhat test ./scripts/test/testnet/ExecuteActions.test.ts",
     "local-testpan": "npx hardhat test ./scripts/test/local/PancakeSwapDriver.test.ts",
     "local-testsec": "npx hardhat test ./scripts/test/local/SecondaryVault.test.ts",
     "local-teststa": "npx hardhat test ./scripts/test/local/StargateDriver.test.ts",
