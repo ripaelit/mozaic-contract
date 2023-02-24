@@ -69,9 +69,8 @@ describe('PancakeSwapDriver', () => {
             const amountLD = BigNumber.from("1234567890");
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcCoin.address, usdtCoin.address]);
             
-            // Send USDC to SecondaryVault
-            await usdcCoin.connect(owner).approve(secondaryVault.address, amountLD);
-            await usdcCoin.connect(owner).transfer(secondaryVault.address, amountLD);
+            // Mint USDC to SecondaryVault
+            await usdcCoin.connect(owner).mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC, USDT:", (await usdcCoin.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
             
             // Swap USDC to USDT

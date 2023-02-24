@@ -121,7 +121,7 @@ describe('StargateDriver', () => {
             await srcVault.connect(owner).executeActions([stakeActionSrc]);
             console.log("After src stake, srcValut has srcToken %d", (await srcToken.balanceOf(srcVault.address)));
 
-            // Mint srcToken to srcVault
+            // Mint dstToken to dstVault
             await dstToken.connect(owner).mint(dstVault.address, amountDst);
             console.log("dstVault has dstToken:", (await dstToken.balanceOf(dstVault.address)));
             
