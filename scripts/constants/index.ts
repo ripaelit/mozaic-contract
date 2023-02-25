@@ -108,6 +108,11 @@ const testnetTestConstants = {
             ["USDT", "0xF49E250aEB5abDf660d643583AdFd0be41464EfD"],
         ])],
     ]),
+    poolIds: new Map<string, number>([
+        ['USDC', 1],
+        ['USDT', 2],
+        ['BUSD', 5],
+    ]),
     pancakeSwapSmartRouter: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
 }
 
