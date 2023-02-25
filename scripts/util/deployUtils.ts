@@ -74,7 +74,6 @@ export const deployStargate = async (
 
     // Create Pools For each stablecoin
     const poolFactory = (await ethers.getContractFactory('Pool', owner)) as Pool__factory;
-    // const stablecoins = stablecoinDeployment.get(chainId)!;
     const pools = new Map<number, Pool>();
     const poolIds = exportData.localTestConstants.poolIds;
     for (const [coinname, coinAddress] of stablecoinDeployment) {
@@ -102,7 +101,7 @@ export const deployStargate = async (
         'STG', 
         lzEndpoint.address,
         stgMainChainId, 
-        BigNumber.from("4000000000000") // 4*1e12   minted to owner
+        BigNumber.from("4000000000000000000000000") // 4e24   minted to owner
     );
     await stargateToken.deployed();
     stargateDeploymentOnchain.stargateToken = stargateToken;
@@ -274,57 +273,72 @@ export const deployAllToTestNet = async (
     chainId: number,
     mozaicDeployments: Map<number, MozaicDeployment>
 ) => {
-    const stgMainChainId = exportData.testnetTestConstants.stgMainChainId;
-    const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
-    const routerFactory = (await ethers.getContractFactory('Router', owner)) as Router__factory;
-    const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
-    const stargateTokenFactory = (await ethers.getContractFactory('StargateToken', owner)) as StargateToken__factory;
-    const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-    const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
-    let router, bridge, lzEndpoint, stargateToken, lpStaking, mockDex, latestBlockNumber;
     let protocols = new Map<number, Map<string, string>>();
     
-    console.log("chainId %d", chainId);
     // Get router contract
-    router = routerFactory.attach(exportData.testnetTestConstants.routers.get(chainId)!);
-    console.log("router %s", router.address);
+    const routerFactory = (await ethers.getContractFactory('Router', owner)) as Router__factory;
+    const router = routerFactory.attach(exportData.testnetTestConstants.routers.get(chainId)!);
     
     // Get bridge contract
-    bridge = bridgeFactory.attach(exportData.testnetTestConstants.bridges.get(chainId)!);
-    console.log("bridge", bridge.address);
+    const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
+    const bridge = bridgeFactory.attach(exportData.testnetTestConstants.bridges.get(chainId)!);
+
+    // Get factory contract
+    const factoryFactory = (await ethers.getContractFactory('Factory', owner)) as Factory__factory;
+    const factory = factoryFactory.attach(exportData.testnetTestConstants.factories.get(chainId)!);
 
     // Get LzEndpoint contract
-    lzEndpoint = await bridge.layerZeroEndpoint();
-    console.log("lzEndpoint %s", lzEndpoint);
+    const lzEndpoint = await bridge.layerZeroEndpoint();
+
+    // Create and deploy pools for each stablecoin
+    const poolFactory = (await ethers.getContractFactory('Pool', owner)) as Pool__factory;
+    const pools = new Map<number, Pool>();
+    const poolIds = exportData.testnetTestConstants.poolIds;
+    const stablecoins = exportData.testnetTestConstants.stablecoins;
+    for (const [chainId, coin] of stablecoins) {
+        for (const [coinName, coinAddr] of coin) {
+            const poolId = poolIds.get(coinName)!;
+            await router.createPool(poolId, coinAddr, 6, 18, coinName, coinName);
+            const poolAddr = await factory.getPool(poolId);
+            const pool = poolFactory.attach(poolAddr);
+            pools.set(poolId, pool);
+        }
+    }
 
     // Deploy Stargate Token
-    stargateToken = await stargateTokenFactory.deploy(
+    const stgMainChainId = exportData.testnetTestConstants.stgMainChainId;
+    const stargateTokenFactory = (await ethers.getContractFactory('StargateToken', owner)) as StargateToken__factory;
+    const stargateToken = await stargateTokenFactory.deploy(
         'Stargate Token', 
         'STG', 
         lzEndpoint, 
         stgMainChainId, 
-        BigNumber.from("4000000000000") // 4*1e12
+        BigNumber.from("4000000000000000000000000") // 4e24
     );
     await stargateToken.deployed();
-    console.log("Deployed StargateToken: chainId, address:", chainId, stargateToken.address);
     
     // Deploy LPStaking
-    latestBlockNumber = await ethers.provider.getBlockNumber();
-    lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("100000"), latestBlockNumber + 3, latestBlockNumber + 3);
+    const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+    const latestBlockNumber = await ethers.provider.getBlockNumber();
+    const lpStaking = await lpStakingFactory.deploy(stargateToken.address, BigNumber.from("100000"), latestBlockNumber + 3, latestBlockNumber + 3);
     await lpStaking.deployed();
-    console.log("Deployed LPStaking: chainId, address:", chainId, lpStaking.address);
+    // Register pools to LPStaking
+    for (const [poolId, pool] of pools) {
+        lpStaking.add(poolId, pool.address);
+    }
     
     // Deploy MockDex and create protocol with it
-    mockDex = await mockDexFactory.deploy();
+    const mockDexFactory = await ethers.getContractFactory('MockDex', owner) as MockDex__factory;
+    const mockDex = await mockDexFactory.deploy();
     await mockDex.deployed();
-    console.log("Deployed MockDex: chainid, mockDex:", chainId, mockDex.address);
     protocols.set(chainId, new Map<string,string>([
         ["PancakeSwapSmartRouter", mockDex.address],
     ]));
 
     // Deploy Mozaic        
-    let stablecoin = exportData.testnetTestConstants.stablecoins.get(chainId)!;
-    let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, lzEndpoint, router.address, lpStaking.address, stargateToken.address, protocols, stablecoin, mozaicDeployments);
+    const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
+    const stablecoin = exportData.testnetTestConstants.stablecoins.get(chainId)!;
+    const mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, lzEndpoint, router.address, lpStaking.address, stargateToken.address, protocols, stablecoin, mozaicDeployments);
 }
 
 export const deployAllToLocalNets = async (
