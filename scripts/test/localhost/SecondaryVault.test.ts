@@ -121,9 +121,9 @@ describe('SecondaryVault', () => {
             const chrisDeposit1LD = BigNumber.from("150000000000000000000"); // $150
 
             // Mint tokens
-            await tokenASecondary.connect(owner).mint(alice.address, aliceTotalLD);  // Bsc USDT
-            await tokenBSecondary.connect(owner).mint(ben.address, benTotalLD);      // Bsc BUSD
-            await tokenAPrimary.connect(owner).mint(chris.address, chrisTotalLD);    // Eth USDC
+            await tokenASecondary.mint(alice.address, aliceTotalLD);  // Bsc USDT
+            await tokenBSecondary.mint(ben.address, benTotalLD);      // Bsc BUSD
+            await tokenAPrimary.mint(chris.address, chrisTotalLD);    // Eth USDC
 
             const d = await tokenASecondary.balanceOf(alice.address);
             const e = await tokenBSecondary.balanceOf(ben.address);

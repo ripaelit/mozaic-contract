@@ -67,7 +67,7 @@ describe('StargateDriver', () => {
             const amountLD = BigNumber.from("100000000000000000000");   // 100$
             
             // Mint USDC to SecondaryVault
-            await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
+            await usdcContract.mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC
@@ -96,7 +96,7 @@ describe('StargateDriver', () => {
 
             // Stake
             // Mint USDC to SecondaryVault
-            await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
+            await usdcContract.mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC of amountLD
@@ -145,7 +145,7 @@ describe('StargateDriver', () => {
             const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
             
             // Mint srcToken to srcVault
-            await srcToken.connect(owner).mint(srcVault.address, amountSrc);
+            await srcToken.mint(srcVault.address, amountSrc);
             console.log("srcVault has srcToken:", (await srcToken.balanceOf(srcVault.address)));
             
             // srcVault stake srcToken
@@ -159,7 +159,7 @@ describe('StargateDriver', () => {
             console.log("After src stake, srcValut has srcToken %d", (await srcToken.balanceOf(srcVault.address)));
 
             // Mint dstToken to dstVault
-            await dstToken.connect(owner).mint(dstVault.address, amountDst);
+            await dstToken.mint(dstVault.address, amountDst);
             console.log("dstVault has dstToken:", (await dstToken.balanceOf(dstVault.address)));
             
             // dstVault stake dstToken

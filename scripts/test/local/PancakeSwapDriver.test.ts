@@ -35,7 +35,7 @@ describe('PancakeSwapDriver', () => {
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcContract.address, usdtContract.address]);
             
             // Mint USDC to SecondaryVault
-            await usdcContract.connect(owner).mint(secondaryVault.address, amountLD);
+            await usdcContract.mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC, USDT:", (await usdcContract.balanceOf(secondaryVault.address)), (await usdtContract.balanceOf(secondaryVault.address)));
             
             // Swap USDC to USDT
