@@ -35,8 +35,9 @@ describe('StargateDriver', () => {
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
 
             // Mint USDC to SecondaryVault
-            await usdcContract.mint(secondaryVault.address, amountLD);
             console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
+            await usdcContract.mint(secondaryVault.address, amountLD);
+            console.log("After mint, SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC
             const stakeAction: SecondaryVault.ActionStruct  = {
@@ -45,6 +46,7 @@ describe('StargateDriver', () => {
                 payload : payload
             };
             await secondaryVault.connect(owner).executeActions([stakeAction]);
+            console.log("After stake, SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for owner in LpStaking
             const lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;

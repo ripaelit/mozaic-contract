@@ -37,7 +37,8 @@ export enum ActionTypeEnum {
     SwapRemote = 1,
     GetPriceMil = 2,
     StargateStake = 3,
-    StargateUnstake = 4
+    StargateUnstake = 4,
+    GetStakedAmount = 5,
 }
 
 export enum ProtocolStatus {

@@ -22,7 +22,7 @@
                 "<node_internals>/**"
             ],
             "runtimeExecutable": "yarn",
-            "args": ["testsec"],
+            "args": ["testnet-test"],
             // "program": "${workspaceFolder}\\test\\OrderTaker.test.ts",
             // "outFiles": [
             //     "${workspaceFolder}/**/*.js"

@@ -71,7 +71,7 @@ describe('SecondaryVault', () => {
     //     })
     // })
 
-    describe.only('Flow Test', () => {
+    describe('Flow Test', () => {
         it('normal flow', async () => {
             const primaryChainId = exportData.localTestConstants.chainIds[0];
             const secondaryChainId = exportData.localTestConstants.chainIds[1];
