@@ -104,8 +104,8 @@ const testnetTestConstants = {
             ["USDT", "0x5BCc22abEC37337630C0E0dd41D64fd86CaeE951"],
         ])],
         [10102, new Map<string, string>([
-            ["BUSD", "0x1010Bb1b9Dff29e6233E7947e045e0ba58f6E92e"],
             ["USDT", "0xF49E250aEB5abDf660d643583AdFd0be41464EfD"],
+            ["BUSD", "0x1010Bb1b9Dff29e6233E7947e045e0ba58f6E92e"],
         ])],
     ]),
     poolIds: new Map<string, number>([
@@ -114,6 +114,8 @@ const testnetTestConstants = {
         ['BUSD', 5],
     ]),
     pancakeSwapSmartRouter: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
+    stargateDriverId:     1,
+    pancakeSwapDriverId:  2,
 }
 
 const exportData = {

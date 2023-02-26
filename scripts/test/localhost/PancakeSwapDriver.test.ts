@@ -86,7 +86,7 @@ describe('PancakeSwapDriver', () => {
             expect(await usdtCoin.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
         })
         it ("can swap STG->USDT", async () => {
-            const chainId = exportData.localTestConstants.chainIds[1];// Bsc
+            const chainId = exportData.localTestConstants.chainIds[0];// Bsc
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
             const stgTokenContract = stgTokens.get(chainId)!;
             const mockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
