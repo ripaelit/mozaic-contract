@@ -8,7 +8,6 @@ import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-solhint';
 import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomiclabs/hardhat-ethers';
-import '@openzeppelin/hardhat-upgrades';
 import 'hardhat-contract-sizer';
 
 const { mnemonic, bscscanApiKey } = require('./secrets.json');
