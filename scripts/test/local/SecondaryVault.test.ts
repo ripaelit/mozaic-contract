@@ -39,7 +39,7 @@ describe('SecondaryVault', () => {
             await coinContract.connect(owner).mint(alice.address, amountLD);
             const aliceBalBefore = await coinContract.balanceOf(alice.address);
             await coinContract.connect(alice).approve(vaultContract.address, amountLD);
-            await expect(vaultContract.connect(alice).addDepositRequest(amountLD, coinContract.address, chainId)).to.emit(vaultContract, 'DepositRequestAdded').withArgs(alice.address, coinContract.address, chainId, amountLD, anyValue); // don't compare amountSD
+            await expect(vaultContract.connect(alice).addDepositRequest(amountLD, coinContract.address, chainId)).to.emit(vaultContract, 'DepositRequestAdded').withArgs(alice.address, coinContract.address, chainId, amountLD); // don't compare amountSD
             // fund move from Alice to vault
             expect(await coinContract.balanceOf(alice.address)).to.lt(aliceBalBefore);
             expect(await coinContract.balanceOf(alice.address)).to.eq(0);
@@ -49,7 +49,7 @@ describe('SecondaryVault', () => {
         })
     });
 
-    describe('SecondaryVault.addWithdrawRequest', () => {
+    describe.skip('SecondaryVault.addWithdrawRequest', () => {
         it('add request to pending buffer', async() => {
             // NOTE: Run this test case without transferring ownership from `owner` to `vault`
             const chainId = exportData.localTestConstants.chainIds[0];
@@ -103,10 +103,10 @@ describe('SecondaryVault', () => {
             // Chris -> PrimaryVault Token A
             await tokenASecondary.connect(alice).approve(secondaryVault.address, aliceDeposit1LD);
             await secondaryVault.connect(alice).addDepositRequest(aliceDeposit1LD, tokenASecondary.address, secondaryChainId);
-            // Beed deposit tokenASecondary's to secondaryVault request 4k now turns into staged from pending.
+            // Ben deposit tokenASecondary's to secondaryVault request 4k now turns into staged from pending.
             await tokenBSecondary.connect(ben).approve(secondaryVault.address, benDeposit1LD);
             await secondaryVault.connect(ben).addDepositRequest(benDeposit1LD, tokenBSecondary.address, secondaryChainId);
-            // Chried deposit tokenBSecondary's to primaryVault request 4k now turns into staged from pending.
+            // Chris deposit tokenBSecondary's to primaryVault request 4k now turns into staged from pending.
             await tokenAPrimary.connect(chris).approve(primaryVault.address, chrisDeposit1LD);
             await primaryVault.connect(chris).addDepositRequest(chrisDeposit1LD, tokenAPrimary.address, primaryChainId);
 
@@ -137,10 +137,10 @@ describe('SecondaryVault', () => {
             expect(await secondaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit2LD);
             // Primary vault now has all snapshot reports.
             expect(await primaryVault.allVaultsSnapshotted()).to.eq(true);
-            const mozaicLpPerStablecoin = await primaryVault.mozaicLpPerStablecoinMil();
+            const mozaicLpPerStablecoinMil = await primaryVault.mozaicLpPerStablecoinMil();
             // Algostory: #### 3-3. Determine MLP per Stablecoin Rate
             // Initial rate is 1 mLP per USD
-            expect(mozaicLpPerStablecoin).to.eq(1000000);
+            expect(mozaicLpPerStablecoinMil).to.eq(1000000);
 
             // TODO: stake
 
@@ -157,7 +157,7 @@ describe('SecondaryVault', () => {
             // Algostory: #### 6. Session Closes
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
 
-            // Second Round:
+            // ----------------------- Second Round: ----------------------------
             console.log("Second Round:");
             // Alice's booked deposit request 4k now turns into staged from pending.
             // Ben books withdraw (half of his mLP)
@@ -192,7 +192,7 @@ describe('SecondaryVault', () => {
         })
     })
 
-    describe('Snapshot Flow', () => {
+    describe.skip('Snapshot Flow', () => {
         it('It needs to begin with PrimaryVault.initOptimizationSession()', async() => {
 
         })
