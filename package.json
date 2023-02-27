@@ -24,7 +24,7 @@
     "pretest": "yarn compile",
     "posttest": "yarn lint",
     "node:start": "npx hardhat node",
-    "node:run": "npx hardhat run --network localhost "
+    "node:run": "npx hardhat run --network localhost"
   },
   "repository": {
     "type": "git",
