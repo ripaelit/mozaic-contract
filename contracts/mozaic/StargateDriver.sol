@@ -7,7 +7,6 @@ import "./ProtocolDriver.sol";
 // libraries
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "hardhat/console.sol";
 
 contract StargateDriver is ProtocolDriver{
     using SafeMath for uint256;
@@ -33,28 +32,23 @@ contract StargateDriver is ProtocolDriver{
     }
     function execute(ActionType _actionType, bytes calldata _payload) public override returns (bytes memory response) {
         if (_actionType == ActionType.Stake) {
-            (uint256 _amountLD, address _token) = abi.decode(_payload, (uint256, address));
-            _stake(_amountLD, _token);
+            _stake(_payload);
         }
         else if (_actionType == ActionType.Unstake) {
-            (uint256 _amountMLP, address _token) = abi.decode(_payload, (uint256, address));
-            _unstake(_amountMLP, _token);
+            _unstake(_payload);
         }
         else if (_actionType == ActionType.SwapRemote) {
-            (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint256));
-            _swapRemote(_amountLD, _srcToken, _dstChainId, _dstPoolId);
+            _swapRemote(_payload);
         }
         else if (_actionType == ActionType.GetStakedAmount) {
-            // Define Actions here.
-            uint256 _amountStaked = _getStakedAmount();
-            response = abi.encode(_amountStaked);
+            response = _getStakedAmount();
         }
         else {
             revert("Undefined Action");
         }
     }
-    function _stake(uint256 _amountLD, address _token) private {
-        // CHECKLATER: try internal
+    function _stake(bytes calldata _payload) private {
+        (uint256 _amountLD, address _token) = abi.decode(_payload, (uint256, address));
         require (_amountLD > 0, "Cannot stake zero amount");
         
         // Get pool and poolId
@@ -96,8 +90,8 @@ contract StargateDriver is ProtocolDriver{
         require(_success, "Failed to call deposit");
     }
 
-    function _unstake(uint256 _amountLPToken, address _token) private {
-        console.log("_unstake start: _token", _token);
+    function _unstake(bytes calldata _payload) private {
+        (uint256 _amountLPToken, address _token) = abi.decode(_payload, (uint256, address));
         require (_amountLPToken > 0, "Cannot unstake zero amount");
 
         // Get pool and poolId
@@ -125,7 +119,6 @@ contract StargateDriver is ProtocolDriver{
         uint256 balanceAfter = abi.decode(_response, (uint256));
         // 4. Increased LPToken of vault
         uint256 _amountLPTokenWithdrawn = balanceAfter - balancePre;
-        console.log("_amountLPTokenWithdrawn %d, balancePre %d, balanceAfter %d", _amountLPTokenWithdrawn, balancePre, balanceAfter);
 
         // Give LPToken and redeem token from STG.Pool to vault
         address _stgRouter = _getConfig().stgRouter;
@@ -133,15 +126,14 @@ contract StargateDriver is ProtocolDriver{
         require(_success, "Failed to call addLiquidity");
     }
 
-    function _swapRemote(uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) private {
-        console.log("_swapRemote called: _amountLD", _amountLD);
+    function _swapRemote(bytes calldata _payload) private {
+        (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint256));
         require (_amountLD > 0, "Cannot stake zero amount");
         // Get srcPoolId
         address _srcPool = getStargatePoolFromToken(_srcToken);
         (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
         require(_success, "Failed to call poolId");
         uint256 _srcPoolId = abi.decode(_response, (uint256));
-        console.log("_srcPoolId", _srcPoolId);
 
         // Approve
         address _router = _getConfig().stgRouter;
@@ -151,11 +143,10 @@ contract StargateDriver is ProtocolDriver{
         bytes memory funcSignature = abi.encodeWithSignature("swap(uint16,uint256,uint256,address,uint256,uint256,(uint256,uint256,bytes),bytes,bytes)", _dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
         (_success, ) = address(_router).call(funcSignature);
         require(_success, "Failed to call swap");
-        console.log("_swapRemote ended:");
     }
 
-    function _getStakedAmount() private returns (uint256 _amountStaked) {
-        _amountStaked = 0;
+    function _getStakedAmount() private returns (bytes memory response) {
+        uint256 _amountStaked = 0;
         address _stgLPStaking = _getConfig().stgLPStaking;
         (bool _success, bytes memory _response) = address(_stgLPStaking).call(abi.encodeWithSignature("poolLength()"));
         require(_success, "Failed to get LPStaking.poolLength");
@@ -193,6 +184,8 @@ contract StargateDriver is ProtocolDriver{
                 _amountStaked = _amountStaked.add(_totalLiquidityLD.mul(_amountLPToken).div(_totalSupply));
             }
         }
+
+        response = abi.encode(_amountStaked);
     }
 
     function getStargatePoolFromToken(address _token) public returns (address) {
