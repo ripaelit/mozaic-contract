@@ -3,7 +3,6 @@ import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, StargateToken__factory, MockToken__factory, PrimaryVault, SecondaryVault, LPStaking__factory } from '../../../types/typechain';
 import { ActionTypeEnum, MozaicDeployment } from '../../constants/types';
-// import { initMozaics } from '../../util/deployUtils';
 import exportData from '../../constants/index';
 import { BigNumber, Wallet } from 'ethers';
 // import { ALCHEMY_API_KEY, GOERLI_PRIVATE_KEY } from '../../../hardhat.config';
@@ -20,6 +19,8 @@ describe('SecondaryVault.executeActions', () => {
     let mozaicDeployment = {} as MozaicDeployment;
     // let network;
     let MockTokenFactory: MockToken__factory;
+    let lpStakingFactory: LPStaking__factory;
+    let stgTokenFactory: StargateToken__factory;
     let decimals: number;
 
     before(async () => {
@@ -31,6 +32,8 @@ describe('SecondaryVault.executeActions', () => {
         // // Signer
         // owner = new ethers.Wallet(GOERLI_PRIVATE_KEY, alchemyProvider)
         MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+        lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+        stgTokenFactory = (await ethers.getContractFactory("StargateToken", owner)) as StargateToken__factory;
         
         mozaicDeployments = new Map<number, MozaicDeployment>();
         const mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
@@ -72,7 +75,7 @@ describe('SecondaryVault.executeActions', () => {
             // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const coinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;
             const coinContract = MockTokenFactory.attach(coinAddr);
-            const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+            // const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
             const lpStakingAddr = await secondaryVault.stargateLpStaking();
             const lpStaking = lpStakingFactory.attach(lpStakingAddr);
             const amountLD = ethers.utils.parseUnits("1", decimals);
@@ -111,7 +114,7 @@ describe('SecondaryVault.executeActions', () => {
             // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const coinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;
             const coinContract = MockTokenFactory.attach(coinAddr);
-            const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+            // const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
             const lpStakingAddr = await secondaryVault.stargateLpStaking();
             const lpStaking = lpStakingFactory.attach(lpStakingAddr);
             const amountLD = ethers.utils.parseUnits("1", decimals);
@@ -275,7 +278,7 @@ describe('SecondaryVault.executeActions', () => {
         it ("can swap STG->USDT", async () => {
             const chainId = exportData.testnetTestConstants.chainIds[0];// Eth
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const stgTokenFactory = (await ethers.getContractFactory("StargateToken", owner)) as StargateToken__factory;
+            // const stgTokenFactory = (await ethers.getContractFactory("StargateToken", owner)) as StargateToken__factory;
             const stgTokenAddr = await secondaryVault.stargateToken();
             const stgToken = stgTokenFactory.attach(stgTokenAddr);
             // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
