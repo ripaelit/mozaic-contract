@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "../../interfaces/IOFT.sol";
 import "./OFTCore.sol";
-import "hardhat/console.sol";
 
 // override decimal() function is needed
 contract OFT is OFTCore, ERC20, IOFT {

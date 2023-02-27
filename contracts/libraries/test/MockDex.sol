@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./MockToken.sol";
-import "hardhat/console.sol";
 
 contract MockDex {
     using SafeMath for uint256; 

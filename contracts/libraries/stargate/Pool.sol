@@ -171,64 +171,47 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         uint256 _minAmountLD,
         bool newLiquidity
     ) external nonReentrant onlyRouter returns (SwapObj memory) {
-        // console.log("Pool.swap:");
         require(!stopSwap, "Stargate: swap func stopped");
-        // console.log("1");
         ChainPath storage cp = getAndCheckCP(_dstChainId, _dstPoolId);
-        // console.log("2");
         require(cp.ready == true, "Stargate: counter chainPath is not ready");
-        // console.log("3");
 
         uint256 amountSD = amountLDtoSD(_amountLD);
         uint256 minAmountSD = amountLDtoSD(_minAmountLD);
 
-        // console.log("4");
         // request fee params from library
         SwapObj memory s = IStargateFeeLibrary(feeLibrary).getFees(poolId, _dstPoolId, _dstChainId, _from, amountSD);
 
-        // console.log("5");
         // equilibrium fee and reward. note eqFee/eqReward are separated from swap liquidity
         eqFeePool = eqFeePool.sub(s.eqReward);
-        // console.log("6");
         // update the new amount the user gets minus the fees
         s.amount = amountSD.sub(s.eqFee).sub(s.protocolFee).sub(s.lpFee);
-        // console.log("7");
         // users will also get the eqReward
         require(s.amount.add(s.eqReward) >= minAmountSD, "Stargate: slippage too high");
 
-        // console.log("8");
         // behaviours
         //     - protocolFee: booked, stayed and withdrawn at remote.
         //     - eqFee: booked, stayed and withdrawn at remote.
         //     - lpFee: booked and stayed at remote, can be withdrawn anywhere
 
         s.lkbRemove = amountSD.sub(s.lpFee).add(s.eqReward);
-        // console.log("9");
         // check for transfer solvency.
 
         // CHECKAFTER: 
         // require(cp.balance >= s.lkbRemove, "Stargate: dst balance too low");
-        // console.log("10");
         // cp.balance = cp.balance.sub(s.lkbRemove);
         ////
         
-        // console.log("11");
         if (newLiquidity) {
-            // console.log("12");
             deltaCredit = deltaCredit.add(amountSD).add(s.eqReward);
         } else if (s.eqReward > 0) {
-            // console.log("13");
             deltaCredit = deltaCredit.add(s.eqReward);
         }
 
-        // console.log("14");
         // distribute credits on condition.
         if (!batched || deltaCredit >= totalLiquidity.mul(swapDeltaBP).div(BP_DENOMINATOR)) {
-            // console.log("15");
             _delta(defaultSwapMode);
         }
 
-        // console.log("16");
         emit Swap(_dstChainId, _dstPoolId, _from, s.amount, s.eqReward, s.eqFee, s.protocolFee, s.lpFee);
         return s;
     }
@@ -237,11 +220,14 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
     // -------                                  ---------
     // sendCredits      ->                      creditChainPath
     function sendCredits(uint16 _dstChainId, uint256 _dstPoolId) external nonReentrant onlyRouter returns (CreditObj memory c) {
+        console.log("Pool.sendCredits called: _dstChainId %d, _dstPoolId %d", _dstChainId, _dstPoolId);
         ChainPath storage cp = getAndCheckCP(_dstChainId, _dstPoolId);
         require(cp.ready == true, "Stargate: counter chainPath is not ready");
         cp.lkb = cp.lkb.add(cp.credits);
+        console.log("cp.lkb %d, cp.credits %d", cp.lkb, cp.credits);
         c.idealBalance = totalLiquidity.mul(cp.weight).div(totalWeight);
         c.credits = cp.credits;
+        console.log("c.credits %d, c.idealBalance", c.credits, c.idealBalance);
         cp.credits = 0;
         emit SendCredits(_dstChainId, _dstPoolId, c.credits, c.idealBalance);
     }
@@ -270,6 +256,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         uint256 _amountLP,
         address _to
     ) external nonReentrant onlyRouter returns (uint256 amountSD) {
+        console.log("Pool.instantRedeemLocal start: _amountLP", _amountLP);
         require(_from != address(0x0), "Stargate: _from cannot be 0x0");
         uint256 _deltaCredit = deltaCredit; // sload optimization.
         uint256 _capAmountLP = _amountSDtoLP(_deltaCredit);
@@ -277,8 +264,10 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         amountSD = _burnLocal(_from, _amountLP);
         deltaCredit = _deltaCredit.sub(amountSD);
         uint256 amountLD = amountSDtoLD(amountSD);
+        console.log("amountLD", amountLD);
         _safeTransfer(token, _to, amountLD);
         emit InstantRedeemLocal(_from, _amountLP, amountSD, _to);
+        console.log("Pool.instantRedeemLocal end");
     }
 
     // Local                                    Remote
@@ -318,6 +307,8 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
     ) external nonReentrant onlyRouter {
         ChainPath storage cp = chainPaths[chainPathIndexLookup[_dstChainId][_dstPoolId]];
         cp.balance = cp.balance.add(_c.credits);
+        console.log("creditChainPath: cp.balance %d, _c.credits %d", cp.balance, _c.credits);
+        console.log("creditChainPath: cp.idealBalance %d, _c.idealBalance", cp.idealBalance, _c.idealBalance);
         if (cp.idealBalance != _c.idealBalance) {
             cp.idealBalance = _c.idealBalance;
         }
@@ -333,6 +324,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         address _to,
         SwapObj memory _s
     ) external nonReentrant onlyRouter returns (uint256 amountLD) {
+        console.log("Pool.swapRemote called:");
         // booking lpFee
         totalLiquidity = totalLiquidity.add(_s.lpFee);
         // booking eqFee
@@ -342,11 +334,15 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
 
         // update LKB
         uint256 chainPathIndex = chainPathIndexLookup[_srcChainId][_srcPoolId];
+        console.log("chainPathIndex %d, _srcChainId %d, _srcPoolId %d", chainPathIndex, _srcChainId, _srcPoolId);
+        console.log("chainPaths[chainPathIndex].lkb %d, _s.lkbRemove %d", chainPaths[chainPathIndex].lkb, _s.lkbRemove);
         chainPaths[chainPathIndex].lkb = chainPaths[chainPathIndex].lkb.sub(_s.lkbRemove);
-
+        console.log("zxczxczxczx");
         // user receives the amount + the srcReward
         amountLD = amountSDtoLD(_s.amount.add(_s.eqReward));
+        console.log("s.amount %d, s.eqReward %d, amountLD %d", _s.amount, _s.eqReward, amountLD);
         _safeTransfer(token, _to, amountLD);
+        console.log("token %s, _to %s", token, _to);
         emit SwapRemote(_to, _s.amount.add(_s.eqReward), _s.protocolFee, _s.eqFee);
     }
 
@@ -526,16 +522,19 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
     }
 
     function _burnLocal(address _from, uint256 _amountLP) internal returns (uint256) {
+        console.log("Pool._burnLocal start: _amountLP", _amountLP);
         require(totalSupply > 0, "Stargate: cant burn when totalSupply == 0");
         uint256 amountOfLPTokens = balanceOf[_from];
         require(amountOfLPTokens >= _amountLP, "Stargate: not enough LP tokens to burn");
 
         uint256 amountSD = _amountLP.mul(totalLiquidity).div(totalSupply);
+        console.log("amountSD %d, totalLiquidity %d, totalSupply %d", amountSD, totalLiquidity, totalSupply);
         //subtract totalLiquidity accordingly
         totalLiquidity = totalLiquidity.sub(amountSD);
 
         _burn(_from, _amountLP);
         emit Burn(_from, _amountLP, amountSD);
+        console.log("Pool._burnLocal end");
         return amountSD;
     }
 
