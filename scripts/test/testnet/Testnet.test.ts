@@ -20,6 +20,7 @@ describe('SecondaryVault.executeActions', () => {
     let mozaicDeployment = {} as MozaicDeployment;
     // let network;
     let MockTokenFactory: MockToken__factory;
+    let decimals: number;
 
     before(async () => {
         [owner, kevin, ben] = await ethers.getSigners();  // owner is control center
@@ -58,20 +59,11 @@ describe('SecondaryVault.executeActions', () => {
         
         // Set primaryChainId
         primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
+
+        decimals = 6;
     })
     beforeEach(async () => {
-        // Initialize balances of SecondaryVault to 0
-        const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
-        // for (const chainId of exportData.testnetTestConstants.chainIds) {
-            const chainId = exportData.testnetTestConstants.chainIds[0];
-            let coins = exportData.testnetTestConstants.stablecoins.get(chainId)!;
-            for (const [coinname, coinaddr] of coins) {
-                let token = MockTokenFactory.attach(coinaddr);
-                let balance = await token.connect(owner).balanceOf(secondaryVault.address);
-                await token.connect(owner).transferFrom(secondaryVault.address, owner.address, balance.toNumber());
-                console.log("Owner has %s %d", coinname, balance.toNumber());
-            }
-        // }
+        
     })
     describe.only ('StargateDriver.execute', () => {
         it.only ("can stake token", async () => {
@@ -83,13 +75,14 @@ describe('SecondaryVault.executeActions', () => {
             const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
             const lpStakingAddr = await secondaryVault.stargateLpStaking();
             const lpStaking = lpStakingFactory.attach(lpStakingAddr);
-            const amountLD = BigNumber.from("1234567890123");
+            // const amountLD = BigNumber.from("100");
+            const amountLD = ethers.utils.parseUnits("100", decimals);
             
             // Mint USDC to SecondaryVault
-            console.log("SecondaryVault has token:", (await coinContract.connect(owner).balanceOf(secondaryVault.address)));
+            console.log("Before mint, SecondaryVault has token:", (await coinContract.connect(owner).balanceOf(secondaryVault.address)));
             let tx = await coinContract.connect(owner).mint(secondaryVault.address, amountLD);
-            const receipt = await tx.wait();
-            console.log("tx hash", receipt.transactionHash);
+            let receipt = await tx.wait();
+            // console.log("tx hash", receipt.transactionHash);
             console.log("After mint, SecondaryVault has token:", (await coinContract.connect(owner).balanceOf(secondaryVault.address)));
             
             // SecondaryVault stake USDC
@@ -104,7 +97,9 @@ describe('SecondaryVault.executeActions', () => {
             let lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
             console.log("Before stake: LpTokens for SecondaryVault in LpStaking is", lpStaked);
 
-            await secondaryVault.connect(owner).executeActions([stakeAction]);
+            tx = await secondaryVault.connect(owner).executeActions([stakeAction]);
+            receipt = await tx.wait();
+            // console.log("tx hash", receipt.transactionHash);
             console.log("After stake SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for vault in LpStaking
