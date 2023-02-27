@@ -66,17 +66,56 @@ describe('SecondaryVault.executeActions', () => {
         
     })
     describe.only ('StargateDriver.execute', () => {
-        it.only ("can stake token", async () => {
+        it ("can stake token", async () => {
             const chainId = exportData.testnetTestConstants.chainIds[0];// Ethereum
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
-            const coinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;        // ???kevin
+            // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const coinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;
             const coinContract = MockTokenFactory.attach(coinAddr);
             const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
             const lpStakingAddr = await secondaryVault.stargateLpStaking();
             const lpStaking = lpStakingFactory.attach(lpStakingAddr);
-            // const amountLD = BigNumber.from("100");
-            const amountLD = ethers.utils.parseUnits("100", decimals);
+            const amountLD = ethers.utils.parseUnits("1", decimals);
+            
+            // Mint USDC to SecondaryVault
+            console.log("Before mint, SecondaryVault has token:", (await coinContract.connect(owner).balanceOf(secondaryVault.address)));
+            let tx = await coinContract.connect(owner).mint(secondaryVault.address, amountLD);
+            let receipt = await tx.wait();
+            // console.log("tx hash", receipt.transactionHash);
+            console.log("After mint, SecondaryVault has token:", (await coinContract.connect(owner).balanceOf(secondaryVault.address)));
+            
+            // Check LpTokens for vault in LpStaking
+            let lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
+            console.log("Before stake: LpTokens for SecondaryVault in LpStaking is", lpStaked);
+
+            // SecondaryVault stake USDC
+            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, coinAddr]);
+            const stakeAction: SecondaryVault.ActionStruct  = {
+                driverIndex: exportData.testnetTestConstants.stargateDriverId,
+                actionType: ActionTypeEnum.StargateStake,
+                payload : payload
+            };
+            tx = await secondaryVault.connect(owner).executeActions([stakeAction]);
+            receipt = await tx.wait();
+            // console.log("tx hash", receipt.transactionHash);
+            console.log("After stake SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
+
+            // Check LpTokens for vault in LpStaking
+            lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
+            console.log("After stake LpTokens for SecondaryVault in LpStaking is", lpStaked);
+            expect(lpStaked).gt(BigNumber.from("0"));
+        })
+        it.only ("can unstake USDC", async () => {
+            const chainId = exportData.testnetTestConstants.chainIds[0];// Ethereum
+            const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
+            // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const coinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;
+            const coinContract = MockTokenFactory.attach(coinAddr);
+            const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+            const lpStakingAddr = await secondaryVault.stargateLpStaking();
+            const lpStaking = lpStakingFactory.attach(lpStakingAddr);
+            const amountLD = ethers.utils.parseUnits("1", decimals);
+            // const amountLD = BigNumber.from("1234567890123");
             
             // Mint USDC to SecondaryVault
             console.log("Before mint, SecondaryVault has token:", (await coinContract.connect(owner).balanceOf(secondaryVault.address)));
@@ -104,39 +143,7 @@ describe('SecondaryVault.executeActions', () => {
 
             // Check LpTokens for vault in LpStaking
             lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
-            console.log("After: LpTokens for SecondaryVault in LpStaking is", lpStaked);
-            expect(lpStaked).gt(BigNumber.from("0"));
-        })
-        it ("can unstake USDC", async () => {
-            const chainId = exportData.testnetTestConstants.chainIds[0];// Ethereum
-            const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
-            const coinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;        // ???kevin
-            const coinContract = MockTokenFactory.attach(coinAddr);
-            const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-            const lpStakingAddr = await secondaryVault.stargateLpStaking();
-            const lpStaking = lpStakingFactory.attach(lpStakingAddr);
-            const amountLD = BigNumber.from("1234567890123");
-            
-            // Stake
-            // Mint USDC to SecondaryVault
-            console.log("Total %d, SecondaryVault has token:", (await coinContract.totalSupply()), (await coinContract.balanceOf(secondaryVault.address)));
-            await coinContract.connect(owner).mint(secondaryVault.address, amountLD);
-            console.log("After mint, Total %d, SecondaryVault has token:", (await coinContract.totalSupply()), (await coinContract.balanceOf(secondaryVault.address)));
-            
-            // SecondaryVault stake USDC
-            const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, coinAddr]);
-            const stakeAction: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.testnetTestConstants.stargateDriverId,
-                actionType: ActionTypeEnum.StargateStake,
-                payload : payload
-            };
-            await secondaryVault.connect(owner).executeActions([stakeAction]);
-            console.log("After stake SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
-
-            // Check LpTokens for owner in LpStaking
-            const lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
-            console.log("LpTokens for SecondaryVault in LpStaking is", lpStaked);
+            console.log("After stake: LpTokens for SecondaryVault in LpStaking is", lpStaked);
             expect(lpStaked).gt(BigNumber.from("0"));
 
             // Unstake
@@ -147,32 +154,46 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.StargateUnstake,
                 payload : payloadUnstake
             };
-            await secondaryVault.connect(owner).executeActions([unstakeAction]);
+
+            tx = await secondaryVault.connect(owner).executeActions([unstakeAction]);
+            receipt = await tx.wait();
+            // console.log("tx hash", receipt.transactionHash);
 
             // Check USDC in secondaryVault
-            console.log("SecondaryVault has USDC:", (await coinContract.balanceOf(secondaryVault.address)));
+            console.log("After unstake SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
             expect(await coinContract.balanceOf(secondaryVault.address)).gt(BigNumber.from("0"));
+
+            // Check LpTokens for vault in LpStaking
+            lpStaked = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
+            console.log("After unstake LpTokens for SecondaryVault in LpStaking is", lpStaked);
+            expect(lpStaked).gt(BigNumber.from("0"));
         })
         it ("can swapRemote", async () => {
             const srcChainId = exportData.testnetTestConstants.chainIds[0];  // Ethereum
             const srcVault = mozaicDeployments.get(srcChainId)!.mozaicVault;
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const srcTokenAddr = exportData.testnetTestConstants.stablecoins.get(srcChainId)!.get("USDT")!;
             const srcToken = MockTokenFactory.attach(srcTokenAddr);
-            const amountSrc = BigNumber.from("300000000000000000000");  // 300$
-            const amountStakeSrc = BigNumber.from("100000000000000000000");  // 100$
-            const amountSwap = BigNumber.from("40000000000000000000");   // 40$
+            const amountSrc = ethers.utils.parseUnits("30", decimals);
+            const amountStakeSrc = ethers.utils.parseUnits("10", decimals);
+            const amountSwap = ethers.utils.parseUnits("4", decimals);
+            // const amountSrc = BigNumber.from("300000000000000000000");  // 300$
+            // const amountStakeSrc = BigNumber.from("100000000000000000000");  // 100$
+            // const amountSwap = BigNumber.from("40000000000000000000");   // 40$
 
             const dstChainId = exportData.testnetTestConstants.chainIds[1];  // BSC
-            const dstPoolId = exportData.testnetTestConstants.poolIds.get("USDT")!;   // ????
             const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
+            const dstPoolId = exportData.testnetTestConstants.poolIds.get("USDT")!;   // ????
             const dstTokenAddr = exportData.testnetTestConstants.stablecoins.get(dstChainId)!.get("USDT")!;
             const dstToken = MockTokenFactory.attach(dstTokenAddr);
-            const amountDst = BigNumber.from("300000000000000000000");  // 300$
-            const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
+            const amountDst = ethers.utils.parseUnits("30", decimals);
+            const amountStakeDst = ethers.utils.parseUnits("30", decimals);
+            // const amountDst = BigNumber.from("300000000000000000000");  // 300$
+            // const amountStakeDst = BigNumber.from("100000000000000000000");  // 100$
 
             // Mint srcToken to srcVault
-            await srcToken.connect(owner).mint(srcVault.address, amountSrc);
+            let tx = await srcToken.connect(owner).mint(srcVault.address, amountSrc);
+            let receipt = await tx.wait();
             console.log("srcVault has srcToken:", (await srcToken.balanceOf(srcVault.address)));
             
             // srcVault stake srcToken
@@ -182,11 +203,13 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.StargateStake,
                 payload : srcPayload
             };
-            await srcVault.connect(owner).executeActions([stakeActionSrc]);
+            tx = await srcVault.connect(owner).executeActions([stakeActionSrc]);
+            receipt = await tx.wait();
             console.log("After src stake, srcValut has srcToken %d", (await srcToken.balanceOf(srcVault.address)));
 
             // Mint dstToken to dstVault
-            await dstToken.connect(owner).mint(dstVault.address, amountDst);
+            tx = await dstToken.connect(owner).mint(dstVault.address, amountDst);
+            receipt = await tx.wait();
             console.log("dstVault has dstToken:", (await dstToken.balanceOf(dstVault.address)));
             
             // dstVault stake dstToken
@@ -196,7 +219,8 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.StargateStake,
                 payload : dstPayload
             };
-            await dstVault.connect(owner).executeActions([stakeActionDst]);
+            tx = await dstVault.connect(owner).executeActions([stakeActionDst]);
+            receipt = await tx.wait();
             console.log("After dst stake, dstVault has dstToken %d", (await dstToken.balanceOf(dstVault.address)));
             
             // SwapRemote: Ethereum USDT -> BSC USDT
@@ -206,7 +230,8 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.SwapRemote,
                 payload : payloadSwapRemote
             };
-            await srcVault.connect(owner).executeActions([swapRemoteAction]);
+            tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
+            receipt = await tx.wait();
 
             // Check both tokens
             const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
@@ -220,16 +245,18 @@ describe('SecondaryVault.executeActions', () => {
         it ("can swap USDC->USDT", async () => {
             const chainId = exportData.testnetTestConstants.chainIds[0];// Ethereum
             const secondaryVault = mozaicDeployments.get(chainId)!.mozaicVault;
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdcCoinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;
             const usdcCoin = MockTokenFactory.attach(usdcCoinAddr);
             const usdtCoinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDT")!;
             const usdtCoin = MockTokenFactory.attach(usdtCoinAddr);
-            const amountLD = BigNumber.from("100000000000000000000");   // 100$
+            const amountLD = ethers.utils.parseUnits("1", decimals);
+            // const amountLD = BigNumber.from("100000000000000000000");   // 100$
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, usdcCoinAddr, usdtCoinAddr]);
             
             // Mint USDC to SecondaryVault
-            await usdcCoin.connect(owner).mint(secondaryVault.address, amountLD);
+            let tx = await usdcCoin.connect(owner).mint(secondaryVault.address, amountLD);
+            let receipt = await tx.wait();
             console.log("SecondaryVault has USDC, USDT:", (await usdcCoin.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
             
             // Swap USDC to USDT
@@ -238,7 +265,8 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.Swap,
                 payload : payload
             };
-            await secondaryVault.connect(owner).executeActions([swapAction]);
+            tx = await secondaryVault.connect(owner).executeActions([swapAction]);
+            receipt = await tx.wait();
 
             // Check USDT amount of SecondaryVault
             console.log("Now SecondaryVault has USDC, USDT:", (await usdcCoin.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
@@ -250,15 +278,18 @@ describe('SecondaryVault.executeActions', () => {
             const stgTokenFactory = (await ethers.getContractFactory("StargateToken", owner)) as StargateToken__factory;
             const stgTokenAddr = await secondaryVault.stargateToken();
             const stgToken = stgTokenFactory.attach(stgTokenAddr);
-            const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            // const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdtCoinAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDT")!;
             const usdtCoin = MockTokenFactory.attach(usdtCoinAddr);
-            const amountLD = BigNumber.from("100000000000000000000");   // 100$
+            const amountLD = ethers.utils.parseUnits("1", decimals);
+            // const amountLD = BigNumber.from("100000000000000000000");   // 100$
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, stgTokenAddr, usdtCoinAddr]);
     
             // Send STG to SecondaryVault
-            await stgToken.connect(owner).approve(secondaryVault.address, amountLD);
-            await stgToken.connect(owner).transfer(secondaryVault.address, amountLD);
+            let tx = await stgToken.connect(owner).approve(secondaryVault.address, amountLD);
+            let receipt = await tx.wait();
+            tx = await stgToken.connect(owner).transfer(secondaryVault.address, amountLD);
+            receipt = await tx.wait();
             console.log("SecondaryVault has STG, USDT:", (await stgToken.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
             
             // Swap STG to USDT
@@ -267,7 +298,8 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.Swap,
                 payload : payload
             };
-            await secondaryVault.connect(owner).executeActions([swapAction]);
+            tx = await secondaryVault.connect(owner).executeActions([swapAction]);
+            receipt = await tx.wait();
     
             // Check USDT amount of SecondaryVault
             console.log("Now SecondaryVault has STG, USDT:", (await stgToken.balanceOf(secondaryVault.address)), (await usdtCoin.balanceOf(secondaryVault.address)));
