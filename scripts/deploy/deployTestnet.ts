@@ -3,7 +3,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { deployAllToTestNet } from '../util/deployUtils';
 import { MozaicDeployment } from '../constants/types'
 import exportData from '../constants/index';
-import { mozaic } from '../../types/typechain/contracts';
 const fs = require('fs');
 const hre = require('hardhat');
 

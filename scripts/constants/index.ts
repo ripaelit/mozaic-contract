@@ -112,6 +112,10 @@ const testnetTestConstants = {
         ['USDC', 1],
         ['USDT', 2],
         ['BUSD', 5],
+    ]), 
+    lzToGlobalChainIds: new Map<number, number>([
+        [10121, 5],
+        [10102, 97],
     ]),
     pancakeSwapSmartRouter: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
     stargateDriverId:     1,
