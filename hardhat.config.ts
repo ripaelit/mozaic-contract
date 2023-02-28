@@ -9,6 +9,7 @@ import '@nomiclabs/hardhat-solhint';
 import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomiclabs/hardhat-ethers';
 import 'hardhat-contract-sizer';
+import "hardhat-change-network";
 
 const { mnemonic, bscscanApiKey } = require('./secrets.json');
 
