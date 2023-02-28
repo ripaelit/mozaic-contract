@@ -7,6 +7,9 @@ We focus on speed.
 We put less focus on perfectionism.
 But we leave logs for future improvements that we skip now.
 
+We should stop implementing new changes. Make current stats work.
+This is not the first deployment.
+
 ## Improvemental Points
 
 ### Coding Structure
@@ -38,3 +41,14 @@ Please add your ideas ...
 
 We cover divide by zero cases.
 But we also need to pay attention to overflow cases.
+
+#### Remove Dependency on specific Protocol (esp. Stargate, Layerzero)
+
+- Currently the chainId used in Vaults are LayerZero chain id, instead of the chain id in chainlist.
+- swapRemote action to StargateDriver contains destPoolId
+
+#### Guard condition on removeToken
+
+Make sure there's no asset left as that token.
+
+
