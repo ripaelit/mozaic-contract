@@ -125,7 +125,6 @@ contract Router is IStargateRouter, Ownable, ReentrancyGuard {
                 uint256 convertRate = pool.convertRate();
                 _amountLD = _amountLD.div(convertRate).mul(convertRate);
             }
-            // console.log("Router.swap: _dstChainid %d, _dstPoolId %d, _amountLD %d", uint256(_dstChainId), _dstPoolId, _amountLD);
 
             s = pool.swap(_dstChainId, _dstPoolId, msg.sender, _amountLD, _minAmountLD, true);
             _safeTransferFrom(pool.token(), msg.sender, address(pool), _amountLD);
