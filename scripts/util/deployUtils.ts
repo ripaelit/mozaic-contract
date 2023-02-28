@@ -455,11 +455,14 @@ export const globalChainIdFromLzChainId = (lzChainId: number) => {
 }
 
 export const networkNameFromGlobalChainId = (globalChainId: number) => {
-    let name = "";
-    for (const [networkName, network] of hre.config.networks) {
-        if (network.chainId == globalChainId) {
-            name = networkName;
+    let networkName = "";
+    const networks = hre.config.networks;
+    const config = hre.config.networks['fantom'];
+    const cid = config.chainId;
+    for (const name in networks) {
+        if (networks[name].chainId == globalChainId) {
+            networkName = name;
         }
     }
-    return name;
+    return networkName;
 }
