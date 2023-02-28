@@ -1,22 +1,18 @@
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { deployAllToTestNet } from '../util/deployUtils';
-import { MozaicDeployment } from '../constants/types'
 import exportData from '../constants/index';
 const fs = require('fs');
 
 async function main() {
     let owner: SignerWithAddress;
-    const mozaicDeployments = new Map<number, MozaicDeployment>();
-    let mozaicDeployment: MozaicDeployment;
     
     [owner] = await ethers.getSigners();
     console.log("Deploying contracts with the account:", owner.address);
     console.log("Account balance:", (await owner.getBalance()).toString());
 
     const chainId = exportData.testnetTestConstants.chainIds[0];
-    await deployAllToTestNet(owner, chainId, mozaicDeployments);
-    mozaicDeployment = mozaicDeployments.get(chainId)!;
+    const mozaicDeployment = await deployAllToTestNet(owner, chainId);
     let res = JSON.stringify({
         mozaicVault: mozaicDeployment.mozaicVault.address,
         lzEndpoint: await mozaicDeployment.mozaicVault.lzEndpoint(),

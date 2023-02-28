@@ -8,7 +8,6 @@ const hre = require('hardhat');
 
 async function main() {
     let owner: SignerWithAddress;
-    const mozaicDeployments = new Map<number, MozaicDeployment>();
     let mozaicDeployment: MozaicDeployment;
     
     hre.changeNetwork('goerli');
@@ -17,8 +16,7 @@ async function main() {
     console.log("Account balance:", (await owner.getBalance()).toString());
 
     let chainId = exportData.testnetTestConstants.chainIds[0];
-    await deployAllToTestNet(owner, chainId, mozaicDeployments);
-    mozaicDeployment = mozaicDeployments.get(chainId)!;
+    mozaicDeployment = await deployAllToTestNet(owner, chainId);
     let res = JSON.stringify({
         mozaicVault: mozaicDeployment.mozaicVault.address,
         lzEndpoint: await mozaicDeployment.mozaicVault.lzEndpoint(),
@@ -36,8 +34,7 @@ async function main() {
     console.log("Account balance:", (await owner.getBalance()).toString());
 
     chainId = exportData.testnetTestConstants.chainIds[1];
-    await deployAllToTestNet(owner, chainId, mozaicDeployments);
-    mozaicDeployment = mozaicDeployments.get(chainId)!;
+    mozaicDeployment = await deployAllToTestNet(owner, chainId);
     res = JSON.stringify({
         mozaicVault: mozaicDeployment.mozaicVault.address,
         lzEndpoint: await mozaicDeployment.mozaicVault.lzEndpoint(),

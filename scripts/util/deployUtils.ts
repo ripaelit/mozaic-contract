@@ -4,6 +4,7 @@ import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__fact
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import exportData from '../constants';
+import { mozaic } from '../../types/typechain/contracts';
 const hre = require('hardhat');
 
 export const deployStablecoin = async (
@@ -138,7 +139,6 @@ export const deployMozaic = async (
     stgToken: string,
     protocols: Map<number, Map<string,string>>,
     stablecoin: Map<string, string>,
-    mozaicDeployments: Map<number, MozaicDeployment>,
 ) => {
     let vault, config;
     // Deploy MozaicLP
@@ -196,7 +196,6 @@ export const deployMozaic = async (
         mozaicLp: mozaicLp,
         mozaicVault: vault,
     }
-    mozaicDeployments.set(chainId, mozaicDeployment);
 
     return mozaicDeployment;
 }
@@ -269,7 +268,6 @@ export const deployNew = async (contractName: string, params = []) => {
 export const deployAllToTestNet = async (
     owner: SignerWithAddress, 
     chainId: number,
-    mozaicDeployments: Map<number, MozaicDeployment>
 ) => {
     let protocols = new Map<number, Map<string, string>>();
     
@@ -338,8 +336,8 @@ export const deployAllToTestNet = async (
     // Deploy Mozaic        
     const primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
     const stablecoin = exportData.testnetTestConstants.stablecoins.get(chainId)!;
-    const mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, lzEndpoint, router.address, lpStaking.address, stargateToken.address, protocols, stablecoin, mozaicDeployments);
-
+    const mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, lzEndpoint, router.address, lpStaking.address, stargateToken.address, protocols, stablecoin);
+    return mozaicDeployment;
     // initMozaics(owner, primaryChainId, mozaicDeployments);
 }
 
@@ -368,8 +366,8 @@ export const deployAllToLocalNets = async (
         protocols.set(chainId, new Map<string,string>([["PancakeSwapSmartRouter", mockDex.address]]));
 
         // Deploy Mozaic
-        let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment.lzEndpoint.address, stargateDeployment.routerContract.address, stargateDeployment.lpStakingContract.address, stargateDeployment.stargateToken.address, protocols, stablecoinDeployment, mozaicDeployments);
-
+        let mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, stargateDeployment.lzEndpoint.address, stargateDeployment.routerContract.address, stargateDeployment.lpStakingContract.address, stargateDeployment.stargateToken.address, protocols, stablecoinDeployment);
+        mozaicDeployments.set(chainId, mozaicDeployment);
     }
 
     initMozaics(primaryChainId, mozaicDeployments);
