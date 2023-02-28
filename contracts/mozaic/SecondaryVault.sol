@@ -61,7 +61,7 @@ contract SecondaryVault is NonblockingLzApp {
     //---------------------------------------------------------------------------
     // STRUCTS
     struct Action {
-        uint256 driverIndex;
+        uint256 driverId;
         ProtocolDriver.ActionType actionType;
         bytes payload;
     }
@@ -249,7 +249,7 @@ contract SecondaryVault is NonblockingLzApp {
     function executeActions(Action[] calldata _actions) external onlyOwner {
         for (uint i = 0; i < _actions.length ; i++) {
             Action calldata _action = _actions[i];
-            ProtocolDriver _driver = protocolDrivers[_action.driverIndex];
+            ProtocolDriver _driver = protocolDrivers[_action.driverId];
             (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
             require(success, "Failed to delegate to ProtocolDriver");
         }
