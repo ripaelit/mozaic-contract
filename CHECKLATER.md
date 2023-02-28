@@ -8,7 +8,7 @@ We put less focus on perfectionism.
 But we leave logs for future improvements that we skip now.
 
 We should stop implementing new changes. Make current stats work.
-This is not the first deployment.
+This is not the last deployment.
 
 ## Improvemental Points
 
