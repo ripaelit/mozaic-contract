@@ -75,7 +75,7 @@ describe('PancakeSwapDriver', () => {
 
             // Swap USDC to USDT
             const swapAction: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.pancakeSwapDriverId,
+                driverId: exportData.localTestConstants.pancakeSwapDriverId,
                 actionType: ActionTypeEnum.Swap,
                 payload : payload
             };
@@ -101,7 +101,7 @@ describe('PancakeSwapDriver', () => {
             
             // Swap STG to USDT
             const swapAction: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.pancakeSwapDriverId,
+                driverId: exportData.localTestConstants.pancakeSwapDriverId,
                 actionType: ActionTypeEnum.Swap,
                 payload : payload
             };

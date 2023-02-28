@@ -41,7 +41,7 @@ describe('StargateDriver', () => {
             
             // SecondaryVault stake USDC
             const stakeAction: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.stargateDriverId,
+                driverId: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
                 payload : payload
             };
@@ -69,7 +69,7 @@ describe('StargateDriver', () => {
             // SecondaryVault stake USDC of amountLD
             const payloadStake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
             const stakeAction: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.stargateDriverId,
+                driverId: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
                 payload : payloadStake
             };
@@ -85,7 +85,7 @@ describe('StargateDriver', () => {
             // SecondaryVault unstake LPToken
             const payloadUnstake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLPToken, usdcContract.address]);
             const unstakeAction: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.stargateDriverId,
+                driverId: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateUnstake,
                 payload : payloadUnstake
             };
@@ -121,7 +121,7 @@ describe('StargateDriver', () => {
             // srcVault stake srcToken
             const srcPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeSrc, srcToken.address]);
             const stakeActionSrc: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.stargateDriverId,
+                driverId: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
                 payload : srcPayload
             };
@@ -135,7 +135,7 @@ describe('StargateDriver', () => {
             // dstVault stake dstToken
             const dstPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeDst, dstToken.address]);
             const stakeActionDst: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.stargateDriverId,
+                driverId: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
                 payload : dstPayload
             };
@@ -145,7 +145,7 @@ describe('StargateDriver', () => {
             // SwapRemote: Ethereum USDT -> BSC USDT
             const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256"], [amountSwap, srcToken.address, dstChainId, dstPoolId]);
             const swapRemoteAction: SecondaryVault.ActionStruct  = {
-                driverIndex: exportData.localTestConstants.stargateDriverId,
+                driverId: exportData.localTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.SwapRemote,
                 payload : payloadSwapRemote
             };
