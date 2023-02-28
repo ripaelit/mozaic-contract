@@ -17,6 +17,7 @@
     "deploy": "npx hardhat run --network localhost ./scripts/deploy/deployLocalhost.ts",
     "deploy-goerli": "npx hardhat run --network goerli ./scripts/deploy/deployGoerli.ts",
     "deploy-bsctest": "npx hardhat run --network bsctest ./scripts/deploy/deployBsc.ts",
+    "deploy-testnet": "npx hardhat run ./scripts/deploy/deployTestnet.ts",
     "coverage": "yarn build && npx hardhat coverage --temp artifacts --network coverage",
     "postinstall": "yarn compile",
     "lint": "gts lint && npx hardhat check",
@@ -57,6 +58,5 @@
     "ts-node": "^10.9.1",
     "typechain": "^8.1.0",
     "typescript": "^4.2.4"
-  },
-  "dependencies": {}
+  }
 }
