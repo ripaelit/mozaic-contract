@@ -147,6 +147,7 @@ export const deployMozaic = async (
     // console.log("ETH(owner) after deploy MozaicLP", (await ethers.provider.getBalance(owner.address)).toString());
     // console.log("Gas Price:", (await ethers.provider.getGasPrice()).toString());
     await mozaicLp.deployed();
+    console.log("Deployed MozaicLP", mozaicLp.address);
 
     // Deploy Protocal Drivers
     // 1. Deploy PancakeSwapDriver
@@ -166,7 +167,7 @@ export const deployMozaic = async (
       const primaryVaultFactory = await ethers.getContractFactory('PrimaryVault', owner) as PrimaryVault__factory;
       const primaryVault = await primaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgLPStaking, stgToken, mozaicLp.address);
       await primaryVault.deployed();
-    //   console.log("Deployed PrimaryVault:", primaryVault.address);
+      console.log("Deployed PrimaryVault:", primaryVault.address);
       vault = primaryVault;
     }
     else {
@@ -174,7 +175,7 @@ export const deployMozaic = async (
       const secondaryVaultFactory = await ethers.getContractFactory('SecondaryVault', owner) as SecondaryVault__factory;
       const secondaryVault = await secondaryVaultFactory.deploy(lzEndpoint, chainId, primaryChainId, stgLPStaking, stgToken, mozaicLp.address);
       await secondaryVault.deployed();
-    //   console.log("Deployed SecondaryVault:", secondaryVault.address);
+      console.log("Deployed SecondaryVault:", secondaryVault.address);
       vault = secondaryVault;
     }
     // Set ProtocolDrivers to vault
@@ -285,6 +286,7 @@ export const deployAllToTestNet = async (
 
     // Get LzEndpoint contract
     const lzEndpoint = await bridge.layerZeroEndpoint();
+    console.log("LZEndpoint", lzEndpoint);
 
     // Deploy Stargate Token
     const stgMainChainId = exportData.testnetTestConstants.stgMainChainId;
@@ -297,6 +299,7 @@ export const deployAllToTestNet = async (
         BigNumber.from("4000000000000000000000000") // 4e24
     );
     await stargateToken.deployed();
+    console.log("Deployed StargateToken", stargateToken.address);
     
     // Deploy LPStaking
     const latestBlockNumber = await ethers.provider.getBlockNumber();
@@ -308,6 +311,7 @@ export const deployAllToTestNet = async (
         latestBlockNumber + 3
     );
     await lpStaking.deployed();
+    console.log("Deployed LPStaking", lpStaking.address);
 
     // Register pools to LPStaking
     const stablecoins = exportData.testnetTestConstants.stablecoins;
