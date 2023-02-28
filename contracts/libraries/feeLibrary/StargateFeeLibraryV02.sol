@@ -41,20 +41,15 @@ contract StargateFeeLibraryV02 is IStargateFeeLibrary, Ownable, ReentrancyGuard 
         uint256 _amountSD
     ) external view override returns (Pool.SwapObj memory s) {
         return s;   // CHECKAFTER: set fees as 0.
-        console.log("getFees called:");
         // calculate the protocol fee
         s.protocolFee = _amountSD.mul(PROTOCOL_FEE).div(DENOMINATOR);
-        console.log("s.protocolFee =", s.protocolFee);
 
         // calculate the equilibrium Fee
         Pool pool = factory.getPool(_srcPoolId);
-        console.log("pool.address", address(pool));
         Pool.ChainPath memory chainPath = pool.getChainPath(_dstChainId, _dstPoolId);
-        console.log("chainPath.balance", chainPath.balance);
 
         // calculate the equilibrium fee
         (uint256 eqFee, uint256 protocolSubsidy) = _getEquilibriumFee(chainPath.idealBalance, chainPath.balance, _amountSD);
-        console.log("eqFee %d, protocolSubsidy %d", eqFee, protocolSubsidy);
         s.eqFee = eqFee;
         s.protocolFee = s.protocolFee.sub(protocolSubsidy);
 
@@ -62,25 +57,20 @@ contract StargateFeeLibraryV02 is IStargateFeeLibrary, Ownable, ReentrancyGuard 
         address tokenAddress = pool.token();
         uint256 currentAssetSD = IERC20(tokenAddress).balanceOf(address(pool)).div(pool.convertRate());
         uint256 lpAsset = pool.totalLiquidity();
-        console.log("currentAssetSD", currentAssetSD);
         if (lpAsset > currentAssetSD) {
             // in deficit
             uint256 poolDeficit = lpAsset.sub(currentAssetSD);
             uint256 rewardPoolSize = pool.eqFeePool();
             // reward capped at rewardPoolSize
             uint256 eqRewards = rewardPoolSize.mul(_amountSD).div(poolDeficit);
-            console.log("eqRewards", eqRewards);
             if (eqRewards > rewardPoolSize) {
-                console.log("eqRewards, rewardPoolSize", eqRewards, rewardPoolSize);
                 eqRewards = rewardPoolSize;
             }
             s.eqReward = eqRewards;
-            console.log("s.eqReward", s.eqReward);
         }
 
         // calculate the LP fee.
         s.lpFee = _amountSD.mul(LP_FEE).div(DENOMINATOR);
-        console.log("getFees called: s.lpFee:", s.lpFee);
 
         return s;
     }
@@ -109,9 +99,7 @@ contract StargateFeeLibraryV02 is IStargateFeeLibrary, Ownable, ReentrancyGuard 
         uint256 beforeBalance,
         uint256 amountSD
     ) internal pure returns (uint256, uint256) {
-        // console.log("_getEquilibriumFee: idealBalance %d, beforeBalance %d, amountSD %d", idealBalance, beforeBalance, amountSD);
         require(beforeBalance >= amountSD, "Stargate: not enough balance");
-        // console.log("1");
         uint256 afterBalance = beforeBalance.sub(amountSD);
 
         uint256 safeZoneMax = idealBalance.mul(DELTA_1).div(DENOMINATOR);
@@ -120,39 +108,29 @@ contract StargateFeeLibraryV02 is IStargateFeeLibrary, Ownable, ReentrancyGuard 
         uint256 eqFee = 0;
         uint256 protocolSubsidy = 0;
 
-        // console.log("2");
         if (afterBalance >= safeZoneMax) {
-            // console.log("3");
             // no fee zone, protocol subsidize it.
             eqFee = amountSD.mul(PROTOCOL_SUBSIDY).div(DENOMINATOR);
             protocolSubsidy = eqFee;
         } else if (afterBalance >= safeZoneMin) {
-            // console.log("4");
             // safe zone
             uint256 proxyBeforeBalance = beforeBalance < safeZoneMax ? beforeBalance : safeZoneMax;
             eqFee = _getTrapezoidArea(LAMBDA_1, 0, safeZoneMax, safeZoneMin, proxyBeforeBalance, afterBalance);
         } else {
-            // console.log("5");
             // danger zone
             if (beforeBalance >= safeZoneMin) {
-                // console.log("6");
                 // across 2 or 3 zones
                 // part 1
                 uint256 proxyBeforeBalance = beforeBalance < safeZoneMax ? beforeBalance : safeZoneMax;
                 eqFee = eqFee.add(_getTrapezoidArea(LAMBDA_1, 0, safeZoneMax, safeZoneMin, proxyBeforeBalance, safeZoneMin));
-                // console.log("7");
                 // part 2
                 eqFee = eqFee.add(_getTrapezoidArea(LAMBDA_2, LAMBDA_1, safeZoneMin, 0, safeZoneMin, afterBalance));
-                // console.log("8");
             } else {
-                // console.log("9");
                 // only in danger zone
                 // part 2 only
                 eqFee = eqFee.add(_getTrapezoidArea(LAMBDA_2, LAMBDA_1, safeZoneMin, 0, beforeBalance, afterBalance));
-                // console.log("10");
             }
         }
-        // console.log("eqFee, protocolSubsidy", eqFee, protocolSubsidy);
         return (eqFee, protocolSubsidy);
     }
 
