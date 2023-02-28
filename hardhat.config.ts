@@ -71,6 +71,12 @@ const config: HardhatUserConfig = {
             gasPrice: 20000000000,
             accounts: {mnemonic: mnemonic},
         },
+        fantom: {
+            url: `https://endpoints.omniatech.io/v1/fantom/testnet/public`,
+            chainId: 4002,
+            gasPrice: 20000000000,
+            accounts: {mnemonic: mnemonic},
+        },
     },
     etherscan: {
         // Your API key for Etherscan
