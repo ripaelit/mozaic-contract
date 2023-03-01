@@ -427,9 +427,6 @@ export const initMozaics = async (
             await tx1.wait();
             console.log("tx1 hash", tx1.hash);
         }
-        // TODO: Transfer ownership of MozaicLP to Vault
-        // let tx = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozaicDeployments.get(chainIdLeft)!.mozaicVault.address);
-        // await tx.wait();
     }
     console.log("Registerd TrustedRemote");
 
