@@ -324,7 +324,7 @@ export const deployAllToTestNet = async (
     const stablecoins = exportData.testnetTestConstants.stablecoins;
     const poolIds = exportData.testnetTestConstants.poolIds;
     const coins = stablecoins.get(chainId)!;
-    for (const [coinName] of coins) {
+    for (let coinName of coins.keys()) {
         let poolId = poolIds.get(coinName)!;
         let poolAddr = await factory.getPool(poolId);
         let tx = await lpStaking.connect(owner).add(poolId, poolAddr);
@@ -410,7 +410,7 @@ export const initMozaics = async (
     let owner: SignerWithAddress;
 
     // Register TrustedRemote
-    for (const [chainIdLeft] of mozaicDeployments) {
+    for (const [chainIdLeft, mozLeft] of mozaicDeployments) {
         // run the following code on the relevent network of chainIdLeft.
         // chainIdLeft : LayerZero chain id ---> global chain id
         const globalChainId = globalChainIdFromLzChainId(chainIdLeft);
@@ -421,11 +421,11 @@ export const initMozaics = async (
             hre.changeNetwork(networkName);
         }
         [owner] = await ethers.getSigners();
-        for (const [chainIdRight] of mozaicDeployments) {
+        for (const [chainIdRight, mozRight] of mozaicDeployments) {
             if (chainIdLeft == chainIdRight) continue;
-            let tx = await mozaicDeployments.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
+            let tx = await mozLeft.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozRight.mozaicVault.address);
             await tx.wait();
-            tx = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
+            tx = await mozLeft.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozRight.mozaicLp.address);
             await tx.wait();
         }
     }
