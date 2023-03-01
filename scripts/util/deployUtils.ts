@@ -180,17 +180,21 @@ export const deployMozaic = async (
     }
     // Set ProtocolDrivers to vault
     config = ethers.utils.defaultAbiCoder.encode(["address", "address"], [stgRouter, stgLPStaking]);
-    await vault.connect(owner).setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
+    let tx = await vault.connect(owner).setProtocolDriver(exportData.localTestConstants.stargateDriverId, stargateDriver.address, config);
+    await tx.wait();
     config = ethers.utils.defaultAbiCoder.encode(["address"], [protocols.get(chainId)!.get("PancakeSwapSmartRouter")!]);
-    await vault.connect(owner).setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+    tx = await vault.connect(owner).setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
+    await tx.wait();
     // console.log("Set protocolDrivers to vault");
 
     // Set vault to MLP
-    mozaicLp.connect(owner).setVault(vault.address);
+    tx = await mozaicLp.connect(owner).setVault(vault.address);
+    await tx.wait();
 
     // Set Accepting Tokens
     for (const [_, token] of stablecoin) {
-        await vault.connect(owner).addToken(token);
+        tx = await vault.connect(owner).addToken(token);
+        await tx.wait();
     }
     // console.log("Set accepting tokens");
 
@@ -198,6 +202,8 @@ export const deployMozaic = async (
         mozaicLp: mozaicLp,
         mozaicVault: vault,
     }
+
+    console.log("Deployed Mozaic.");
 
     return mozaicDeployment;
 }
@@ -299,7 +305,6 @@ export const deployAllToTestNet = async (
         stgMainChainId, 
         BigNumber.from("90000000000000000000000") // 9e22
     );
-    console.log("stargateToken");
     await stargateToken.deployed();
     console.log("Deployed StargateToken", stargateToken.address);
     
@@ -322,7 +327,8 @@ export const deployAllToTestNet = async (
     for (const [coinName] of coins) {
         let poolId = poolIds.get(coinName)!;
         let poolAddr = await factory.getPool(poolId);
-        await lpStaking.connect(owner).add(poolId, poolAddr);
+        let tx = await lpStaking.connect(owner).add(poolId, poolAddr);
+        await tx.wait();
         console.log("pool added to lpStaking: poolId %d, pool %s", poolId, poolAddr);
     }
     
