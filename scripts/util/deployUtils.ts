@@ -340,7 +340,6 @@ export const deployAllToTestNet = async (
     const stablecoin = exportData.testnetTestConstants.stablecoins.get(chainId)!;
     const mozaicDeployment = await deployMozaic(owner, chainId, primaryChainId, lzEndpoint, router.address, lpStaking.address, stargateToken.address, protocols, stablecoin);
     return mozaicDeployment;
-    // initMozaics(owner, primaryChainId, mozaicDeployments);
 }
 
 export const deployAllToLocalNets = async (
@@ -372,7 +371,7 @@ export const deployAllToLocalNets = async (
         mozaicDeployments.set(chainId, mozaicDeployment);
     }
 
-    initMozaics(primaryChainId, mozaicDeployments);
+    await initMozaics(primaryChainId, mozaicDeployments);
 
     // LZEndpointMock setDestLzEndpoint
     await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
@@ -418,14 +417,10 @@ export const initMozaics = async (
         [owner] = await ethers.getSigners();
         for (const [chainIdRight] of mozaicDeployments) {
             if (chainIdLeft == chainIdRight) continue;
-            console.log("left chain %d, left vault %s, right chain %d, right vault %s", chainIdLeft, mozaicDeployments.get(chainIdLeft)!.mozaicVault.address, chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
             let tx = await mozaicDeployments.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
             await tx.wait();
-            console.log("tx hash", tx.hash);
-            console.log("left chain %d, left mLp %s, right chain %d, right mLp %s", chainIdLeft, mozaicDeployments.get(chainIdLeft)!.mozaicLp.address, chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
-            let tx1 = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
-            await tx1.wait();
-            console.log("tx1 hash", tx1.hash);
+            tx = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
+            await tx.wait();
         }
     }
     console.log("Registerd TrustedRemote");

@@ -56,7 +56,7 @@ describe('SecondaryVault.executeActions', () => {
 
         decimals = 6;
 
-        initMozaics(primaryChainId, mozaicDeployments);
+        await initMozaics(primaryChainId, mozaicDeployments);
     })
     beforeEach(async () => {
         hre.changeNetwork('bsctest');
@@ -77,7 +77,7 @@ describe('SecondaryVault.executeActions', () => {
             // Mint USDC to SecondaryVault
             console.log("Before mint, SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
             let tx = await coinContract.connect(owner).mint(secondaryVault.address, amountLD);
-            let receipt = await tx.wait();
+            await tx.wait();
             // console.log("tx hash", receipt.transactionHash);
             console.log("After mint, SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
             
@@ -93,7 +93,7 @@ describe('SecondaryVault.executeActions', () => {
                 payload : payload
             };
             tx = await secondaryVault.connect(owner).executeActions([stakeAction]);
-            receipt = await tx.wait();
+            await tx.wait();
             console.log("After stake SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for vault in LpStaking
@@ -115,7 +115,7 @@ describe('SecondaryVault.executeActions', () => {
             // Mint USDC to SecondaryVault
             console.log("Before mint, SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
             let tx = await coinContract.connect(owner).mint(secondaryVault.address, amountLD);
-            let receipt = await tx.wait();
+            await tx.wait();
             console.log("After mint, SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
             
             // Check LpTokens for vault in LpStaking
@@ -130,7 +130,7 @@ describe('SecondaryVault.executeActions', () => {
                 payload : payload
             };
             tx = await secondaryVault.connect(owner).executeActions([stakeAction]);
-            receipt = await tx.wait();
+            await tx.wait();
             console.log("After stake SecondaryVault has token:", (await coinContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for vault in LpStaking
@@ -149,7 +149,7 @@ describe('SecondaryVault.executeActions', () => {
             };
 
             tx = await secondaryVault.connect(owner).executeActions([unstakeAction]);
-            receipt = await tx.wait();
+            await tx.wait();
 
             // Check USDC in secondaryVault
             const amountCoinAfter = await coinContract.balanceOf(secondaryVault.address);
@@ -174,8 +174,8 @@ describe('SecondaryVault.executeActions', () => {
 
             // Mint srcToken to srcVault
             let tx = await srcToken.connect(owner).mint(srcVault.address, amountSrc);
-            let receipt = await tx.wait();
-            console.log("srcVault has srcToken:", (await srcToken.balanceOf(srcVault.address)));
+            await tx.wait();
+            console.log("srcVault has srcToken:", (await srcToken.balanceOf(srcVault.address)).toString());
             
             // srcVault stake srcToken
             const srcPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeSrc, srcToken.address]);
@@ -185,9 +185,9 @@ describe('SecondaryVault.executeActions', () => {
                 payload : srcPayload
             };
             tx = await srcVault.connect(owner).executeActions([stakeActionSrc]);
-            receipt = await tx.wait();
+            await tx.wait();
             const amountSrcBefore = await srcToken.balanceOf(srcVault.address);
-            console.log("After src stake, srcValut has srcToken %d", amountSrcBefore);
+            console.log("After src stake, srcValut has srcToken %d", amountSrcBefore.toString());
 
             hre.changeNetwork('fantom');
             [owner] = await ethers.getSigners();
@@ -202,7 +202,7 @@ describe('SecondaryVault.executeActions', () => {
 
             // Mint dstToken to dstVault
             tx = await dstToken.connect(owner).mint(dstVault.address, amountDst);
-            receipt = await tx.wait();
+            await tx.wait();
             console.log("dstVault has dstToken:", (await dstToken.balanceOf(dstVault.address)));
             
             // dstVault stake dstToken
@@ -213,7 +213,7 @@ describe('SecondaryVault.executeActions', () => {
                 payload : dstPayload
             };
             tx = await dstVault.connect(owner).executeActions([stakeActionDst]);
-            receipt = await tx.wait();
+            await tx.wait();
             const amountDstBefore = await dstToken.balanceOf(dstVault.address);
             console.log("After dst stake, dstVault has dstToken %d", amountDstBefore);
 
@@ -227,7 +227,7 @@ describe('SecondaryVault.executeActions', () => {
                 payload : payloadSwapRemote
             };
             tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
-            receipt = await tx.wait();
+            await tx.wait();
 
             // Check both tokens
             const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
