@@ -30,7 +30,7 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
     }
 
     function _checkVault() internal view virtual {
-        require(vault() == _msgSender(), "Ownable: caller is not the owner");
+        require(vault() == _msgSender(), "OnlyVault: caller is not the vault");
     }
 
     function setVault(address _vault__) public onlyOwner {
