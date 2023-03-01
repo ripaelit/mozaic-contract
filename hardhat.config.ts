@@ -11,7 +11,7 @@ import '@nomiclabs/hardhat-ethers';
 import 'hardhat-contract-sizer';
 import "hardhat-change-network";
 
-const { mnemonic, bscscanApiKey, goerliApiKey } = require('./secrets.json');
+const { mnemonic, bscscanApiKey, goerliApiKey, fantomApiKey } = require('./secrets.json');
 
 // const ALCHEMY_API_KEY = "SdxE5xrDm_WJBQSMjcHb3qKh68T5ILxD";
 // const ALCHEMY_API_KEY = "N9yQH6XzETO5Mf5WIc9LRChcTvXdQNn_"; // App name: test
@@ -37,6 +37,18 @@ const config: HardhatUserConfig = {
                 }
             }
         }],
+        settings: {
+            debug: {
+                // Enable the debugger
+                enabled: true,
+                // Define the URL of the debugging server
+                server: "http://127.0.0.1:8545",
+                // Enable Solidity stack traces
+                stacktrace: true,
+                // Enable detailed errors
+                verbose: true,
+            },
+        },
     },
     // redirect typechain output for the frontend
     typechain: {
@@ -82,8 +94,9 @@ const config: HardhatUserConfig = {
         // Your API key for Etherscan
         // Obtain one at https://etherscan.io/
 
-        // apiKey: goerliApiKey
-        apiKey: bscscanApiKey
+        // apiKey: goerliApiKey,
+        // apiKey: bscscanApiKey,
+        apiKey: fantomApiKey,
     },
     paths: {
         sources: "./contracts",
