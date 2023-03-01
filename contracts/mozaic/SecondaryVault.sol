@@ -90,13 +90,13 @@ contract SecondaryVault is NonblockingLzApp {
         // deposit
         mapping (address => mapping (address => mapping (uint16 => uint256))) depositRequestLookup; // [user][token][chainId] = amountSD
         DepositRequest[] depositRequestList;
-        mapping (address => uint256) depositAmountPerToken; // [token] = amountLD
+        mapping (address => uint256) depositRequestAmountPerToken; // [token] = amountLD
         uint256 totalDepositRequest;
         // withdraw
         mapping (address => mapping (uint16 => mapping (address => uint256))) withdrawRequestLookup; // [user][chainId][token] = amountMLP
         WithdrawRequest[] withdrawRequestList;
         mapping (address => uint256) withdrawForUserMLP; // [user] = amountMLP
-        mapping (address => uint256) withdrawAmountPerToken; // [token] = amountMLP
+        mapping (address => uint256) withdrawRequestAmountPerToken; // [token] = amountMLP
         uint256 totalWithdrawRequestMLP;
     }
 
@@ -109,8 +109,8 @@ contract SecondaryVault is NonblockingLzApp {
     address public stargateLpStaking;
     address public stargateToken;
     address public mozaicLp;
-    uint16 public primaryChainId=0;
-    uint16 public chainId=0;
+    uint16 public primaryChainId = 0;
+    uint16 public chainId = 0;
     address[] public acceptingTokens;
 
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
@@ -144,24 +144,6 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function getDepositRequest(bool _staged, uint256 _index) public view returns (DepositRequest memory) {
-        if (_staged) {
-            return _stagedReqs().depositRequestList[_index];
-        }
-        else {
-            return _pendingReqs().depositRequestList[_index];
-        }
-    }
-
-    function getTotalDepositRequest(bool _staged) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().totalDepositRequest;
-        }
-        else {
-            return _pendingReqs().totalDepositRequest;
-        }
-    }
-
     function getWithdrawRequestAmount(bool _staged, address _user, uint16 _chainId, address _token) public view returns (uint256) {
         if (_staged) {
             return _stagedReqs().withdrawRequestLookup[_user][_chainId][_token];
@@ -171,12 +153,30 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
+    function getDepositRequest(bool _staged, uint256 _index) public view returns (DepositRequest memory) {
+        if (_staged) {
+            return _stagedReqs().depositRequestList[_index];
+        }
+        else {
+            return _pendingReqs().depositRequestList[_index];
+        }
+    }
+
     function getWithdrawRequest(bool _staged, uint256 _index) public view returns (WithdrawRequest memory) {
         if (_staged) {
             return _stagedReqs().withdrawRequestList[_index];
         }
         else {
             return _pendingReqs().withdrawRequestList[_index];
+        }
+    }
+
+    function getTotalDepositRequest(bool _staged) public view returns (uint256) {
+        if (_staged) {
+            return _stagedReqs().totalDepositRequest;
+        }
+        else {
+            return _pendingReqs().totalDepositRequest;
         }
     }
 
@@ -198,15 +198,6 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function getDepositRequestItem(bool _staged, uint256 _idx) public view returns (DepositRequest memory) {
-        if (_staged) {
-            return _stagedReqs().depositRequestList[_idx];
-        }
-        else {
-            return _pendingReqs().depositRequestList[_idx];
-        }
-    }
-
     function getWithdrawRequestListLength(bool _staged) public view returns (uint256) {
         if (_staged) {
             return _stagedReqs().withdrawRequestList.length;
@@ -216,30 +207,21 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function getWithdrawRequestItem(bool _staged, uint256 _idx) public view returns (WithdrawRequest memory) {
+    function getDepositRequestAmountPerToken(bool _staged, address _token) public view returns (uint256) {
         if (_staged) {
-            return _stagedReqs().withdrawRequestList[_idx];
+            return _stagedReqs().depositRequestAmountPerToken[_token];
         }
         else {
-            return _pendingReqs().withdrawRequestList[_idx];
+            return _pendingReqs().depositRequestAmountPerToken[_token];
         }
     }
 
-    function getDepositAmountPerToken(bool _staged, address _token) public view returns (uint256) {
+    function getWithdrawRequestAmountPerToken(bool _staged, address _token) public view returns (uint256) {
         if (_staged) {
-            return _stagedReqs().depositAmountPerToken[_token];
+            return _stagedReqs().withdrawRequestAmountPerToken[_token];
         }
         else {
-            return _pendingReqs().depositAmountPerToken[_token];
-        }
-    }
-
-    function getWithdrawAmountPerToken(bool _staged, address _token) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().withdrawAmountPerToken[_token];
-        }
-        else {
-            return _pendingReqs().withdrawAmountPerToken[_token];
+            return _pendingReqs().withdrawRequestAmountPerToken[_token];
         }
     }
 
@@ -350,7 +332,7 @@ contract SecondaryVault is NonblockingLzApp {
 
         // 3. Update totalDepositRequest
         buffer.totalDepositRequest = buffer.totalDepositRequest.add(_amountLDAccept);
-        buffer.depositAmountPerToken[_token] = buffer.depositAmountPerToken[_token].add(_amountLDAccept);
+        buffer.depositRequestAmountPerToken[_token] = buffer.depositRequestAmountPerToken[_token].add(_amountLDAccept);
 
         emit DepositRequestAdded(_depositor, _token, _chainId, _amountLDAccept);
     }
@@ -391,7 +373,7 @@ contract SecondaryVault is NonblockingLzApp {
 
         // 3. Update totalWithdrawRequestMLP
         buffer.totalWithdrawRequestMLP = buffer.totalWithdrawRequestMLP.add(_amountMLP);
-        buffer.withdrawAmountPerToken[_token] = buffer.withdrawAmountPerToken[_token].add(_amountMLP);
+        buffer.withdrawRequestAmountPerToken[_token] = buffer.withdrawRequestAmountPerToken[_token].add(_amountMLP);
 
         emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
     }
@@ -518,7 +500,7 @@ contract SecondaryVault is NonblockingLzApp {
             mozaicLpContract.mint(request.user, _amountToMint);
             // Reduce Handled Amount from Buffer
             _reqs.totalDepositRequest = _reqs.totalDepositRequest.sub(_depositAmount);
-            _reqs.depositAmountPerToken[request.token] = _reqs.depositAmountPerToken[request.token].sub(_depositAmount);
+            _reqs.depositRequestAmountPerToken[request.token] = _reqs.depositRequestAmountPerToken[request.token].sub(_depositAmount);
             _reqs.depositRequestLookup[request.user][request.token][request.chainId] = _reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmount);
         }
         require(_reqs.totalDepositRequest == 0, "Has unsettled deposit amount.");
@@ -533,7 +515,7 @@ contract SecondaryVault is NonblockingLzApp {
             uint256 _vaultBalance = IERC20(request.token).balanceOf(address(this));
             // Reduce Handled Amount from Buffer
             _reqs.totalWithdrawRequestMLP = _reqs.totalWithdrawRequestMLP.sub(_withdrawAmountMLP);
-            _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token].sub(_withdrawAmountMLP);
+            _reqs.withdrawRequestAmountPerToken[request.token] = _reqs.withdrawRequestAmountPerToken[request.token].sub(_withdrawAmountMLP);
             _reqs.withdrawForUserMLP[request.user] = _reqs.withdrawForUserMLP[request.user].sub(_withdrawAmountMLP);
             _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token].sub(_withdrawAmountMLP);
             if (_vaultBalance <= _cointToGive) {
