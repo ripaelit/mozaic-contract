@@ -18,7 +18,6 @@
     "deploy-goerli": "npx hardhat run --network goerli ./scripts/deploy/deployGoerli.ts",
     "deploy-bsctest": "npx hardhat run --network bsctest ./scripts/deploy/deployBsc.ts",
     "deploy-fantom": "npx hardhat run --network fantom ./scripts/deploy/deployFantom.ts",
-    "deploy-testnet": "npx hardhat run ./scripts/deploy/deployTestnet.ts",
     "coverage": "yarn build && npx hardhat coverage --temp artifacts --network coverage",
     "postinstall": "yarn compile",
     "lint": "gts lint && npx hardhat check",

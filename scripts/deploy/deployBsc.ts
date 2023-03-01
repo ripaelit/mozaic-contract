@@ -3,10 +3,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { deployAllToTestNet } from '../util/deployUtils';
 import exportData from '../constants/index';
 const fs = require('fs');
+const hre = require('hardhat');
 
 async function main() {
     let owner: SignerWithAddress;
     
+    hre.changeNetwork("bsctest");
     [owner] = await ethers.getSigners();
     console.log("Deploying contracts with the account:", owner.address);
     console.log("Account balance:", (await owner.getBalance()).toString());

@@ -4,7 +4,6 @@ import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__fact
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import exportData from '../constants';
-import { mozaic } from '../../types/typechain/contracts';
 const hre = require('hardhat');
 
 export const deployStablecoin = async (
@@ -416,14 +415,18 @@ export const initMozaics = async (
         [owner] = await ethers.getSigners();
         for (const [chainIdRight] of mozaicDeployments) {
             if (chainIdLeft == chainIdRight) continue;
+            console.log("left chain %d, left vault %s, right chain %d, right vault %s", chainIdLeft, mozaicDeployments.get(chainIdLeft)!.mozaicVault.address, chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
             let tx = await mozaicDeployments.get(chainIdLeft)!.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicVault.address);
-            let receipt = tx.wait();
-            tx = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
-            receipt = tx.wait();
+            await tx.wait();
+            console.log("tx hash", tx.hash);
+            console.log("left chain %d, left mLp %s, right chain %d, right mLp %s", chainIdLeft, mozaicDeployments.get(chainIdLeft)!.mozaicLp.address, chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
+            let tx1 = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozaicDeployments.get(chainIdRight)!.mozaicLp.address);
+            await tx1.wait();
+            console.log("tx1 hash", tx1.hash);
         }
         // TODO: Transfer ownership of MozaicLP to Vault
         let tx = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozaicDeployments.get(chainIdLeft)!.mozaicVault.address);
-        let receipt = tx.wait();
+        await tx.wait();
     }
     console.log("Registerd TrustedRemote");
 
@@ -444,7 +447,7 @@ export const initMozaics = async (
                 vaultAddress: mozaicDeployment.mozaicVault.address,
             }
         );
-        let receipt = tx.wait();
+        await tx.wait();
     }
     console.log("Registerd SecondaryVaults");
 }
@@ -457,11 +460,9 @@ export const globalChainIdFromLzChainId = (lzChainId: number) => {
 export const networkNameFromGlobalChainId = (globalChainId: number) => {
     let networkName = "";
     const networks = hre.config.networks;
-    const config = hre.config.networks['fantom'];
-    const cid = config.chainId;
-    for (const name in networks) {
-        if (networks[name].chainId == globalChainId) {
-            networkName = name;
+    for (const network in networks) {
+        if (networks[network].chainId == globalChainId) {
+            networkName = network;
         }
     }
     return networkName;

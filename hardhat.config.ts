@@ -60,7 +60,7 @@ const config: HardhatUserConfig = {
             url: "https://goerli.infura.io/v3/" + INFURA_ID,
             // url: "https://eth-goerli.public.blastapi.io",
             chainId: 5,
-            // gasPrice: 20000000000,
+            gasPrice: 20000000000,
             // accounts: [GOERLI_PRIVATE_KEY_1],
             // accounts: [GOERLI_PRIVATE_KEY_1, GOERLI_PRIVATE_KEY_2, GOERLI_PRIVATE_KEY_3],
             accounts: {mnemonic: mnemonic},
