@@ -11,11 +11,30 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
+
+    address private _vault;
     constructor(
         string memory _name,
         string memory _symbol,
         address _lzEndpoint
     ) ERC20(_name, _symbol) OFTCore(_lzEndpoint) {
+    }
+
+    modifier onlyVault() {
+        _checkVault();
+        _;
+    }
+
+    function vault() public view virtual returns (address) {
+        return _vault;
+    }
+
+    function _checkVault() internal view virtual {
+        require(vault() == _msgSender(), "Ownable: caller is not the owner");
+    }
+
+    function setVault(address _vault__) public onlyOwner {
+        _vault = _vault__;
     }
 
     function decimals() public view virtual override returns (uint8) {
@@ -74,11 +93,11 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
         return _amount;
     }
 
-    function mint(address _account, uint256 _amount) public onlyOwner {
+    function mint(address _account, uint256 _amount) public onlyVault {
         _mint(_account, _amount);
     }
 
-    function burn(address _account, uint256 _amount) public onlyOwner {
+    function burn(address _account, uint256 _amount) public onlyVault {
         _burn(_account, _amount);
     }
 }

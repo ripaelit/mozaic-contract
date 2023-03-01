@@ -185,6 +185,9 @@ export const deployMozaic = async (
     await vault.connect(owner).setProtocolDriver(exportData.localTestConstants.pancakeSwapDriverId, pancakeSwapDriver.address, config);
     // console.log("Set protocolDrivers to vault");
 
+    // Set vault to MLP
+    mozaicLp.connect(owner).setVault(vault.address);
+
     // Set Accepting Tokens
     for (const [_, token] of stablecoin) {
         await vault.connect(owner).addToken(token);
@@ -425,8 +428,8 @@ export const initMozaics = async (
             console.log("tx1 hash", tx1.hash);
         }
         // TODO: Transfer ownership of MozaicLP to Vault
-        let tx = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozaicDeployments.get(chainIdLeft)!.mozaicVault.address);
-        await tx.wait();
+        // let tx = await mozaicDeployments.get(chainIdLeft)!.mozaicLp.connect(owner).transferOwnership(mozaicDeployments.get(chainIdLeft)!.mozaicVault.address);
+        // await tx.wait();
     }
     console.log("Registerd TrustedRemote");
 
