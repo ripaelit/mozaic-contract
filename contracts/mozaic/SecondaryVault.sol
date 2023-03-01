@@ -494,6 +494,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function reportSettled() public payable {
+        // TODO: Check vault status
         require(_stagedReqs().totalDepositRequest == 0, "Has unsettled deposit amount.");
         require(_stagedReqs().totalWithdrawRequestMLP == 0, "Has unsettled withdrawal amount.");
         // report to primary vault
