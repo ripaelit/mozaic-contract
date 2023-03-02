@@ -15,19 +15,12 @@ contract PrimaryVault is SecondaryVault {
         OPTIMIZING
     }
 
-    //--------------------------------------------------------------------------
-    // STRUCTS
-    struct VaultDescriptor {
-        uint16 chainId;
-        address vaultAddress;
-    }
-
     //---------------------------------------------------------------------------
     // VARIABLES
     ProtocolStatus public protocolStatus;
 
-    VaultDescriptor[] public secondaryVaults;
-    mapping(uint16 => SecondaryVault.VaultStatus) public secondaryVaultStatus;
+    // VaultDescriptor[] public secondaryVaults;
+    mapping(uint16 => SecondaryVault.VaultStatus) public vaultStatus;
 
     mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
 
@@ -47,31 +40,13 @@ contract PrimaryVault is SecondaryVault {
         protocolStatus = ProtocolStatus.IDLE;
     }
 
-    function registerSecondaryVault(uint16 _chainId, address _secondaryVaultAddress) external onlyOwner {
-        for (uint256 i = 0; i < secondaryVaults.length; i++) {
-            if (secondaryVaults[i].chainId == _chainId) {
-                secondaryVaults[i].vaultAddress = _secondaryVaultAddress;
-                return;
-            }
-        }
-        VaultDescriptor memory _newVault;
-        _newVault.chainId = _chainId;
-        _newVault.vaultAddress = _secondaryVaultAddress;
-        secondaryVaults.push(_newVault);
-    }
-
-    function getSecondaryVaultsCount() external view returns (uint256) {
-        return secondaryVaults.length;
-    }
-
     function initOptimizationSession() public onlyOwner {
         require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
         // reset
         mozaicLpPerStablecoinMil = 0;
         protocolStatus = ProtocolStatus.OPTIMIZING;
-        secondaryVaultStatus[chainId] = VaultStatus.SNAPSHOTTING;
-        for (uint i = 0; i < secondaryVaults.length; i++) {
-            secondaryVaultStatus[secondaryVaults[i].chainId] = VaultStatus.SNAPSHOTTING;
+        for (uint i = 0; i < vaults.length; i++) {
+            vaultStatus[vaults[i].chainId] = VaultStatus.SNAPSHOTTING;
         }
     }
 
@@ -96,7 +71,7 @@ contract PrimaryVault is SecondaryVault {
             _acceptSnapshot(_srcChainId, _newSnapshot);
         } 
         else if (packetType == PT_SETTLED_REQUESTS) {
-            secondaryVaultStatus[_srcChainId] = VaultStatus.IDLE;
+            vaultStatus[_srcChainId] = VaultStatus.IDLE;
             if (_checkRequestsSettledAllVaults()) {
                 _resetProtocolStatus();
             }
@@ -108,9 +83,9 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function _acceptSnapshot(uint16 _srcChainId, Snapshot memory _newSnapshot) internal {
-        require(secondaryVaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
+        require(vaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
         snapshotReported[_srcChainId] = _newSnapshot;
-        secondaryVaultStatus[_srcChainId]=VaultStatus.SNAPSHOTTED;
+        vaultStatus[_srcChainId]=VaultStatus.SNAPSHOTTED;
         if (allVaultsSnapshotted()) {
             calculateMozLpPerStablecoinMil();
         }
@@ -122,8 +97,8 @@ contract PrimaryVault is SecondaryVault {
         uint256 _totalStablecoinValue = 0;
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
-        for (uint i = 0; i < secondaryVaults.length ; i++) {
-            Snapshot memory report = snapshotReported[secondaryVaults[i].chainId];
+        for (uint i = 0; i < vaults.length ; i++) {
+            Snapshot memory report = snapshotReported[vaults[i].chainId];
             _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
@@ -136,11 +111,8 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function allVaultsSnapshotted() public view returns (bool) {
-        if (secondaryVaultStatus[chainId]!=VaultStatus.SNAPSHOTTED) {
-            return false;
-        }
-        for (uint i = 0; i < secondaryVaults.length ; i++) {
-            if (secondaryVaultStatus[secondaryVaults[i].chainId]!=VaultStatus.SNAPSHOTTED) {
+        for (uint i = 0; i < vaults.length ; i++) {
+            if (vaultStatus[vaults[i].chainId] != VaultStatus.SNAPSHOTTED) {
                 return false;
             }
         }
@@ -148,8 +120,8 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function _checkRequestsSettledAllVaults() internal view returns (bool) {
-        for (uint i=0; i < secondaryVaults.length; i++) {
-            if (secondaryVaultStatus[secondaryVaults[i].chainId] != VaultStatus.IDLE) {
+        for (uint i = 0; i < vaults.length; i++) {
+            if (vaultStatus[vaults[i].chainId] != VaultStatus.IDLE) {
                 return false;
             }
         }
@@ -160,10 +132,11 @@ contract PrimaryVault is SecondaryVault {
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
         require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
         _settleRequests(mozaicLpPerStablecoinMil);
-        secondaryVaultStatus[chainId] = VaultStatus.IDLE;
-        for (uint i = 0; i < secondaryVaults.length; i++) {
-            VaultDescriptor memory vd = secondaryVaults[secondaryVaults[i].chainId];
-            secondaryVaultStatus[secondaryVaults[i].chainId] = VaultStatus.SETTLING;
+        vaultStatus[chainId] = VaultStatus.IDLE;
+        for (uint i = 0; i < vaults.length; i++) {
+            if (vaults[i].chainId == primaryChainId)   continue;
+            VaultDescriptor memory vd = vaults[i];
+            vaultStatus[vd.chainId] = VaultStatus.SETTLING;
             bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
             _lzSend(vd.chainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
         }

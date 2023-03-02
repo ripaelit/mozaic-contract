@@ -117,6 +117,12 @@ contract SecondaryVault is NonblockingLzApp {
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
 
+    struct VaultDescriptor {
+        uint16 chainId;
+        address vaultAddress;
+    }
+    VaultDescriptor[] public vaults;
+
     function _pendingReqs() internal view returns (RequestBuffer storage) {
         if (bufferFlag) {
             return leftBuffer;
@@ -551,5 +557,24 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _giveStablecoin(address _user, address _token, uint256 _amountLD) internal {
         IERC20(_token).transfer(_user, _amountLD);
+    }
+
+    function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
+        // update vault address if it already exists
+        for (uint256 i = 0; i < vaults.length; i++) {
+            if (vaults[i].chainId == _chainId) {
+                vaults[i].vaultAddress = _vaultAddress;
+                return;
+            }
+        }
+        // if new vault, register it.
+        VaultDescriptor memory _newVault;
+        _newVault.chainId = _chainId;
+        _newVault.vaultAddress = _vaultAddress;
+        vaults.push(_newVault);
+    }
+
+    function getVaultsCount() external view returns (uint256) {
+        return vaults.length;
     }
 }
