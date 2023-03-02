@@ -228,9 +228,7 @@ export const bridgeStargateEndpoints = async (owner: SignerWithAddress, stargate
       const remoteBridge = await stargateSrc.bridgeContract.bridgeLookup(dstChainId);
       if (remoteBridge === "0x") {
         // set it if its not set
-        let bridgeAddrSet;
-        let tx = await stargateSrc.bridgeContract.connect(owner).setBridge(dstChainId, stargateDst.bridgeContract.address);
-        await tx.wait();
+        await stargateSrc.bridgeContract.connect(owner).setBridge(dstChainId, stargateDst.bridgeContract.address);
       }
 
       // TODO: change the following logic to be optional.
@@ -238,8 +236,7 @@ export const bridgeStargateEndpoints = async (owner: SignerWithAddress, stargate
       const destLzEndpoint = await stargateSrc.lzEndpoint.lzEndpointLookup(stargateDst.bridgeContract.address);
       if (destLzEndpoint === "0x0000000000000000000000000000000000000000") {
         // set it if its not set
-        let tx = await stargateSrc.lzEndpoint.setDestLzEndpoint(stargateDst.bridgeContract.address, stargateDst.lzEndpoint.address);
-        await tx.wait();
+        await stargateSrc.lzEndpoint.setDestLzEndpoint(stargateDst.bridgeContract.address, stargateDst.lzEndpoint.address);
       }
     }
   }
