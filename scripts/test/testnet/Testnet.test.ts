@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, StargateToken__factory, MockToken__factory, PrimaryVault, SecondaryVault, LPStaking__factory, MozaicLP } from '../../../types/typechain';
+import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, Bridge__factory, StargateToken__factory, MockToken__factory, PrimaryVault, SecondaryVault, LPStaking__factory, MozaicLP, Router__factory } from '../../../types/typechain';
 import { ActionTypeEnum, ProtocolStatus, MozaicDeployment } from '../../constants/types';
 import exportData from '../../constants/index';
 import { BigNumber, Wallet } from 'ethers';
@@ -170,64 +170,30 @@ describe('SecondaryVault.executeActions', () => {
             [owner] = await ethers.getSigners();
             const srcChainId = exportData.testnetTestConstants.chainIds[1];  // Bsc
             const srcVault = mozaicDeployments.get(srcChainId)!.mozaicVault;
-            console.log("srcVault", srcChainId, srcVault.address);
-            const srcTokenAddr = exportData.testnetTestConstants.stablecoins.get(srcChainId)!.get("USDT")!;
             const srcMockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
+            const srcTokenAddr = exportData.testnetTestConstants.stablecoins.get(srcChainId)!.get("USDT")!;
             const srcToken = srcMockTokenFactory.attach(srcTokenAddr);
-            const decimalsSrc = await srcToken.decimals();
-            const amountSrc = ethers.utils.parseUnits("30", decimalsSrc);
-            const amountStakeSrc = ethers.utils.parseUnits("10", decimalsSrc);
-            const amountSwap = ethers.utils.parseUnits("4", decimalsSrc);
+            const srcDecimals = await srcToken.decimals();
+            console.log("USDT srcDecimals", srcDecimals);
+            const amountSrc = ethers.utils.parseUnits("1", srcDecimals);
+            const amountSwap = amountSrc;
 
             // Mint srcToken to srcVault
             let tx = await srcToken.connect(owner).mint(srcVault.address, amountSrc);
             await tx.wait();
-            let amountMinted = await srcToken.balanceOf(srcVault.address);
-            console.log("srcVault has srcToken:", amountMinted.toString());
-            
-            // srcVault stake srcToken
-            const srcPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeSrc, srcToken.address]);
-            const stakeActionSrc: SecondaryVault.ActionStruct  = {
-                driverId: exportData.testnetTestConstants.stargateDriverId,
-                actionType: ActionTypeEnum.StargateStake,
-                payload : srcPayload
-            };
-            tx = await srcVault.connect(owner).executeActions([stakeActionSrc]);
-            await tx.wait();
             const amountSrcBefore = await srcToken.balanceOf(srcVault.address);
-            console.log("After src stake, srcvault has srcToken %d", amountSrcBefore.toString());
-
+            
             hre.changeNetwork('fantom');
             [owner] = await ethers.getSigners();
             const dstChainId = exportData.testnetTestConstants.chainIds[2];  // Fantom
             const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
-            console.log("dstVault", dstChainId, dstVault.address);
             const dstPoolId = exportData.testnetTestConstants.poolIds.get("USDC")!;
             const dstTokenAddr = exportData.testnetTestConstants.stablecoins.get(dstChainId)!.get("USDC")!;
             const dstMockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const dstToken = dstMockTokenFactory.attach(dstTokenAddr);
-            const decimalsDst = await dstToken.decimals();
-            const amountDst = ethers.utils.parseUnits("30", decimalsDst);
-            const amountStakeDst = ethers.utils.parseUnits("20", decimalsDst);
-
-            // Mint dstToken to dstVault
-            tx = await dstToken.connect(owner).mint(dstVault.address, amountDst);
-            await tx.wait();
-            amountMinted = await dstToken.balanceOf(dstVault.address);
-            console.log("dstVault has dstToken:", amountMinted.toString());
-            
-            // dstVault stake dstToken
-            const dstPayload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStakeDst, dstToken.address]);
-            const stakeActionDst: SecondaryVault.ActionStruct  = {
-                driverId: exportData.testnetTestConstants.stargateDriverId,
-                actionType: ActionTypeEnum.StargateStake,
-                payload : dstPayload
-            };
-            tx = await dstVault.connect(owner).executeActions([stakeActionDst]);
-            await tx.wait();
             const amountDstBefore = await dstToken.balanceOf(dstVault.address);
-            console.log("After dst stake, dstVault has dstToken %d", amountDstBefore.toString());
-
+            console.log("Before swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcBefore.toString(), amountDstBefore.toString());
+            
             // SwapRemote: Ethereum USDT -> BSC USDT
             hre.changeNetwork('bsctest');
             [owner] = await ethers.getSigners();
@@ -239,11 +205,24 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.SwapRemote,
                 payload : payloadSwapRemote
             };
-            const fee = ethers.utils.parseEther("0.3");
-            await srcVault.connect(owner).receiveNativeToken({value: fee});
+
+            // const routerFactory = await ethers.getContractFactory('Router', owner) as Router__factory;
+            // const routerAddr = exportData.testnetTestConstants.routers.get(srcChainId)!;
+            // const router = routerFactory.attach(routerAddr);
+            // const [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, 1, dstTokenAddr, "0x", ({
+            //     dstGasForCall: 0,       // extra gas, if calling smart contract,
+            //     dstNativeAmount: 0,     // amount of dust dropped in destination wallet 
+            //     dstNativeAddr: "0x" // destination wallet for dust
+            // }));
+            // console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
+            const nativeFee = ethers.utils.parseEther("0.3");
+            tx = await srcVault.connect(owner).receiveNativeToken({value: nativeFee});
+            await tx.wait();
+            console.log("srcVault received nativeToken", nativeFee.toString());
+
             tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
             await tx.wait();
-            console.log("executeActions tx hash", tx.hash);
+            console.log("swapRemote executeActions tx hash", tx.hash);
 
             // Check both tokens
             const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
