@@ -31,8 +31,8 @@ contract PrimaryVault is SecondaryVault {
 
     mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
 
-    uint256 public mozaicLpPerStablecoinMil=0; // mozLP/stablecoinSD*1_000_000
-    uint256 public constant INITIAL_MLP_PER_COIN_MIL=1000000;
+    uint256 public mozaicLpPerStablecoinMil = 0; // mozLP/stablecoinSD*1_000_000
+    uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
     
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
@@ -45,12 +45,19 @@ contract PrimaryVault is SecondaryVault {
         address _mozaicLp
     ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
-        // setMainChainId(_chainId);
     }
 
-    function setSecondaryVaults(VaultDescriptor[] calldata _secondaryVaults) external onlyOwner {
-        // TODO: Add guard condition: no two vaults with same chainId
-        secondaryVaults = _secondaryVaults;
+    function registerSecondaryVault(uint16 _chainId, address _secondaryVaultAddress) external onlyOwner {
+        for (uint256 i = 0; i < secondaryVaults.length; i++) {
+            if (secondaryVaults[i].chainId == _chainId) {
+                secondaryVaults[i].vaultAddress = _secondaryVaultAddress;
+                return;
+            }
+        }
+        VaultDescriptor memory _newVault;
+        _newVault.chainId = _chainId;
+        _newVault.vaultAddress = _secondaryVaultAddress;
+        secondaryVaults.push(_newVault);
     }
 
     function getSecondaryVaultsCount() external view returns (uint256) {
