@@ -375,7 +375,7 @@ export const deployAllToLocalNets = async (
         mozaicDeployments.set(chainId, mozaicDeployment);
     }
 
-    await initMozaics(primaryChainId, mozaicDeployments);
+    await initMozaics(mozaicDeployments);
 
     // LZEndpointMock setDestLzEndpoint
     await lzEndpointMockSetDestEndpoints(getLayerzeroDeploymentsFromStargateDeployments(stargateDeployments), mozaicDeployments);
@@ -402,12 +402,11 @@ export const deployAllToLocalNets = async (
 
 // After deployed all vaults, register trustedRemote and secondaryVaults
 export const initMozaics = async (
-    primaryChainId: number,
     mozaicDeployments: Map<number, MozaicDeployment>, 
 ) => {
     let owner: SignerWithAddress;
 
-    // Register TrustedRemote
+    // Register TrustedRemote and Vaults
     for (const [chainIdLeft, mozLeft] of mozaicDeployments) {
         // run the following code on the relevent network of chainIdLeft.
         // chainIdLeft : LayerZero chain id ---> global chain id
@@ -420,35 +419,16 @@ export const initMozaics = async (
         }
         [owner] = await ethers.getSigners();
         for (const [chainIdRight, mozRight] of mozaicDeployments) {
+            let tx = await mozLeft.mozaicVault.connect(owner).registerVault(chainIdRight, mozRight.mozaicVault.address);
+            await tx.wait();
             if (chainIdLeft == chainIdRight) continue;
-            let tx = await mozLeft.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozRight.mozaicVault.address);
+            tx = await mozLeft.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozRight.mozaicVault.address);
             await tx.wait();
             tx = await mozLeft.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozRight.mozaicLp.address);
             await tx.wait();
         }
     }
-    console.log("Registerd TrustedRemote");
-
-    // Register SecondaryVaults
-    const globalChainId = globalChainIdFromLzChainId(primaryChainId);
-    if (globalChainId) {
-        const networkName = networkNameFromGlobalChainId(globalChainId);
-        hre.changeNetwork(networkName);
-    }
-    [owner] = await ethers.getSigners();
-    const primaryValut = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
-    for (const [chainId, mozaicDeployment] of mozaicDeployments) {
-        if (chainId == primaryChainId) continue;
-        let tx = await primaryValut.connect(owner).setSecondaryVaults(
-            chainId, 
-            {
-                chainId,
-                vaultAddress: mozaicDeployment.mozaicVault.address,
-            }
-        );
-        await tx.wait();
-    }
-    console.log("Registerd SecondaryVaults");
+    console.log("Initialized mozaics");
 }
 
 export const globalChainIdFromLzChainId = (lzChainId: number) => {
