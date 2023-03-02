@@ -87,6 +87,7 @@ describe('SecondaryVault.executeActions', () => {
 
             // SecondaryVault stake USDC
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, coinAddr]);
+            console.log("payloadStake", payload);
             const stakeAction: SecondaryVault.ActionStruct  = {
                 driverId: exportData.testnetTestConstants.stargateDriverId,
                 actionType: ActionTypeEnum.StargateStake,
@@ -164,7 +165,7 @@ describe('SecondaryVault.executeActions', () => {
             amountLPStaked = (await lpStaking.userInfo(BigNumber.from("0"), vault.address)).amount;
             console.log("After unstake LpTokens for SecondaryVault in LpStaking is", amountLPStaked);
         })
-        it ("can swapRemote", async () => {
+        it.only ("can swapRemote", async () => {
             hre.changeNetwork('bsctest');
             [owner] = await ethers.getSigners();
             const srcChainId = exportData.testnetTestConstants.chainIds[1];  // Bsc
@@ -238,6 +239,8 @@ describe('SecondaryVault.executeActions', () => {
                 actionType: ActionTypeEnum.SwapRemote,
                 payload : payloadSwapRemote
             };
+            const fee = ethers.utils.parseEther("0.3");
+            await srcVault.connect(owner).receiveNativeToken({value: fee});
             tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
             await tx.wait();
             console.log("executeActions tx hash", tx.hash);
@@ -335,7 +338,7 @@ describe('SecondaryVault.executeActions', () => {
         })
     })
     describe ('Flow test', () => {
-        it.only ('normal flow', async () => {
+        it ('normal flow', async () => {
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             const primaryChainId = exportData.testnetTestConstants.chainIds[1];
