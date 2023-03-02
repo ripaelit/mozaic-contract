@@ -324,12 +324,12 @@ export const deployAllToTestNet = async (
     const stablecoins = exportData.testnetTestConstants.stablecoins;
     const poolIds = exportData.testnetTestConstants.poolIds;
     const coins = stablecoins.get(chainId)!;
-    for (let coinName of coins.keys()) {
+    for (let [coinName,_] of coins) {
         let poolId = poolIds.get(coinName)!;
         let poolAddr = await factory.getPool(poolId);
         let tx = await lpStaking.connect(owner).add(poolId, poolAddr);
         await tx.wait();
-        console.log("pool added to lpStaking: poolId %d, pool %s", poolId, poolAddr);
+        console.log("pool added to lpStaking: poolId %d, coinName %s, pool %s", poolId, coinName, poolAddr);
     }
     
     // Deploy MockDex and create protocol with it
