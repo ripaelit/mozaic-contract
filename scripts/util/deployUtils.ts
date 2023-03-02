@@ -203,8 +203,6 @@ export const deployMozaic = async (
         mozaicVault: vault,
     }
 
-    console.log("Deployed Mozaic.");
-
     return mozaicDeployment;
 }
 
@@ -230,7 +228,9 @@ export const bridgeStargateEndpoints = async (owner: SignerWithAddress, stargate
       const remoteBridge = await stargateSrc.bridgeContract.bridgeLookup(dstChainId);
       if (remoteBridge === "0x") {
         // set it if its not set
-        await stargateSrc.bridgeContract.connect(owner).setBridge(dstChainId, stargateDst.bridgeContract.address);
+        let bridgeAddrSet;
+        let tx = await stargateSrc.bridgeContract.connect(owner).setBridge(dstChainId, stargateDst.bridgeContract.address);
+        await tx.wait();
       }
 
       // TODO: change the following logic to be optional.
@@ -238,7 +238,8 @@ export const bridgeStargateEndpoints = async (owner: SignerWithAddress, stargate
       const destLzEndpoint = await stargateSrc.lzEndpoint.lzEndpointLookup(stargateDst.bridgeContract.address);
       if (destLzEndpoint === "0x0000000000000000000000000000000000000000") {
         // set it if its not set
-        await stargateSrc.lzEndpoint.setDestLzEndpoint(stargateDst.bridgeContract.address, stargateDst.lzEndpoint.address);
+        let tx = await stargateSrc.lzEndpoint.setDestLzEndpoint(stargateDst.bridgeContract.address, stargateDst.lzEndpoint.address);
+        await tx.wait();
       }
     }
   }
