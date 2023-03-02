@@ -84,7 +84,9 @@ const config: HardhatUserConfig = {
             accounts: {mnemonic: mnemonic},
         },
         fantom: {
-            url: `https://endpoints.omniatech.io/v1/fantom/testnet/public`,
+            // url: `https://endpoints.omniatech.io/v1/fantom/testnet/public`,
+            // url: `https://rpc.ankr.com/fantom_testnet`,
+            url: `https://fantom-testnet.public.blastapi.io`,
             chainId: 4002,
             gasPrice: 20000000000,
             accounts: {mnemonic: mnemonic},
