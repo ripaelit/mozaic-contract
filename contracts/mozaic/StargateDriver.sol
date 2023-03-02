@@ -141,7 +141,7 @@ contract StargateDriver is ProtocolDriver{
 
         // Swap
         bytes memory funcSignature = abi.encodeWithSignature("swap(uint16,uint256,uint256,address,uint256,uint256,(uint256,uint256,bytes),bytes,bytes)", _dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
-        (_success, ) = address(_router).call(funcSignature);
+        (_success, ) = address(_router).call{value:0.1 ether}(funcSignature);
         require(_success, "Failed to call swap");
     }
 
