@@ -257,7 +257,7 @@ contract SecondaryVault is NonblockingLzApp {
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
-        (bool _success, bytes memory _response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
+        (bool _success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(_success, "Failed to access configDriver in setProtocolDriver");
     }
 
@@ -299,7 +299,7 @@ contract SecondaryVault is NonblockingLzApp {
         for (uint i = 0; i < _actions.length ; i++) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
-            (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
+            (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
             require(success, "Failed to delegate to ProtocolDriver");
         }
     }
@@ -560,18 +560,27 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
-        // update vault address if it already exists
+        bool flagExist = false;
+        // if it already exists, update vault address 
         for (uint256 i = 0; i < vaults.length; i++) {
             if (vaults[i].chainId == _chainId) {
                 vaults[i].vaultAddress = _vaultAddress;
-                return;
+                flagExist = true;
+                break;
             }
         }
-        // if new vault, register it.
-        VaultDescriptor memory _newVault;
-        _newVault.chainId = _chainId;
-        _newVault.vaultAddress = _vaultAddress;
-        vaults.push(_newVault);
+        
+        if (!flagExist) {   // if new vault, add it.
+            VaultDescriptor memory _newVault;
+            _newVault.chainId = _chainId;
+            _newVault.vaultAddress = _vaultAddress;
+            vaults.push(_newVault);
+        }
+
+        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+        (bool success, ) = address(_driver).call(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
+        require(success, "Failed to register vault to stg driver");
+
     }
 
     function getVaultsCount() external view returns (uint256) {

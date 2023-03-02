@@ -11,18 +11,46 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract StargateDriver is ProtocolDriver{
     using SafeMath for uint256;
 
+    struct VaultDescriptor {
+        uint16 chainId;
+        address vaultAddress;
+    }
+
     struct StargateDriverConfig {
         address stgRouter;
         address stgLPStaking;
+        VaultDescriptor[] vaults;
     }
+
     bytes32 public constant CONFIG_SLOT = keccak256("StargateDriver.config");
-    function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory response) {
+    function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory) {
         // Unpack into _getConfig().stgRouter, stgLPStaking
         (address _stgRouter, address _stgLPStaking) = abi.decode(params, (address, address));
         StargateDriverConfig storage _config = _getConfig();
         _config.stgRouter = _stgRouter;
         _config.stgLPStaking = _stgLPStaking;
     }
+
+    function registerVault(uint16 _chainId, address _vaultAddress) public onlyOwner {
+        StargateDriverConfig storage _config = _getConfig();
+        bool flagExist = false;
+        // if it already exists, update vault address 
+        for (uint256 i = 0; i < _config.vaults.length; i++) {
+            if (_config.vaults[i].chainId == _chainId) {
+                _config.vaults[i].vaultAddress = _vaultAddress;
+                flagExist = true;
+                break;
+            }
+        }
+        
+        if (!flagExist) {   // if new vault, add it.
+            VaultDescriptor memory _newVault;
+            _newVault.chainId = _chainId;
+            _newVault.vaultAddress = _vaultAddress;
+            _config.vaults.push(_newVault);
+        }
+    }
+
     function _getConfig() internal view returns (StargateDriverConfig storage _config) {
         // pure?
         bytes32 slotAddress = CONFIG_SLOT;
@@ -127,6 +155,7 @@ contract StargateDriver is ProtocolDriver{
     function _swapRemote(bytes calldata _payload) private {
         (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint256));
         require (_amountLD > 0, "Cannot stake zero amount");
+        
         // Get srcPoolId
         address _srcPool = getStargatePoolFromToken(_srcToken);
         (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
@@ -137,8 +166,18 @@ contract StargateDriver is ProtocolDriver{
         address _router = _getConfig().stgRouter;
         IERC20(_srcToken).approve(_router, _amountLD);
 
+        // Get dst vault address
+        address _to = address(0x0);
+        for (uint256 i = 0; i < _getConfig().vaults.length; i++) {
+            if (_getConfig().vaults[i].chainId == _dstChainId) {
+                _to = _getConfig().vaults[i].vaultAddress;
+            }
+        }
+        require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
+
         // Swap
-        IStargateRouter(_router).swap{value:0.1 ether}(_dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
+        uint256 amountLD = _amountLD;   // ??? kevin
+        IStargateRouter(_router).swap{value:0.1 ether}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
     }
 
     function _getStakedAmount() private returns (bytes memory response) {
