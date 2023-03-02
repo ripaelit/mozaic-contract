@@ -67,8 +67,7 @@ contract StargateDriver is ProtocolDriver{
         require(_success, "Failed to call balanceOf");
         uint256 balancePre = abi.decode(_response, (uint256));
         // 2. Valut adds liquidity
-        (_success, ) = _stgRouter.call(abi.encodeWithSignature("addLiquidity(uint256,uint256,address)", _poolId, _amountLD, address(this)));
-        require(_success, "Failed to call addLiquidity");
+        IStargateRouter(_stgRouter).addLiquidity(_poolId, _amountLD, address(this));
         // 3. Pool.LPToken of vault after
         (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
         require(_success, "Failed to call balanceOf");
@@ -122,8 +121,7 @@ contract StargateDriver is ProtocolDriver{
 
         // Give LPToken and redeem token from STG.Pool to vault
         address _stgRouter = _getConfig().stgRouter;
-        (_success, ) = _stgRouter.call(abi.encodeWithSignature("instantRedeemLocal(uint16,uint256,address)", uint16(_poolId), _amountLPTokenWithdrawn, address(this)));
-        require(_success, "Failed to call addLiquidity");
+        IStargateRouter(_stgRouter).instantRedeemLocal(uint16(_poolId), _amountLPTokenWithdrawn, address(this));
     }
 
     function _swapRemote(bytes calldata _payload) private {
@@ -140,9 +138,7 @@ contract StargateDriver is ProtocolDriver{
         IERC20(_srcToken).approve(_router, _amountLD);
 
         // Swap
-        bytes memory funcSignature = abi.encodeWithSignature("swap(uint16,uint256,uint256,address,uint256,uint256,(uint256,uint256,bytes),bytes,bytes)", _dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
-        (_success, ) = address(_router).call{value:0.1 ether}(funcSignature);
-        require(_success, "Failed to call swap");
+        IStargateRouter(_router).swap{value:0.1 ether}(_dstChainId, _srcPoolId, _dstPoolId, payable(msg.sender), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(msg.sender), bytes(""));
     }
 
     function _getStakedAmount() private returns (bytes memory response) {
