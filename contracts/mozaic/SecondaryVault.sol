@@ -225,6 +225,10 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
+    function receiveNativeToken() public payable {
+        // Use this function to receive an amount of native token equals to msg.value from msg.sender
+    }
+
 
     //---------------------------------------------------------------------------
     // Constructor and Public Functions
