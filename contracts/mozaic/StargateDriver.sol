@@ -8,6 +8,8 @@ import "./ProtocolDriver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+import "hardhat/console.sol";
+
 contract StargateDriver is ProtocolDriver{
     using SafeMath for uint256;
 
@@ -32,6 +34,7 @@ contract StargateDriver is ProtocolDriver{
     }
 
     function registerVault(uint16 _chainId, address _vaultAddress) public onlyOwner {
+        console.log("registerVault called");
         StargateDriverConfig storage _config = _getConfig();
         bool flagExist = false;
         // if it already exists, update vault address 
@@ -39,6 +42,7 @@ contract StargateDriver is ProtocolDriver{
             if (_config.vaults[i].chainId == _chainId) {
                 _config.vaults[i].vaultAddress = _vaultAddress;
                 flagExist = true;
+                console.log("exist");
                 break;
             }
         }
@@ -48,6 +52,7 @@ contract StargateDriver is ProtocolDriver{
             _newVault.chainId = _chainId;
             _newVault.vaultAddress = _vaultAddress;
             _config.vaults.push(_newVault);
+            console.log("no exist, add new");
         }
     }
 
@@ -66,7 +71,7 @@ contract StargateDriver is ProtocolDriver{
             _unstake(_payload);
         }
         else if (_actionType == ActionType.SwapRemote) {
-            _swapRemote(_payload);
+            response = _swapRemote(_payload);
         }
         else if (_actionType == ActionType.GetStakedAmount) {
             response = _getStakedAmount();
@@ -152,10 +157,11 @@ contract StargateDriver is ProtocolDriver{
         IStargateRouter(_stgRouter).instantRedeemLocal(uint16(_poolId), _amountLPTokenWithdrawn, address(this));
     }
 
-    function _swapRemote(bytes calldata _payload) private {
+    function _swapRemote(bytes calldata _payload) private returns (bytes memory) {
+        console.log("swapRemote called");
         (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint256));
         require (_amountLD > 0, "Cannot stake zero amount");
-        
+
         // Get srcPoolId
         address _srcPool = getStargatePoolFromToken(_srcToken);
         (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
@@ -168,9 +174,12 @@ contract StargateDriver is ProtocolDriver{
 
         // Get dst vault address
         address _to = address(0x0);
+        console.log("vaults length", _getConfig().vaults.length);
         for (uint256 i = 0; i < _getConfig().vaults.length; i++) {
+            console.log(_getConfig().vaults[i].chainId, _dstChainId);
             if (_getConfig().vaults[i].chainId == _dstChainId) {
                 _to = _getConfig().vaults[i].vaultAddress;
+                console.log("_to", _to);
             }
         }
         require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
@@ -178,6 +187,7 @@ contract StargateDriver is ProtocolDriver{
         // Swap
         uint256 amountLD = _amountLD;   // ??? kevin
         IStargateRouter(_router).swap{value:0.1 ether}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
+        console.log("swapRemote ended");
     }
 
     function _getStakedAmount() private returns (bytes memory response) {

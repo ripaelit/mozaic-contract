@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+import "hardhat/console.sol";
+
 contract SecondaryVault is NonblockingLzApp {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -299,7 +301,9 @@ contract SecondaryVault is NonblockingLzApp {
         for (uint i = 0; i < _actions.length ; i++) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
-            (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
+            (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
+            console.log("executeActions");
+            console.logBytes(response);
             require(success, "Failed to delegate to ProtocolDriver");
         }
     }
@@ -578,7 +582,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        (bool success, ) = address(_driver).call(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
         require(success, "Failed to register vault to stg driver");
 
     }
