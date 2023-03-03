@@ -71,7 +71,7 @@ contract StargateDriver is ProtocolDriver{
             _unstake(_payload);
         }
         else if (_actionType == ActionType.SwapRemote) {
-            response = _swapRemote(_payload);
+            _swapRemote(_payload);
         }
         else if (_actionType == ActionType.GetStakedAmount) {
             response = _getStakedAmount();
@@ -157,36 +157,44 @@ contract StargateDriver is ProtocolDriver{
         IStargateRouter(_stgRouter).instantRedeemLocal(uint16(_poolId), _amountLPTokenWithdrawn, address(this));
     }
 
-    function _swapRemote(bytes calldata _payload) private returns (bytes memory) {
+    function _swapRemote(bytes calldata _payload) private {
         console.log("swapRemote called");
-        (uint256 _amountLD, address _srcToken, uint16 _dstChainId, uint256 _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint256));
-        require (_amountLD > 0, "Cannot stake zero amount");
+        uint256 _amountLD;
+        uint16 _dstChainId;
+        uint256 _dstPoolId;
+        uint256 _srcPoolId;
+        uint256 _nativeFee;
+        address _router;
+        // To avoid stack deep error
+        {
+            address _srcToken;
+            (_amountLD, _srcToken, _dstChainId, _dstPoolId, _nativeFee) = abi.decode(_payload, (uint256, address, uint16, uint256, uint256));
+            require (_amountLD > 0, "Cannot stake zero amount");
 
-        // Get srcPoolId
-        address _srcPool = getStargatePoolFromToken(_srcToken);
-        (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
-        require(_success, "Failed to call poolId");
-        uint256 _srcPoolId = abi.decode(_response, (uint256));
+            address _srcPool = getStargatePoolFromToken(_srcToken);
+            (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
+            require(_success, "Failed to call poolId");
+            _srcPoolId = abi.decode(_response, (uint256));
 
-        // Approve
-        address _router = _getConfig().stgRouter;
-        IERC20(_srcToken).approve(_router, _amountLD);
-
-        // Get dst vault address
-        address _to = address(0x0);
-        console.log("vaults length", _getConfig().vaults.length);
-        for (uint256 i = 0; i < _getConfig().vaults.length; i++) {
-            console.log(_getConfig().vaults[i].chainId, _dstChainId);
-            if (_getConfig().vaults[i].chainId == _dstChainId) {
-                _to = _getConfig().vaults[i].vaultAddress;
-                console.log("_to", _to);
-            }
+            _router = _getConfig().stgRouter;
+            IERC20(_srcToken).approve(_router, _amountLD);
         }
-        require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
+
+        address _to = address(0x0);
+        {
+            console.log("vaults length", _getConfig().vaults.length);
+            for (uint256 i = 0; i < _getConfig().vaults.length; i++) {
+                console.log(_getConfig().vaults[i].chainId, _dstChainId);
+                if (_getConfig().vaults[i].chainId == _dstChainId) {
+                    _to = _getConfig().vaults[i].vaultAddress;
+                    console.log("_to", _to);
+                }
+            }
+            require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
+        }
 
         // Swap
-        uint256 amountLD = _amountLD;   // ??? kevin
-        IStargateRouter(_router).swap{value:0.1 ether}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
+        IStargateRouter(_router).swap{value:_nativeFee}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
         console.log("swapRemote ended");
     }
 

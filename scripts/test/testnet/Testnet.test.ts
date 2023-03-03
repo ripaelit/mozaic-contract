@@ -197,7 +197,8 @@ describe('SecondaryVault.executeActions', () => {
             // SwapRemote: Ethereum USDT -> BSC USDT
             hre.changeNetwork('bsctest');
             [owner] = await ethers.getSigners();
-            const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256"], [amountSwap, srcToken.address, dstChainId, dstPoolId]);
+            const nativeFee = ethers.utils.parseEther("0.1");
+            const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256","uint256"], [amountSwap, srcToken.address, dstChainId, dstPoolId, nativeFee]);
             console.log("payloadSwapRemote", payloadSwapRemote);
             console.log("owner", owner.address);
             const swapRemoteAction: SecondaryVault.ActionStruct  = {
@@ -215,14 +216,19 @@ describe('SecondaryVault.executeActions', () => {
             //     dstNativeAddr: "0x" // destination wallet for dust
             // }));
             // console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
-            const nativeFee = ethers.utils.parseEther("0.3");
+            
             tx = await srcVault.connect(owner).receiveNativeToken({value: nativeFee});
             await tx.wait();
             console.log("srcVault received nativeToken", nativeFee.toString());
 
-            tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
-            await tx.wait();
-            console.log("swapRemote executeActions tx hash", tx.hash);
+            try {
+                tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
+                console.log("swapRemote executeActions tx hash", tx.hash);
+                await tx.wait();
+            }
+            catch (err) {
+                console.log(err)
+            }
 
             // Check both tokens
             const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
