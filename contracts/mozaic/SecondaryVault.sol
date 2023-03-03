@@ -148,7 +148,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function getDepositRequestAmount(bool _staged, address _user, address _token, uint16 _chainId) public view returns (uint256) {
+    function getDepositAmount(bool _staged, address _user, address _token, uint16 _chainId) public view returns (uint256) {
         if (_staged) {
             return _stagedReqs().depositRequestLookup[_user][_token][_chainId];
         }
@@ -157,7 +157,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function getWithdrawRequestAmount(bool _staged, address _user, uint16 _chainId, address _token) public view returns (uint256) {
+    function getWithdrawAmount(bool _staged, address _user, uint16 _chainId, address _token) public view returns (uint256) {
         if (_staged) {
             return _stagedReqs().withdrawRequestLookup[_user][_chainId][_token];
         }
