@@ -53,7 +53,7 @@ describe('SecondaryVault.executeActions', () => {
         // Set primaryChainId
         primaryChainId = exportData.testnetTestConstants.mozaicMainChainId;
 
-        await initMozaics(primaryChainId, mozaicDeployments);
+        await initMozaics(mozaicDeployments);
     })
     beforeEach(async () => {
         // hre.changeNetwork('bsctest');
