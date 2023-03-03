@@ -52,6 +52,19 @@ describe('SecondaryVault.executeActions', () => {
         await initMozaics(mozaicDeployments);
     })
     beforeEach(async () => {
+        hre.changeNetwork('bsctest');
+        [owner] = await ethers.getSigners();
+        const primaryChainId = exportData.testnetTestConstants.chainIds[1];
+        const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault;
+        let amountReturn = await primaryVault.connect(owner).returnNativeToken();
+        console.log("bscVault returned %d ETH", amountReturn);
+
+        hre.changeNetwork('fantom');
+        [owner] = await ethers.getSigners();
+        const secondaryChainId = exportData.testnetTestConstants.chainIds[2];
+        const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault;
+        amountReturn = await secondaryVault.connect(owner).returnNativeToken();
+        console.log("fantomVault returned %d ETH", amountReturn);
     })
     describe ('StargateDriver.execute', () => {
         it ("can stake token", async () => {
