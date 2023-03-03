@@ -34,7 +34,6 @@ contract StargateDriver is ProtocolDriver{
     }
 
     function registerVault(uint16 _chainId, address _vaultAddress) public onlyOwner {
-        console.log("registerVault called");
         StargateDriverConfig storage _config = _getConfig();
         bool flagExist = false;
         // if it already exists, update vault address 
@@ -42,7 +41,6 @@ contract StargateDriver is ProtocolDriver{
             if (_config.vaults[i].chainId == _chainId) {
                 _config.vaults[i].vaultAddress = _vaultAddress;
                 flagExist = true;
-                console.log("exist");
                 break;
             }
         }
@@ -52,7 +50,6 @@ contract StargateDriver is ProtocolDriver{
             _newVault.chainId = _chainId;
             _newVault.vaultAddress = _vaultAddress;
             _config.vaults.push(_newVault);
-            console.log("no exist, add new");
         }
     }
 
@@ -158,7 +155,6 @@ contract StargateDriver is ProtocolDriver{
     }
 
     function _swapRemote(bytes calldata _payload) private {
-        console.log("swapRemote called");
         uint256 _amountLD;
         uint16 _dstChainId;
         uint256 _dstPoolId;
@@ -182,12 +178,9 @@ contract StargateDriver is ProtocolDriver{
 
         address _to = address(0x0);
         {
-            console.log("vaults length", _getConfig().vaults.length);
             for (uint256 i = 0; i < _getConfig().vaults.length; i++) {
-                console.log(_getConfig().vaults[i].chainId, _dstChainId);
                 if (_getConfig().vaults[i].chainId == _dstChainId) {
                     _to = _getConfig().vaults[i].vaultAddress;
-                    console.log("_to", _to);
                 }
             }
             require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
@@ -195,7 +188,6 @@ contract StargateDriver is ProtocolDriver{
 
         // Swap
         IStargateRouter(_router).swap{value:_nativeFee}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
-        console.log("swapRemote ended");
     }
 
     function _getStakedAmount() private returns (bytes memory response) {

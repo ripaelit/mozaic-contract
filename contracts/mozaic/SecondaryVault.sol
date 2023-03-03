@@ -34,6 +34,11 @@ contract SecondaryVault is NonblockingLzApp {
         uint256 amountMLP
     );
 
+    event Received (
+        address indexed sender,
+        uint256 amount
+    );
+
     //--------------------------------------------------------------------------
     // CONSTANTS
     uint16 public constant PT_REPORTSNAPSHOT = 10001;
@@ -233,10 +238,9 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function receiveNativeToken() public payable {
+    receive () external payable {
         // Use this function to receive an amount of native token equals to msg.value from msg.sender
     }
-
 
     //---------------------------------------------------------------------------
     // Constructor and Public Functions
@@ -302,9 +306,8 @@ contract SecondaryVault is NonblockingLzApp {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
             (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
-            console.log("executeActions");
-            console.logBytes(response);
-            require(success, "Failed to delegate to ProtocolDriver");
+            (string memory errorMessage) = abi.decode(response, (string));
+            require(success, errorMessage);
         }
     }
 
