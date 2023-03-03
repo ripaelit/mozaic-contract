@@ -206,13 +206,11 @@ describe('SecondaryVault.executeActions', () => {
             [owner] = await ethers.getSigners();
 
             // send nativeFee to srcVault
-            // const nativeFee = ethers.utils.parseEther("0.1");
             const routerFactory = await ethers.getContractFactory('Router', owner) as Router__factory;
             const routerAddr = exportData.testnetTestConstants.routers.get(srcChainId)!;
             const router = routerFactory.attach(routerAddr);
-            // Bridge.TYPE_SWAP_REMOTE = 1
-            const typeSwapRemote = 1;
-            const [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, typeSwapRemote, dstTokenAddr, "0x", ({
+            const TYPE_SWAP_REMOTE = 1;   // Bridge.TYPE_SWAP_REMOTE = 1
+            const [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, TYPE_SWAP_REMOTE, dstTokenAddr, "0x", ({
                 dstGasForCall: 0,       // extra gas, if calling smart contract,
                 dstNativeAmount: 0,     // amount of dust dropped in destination wallet 
                 dstNativeAddr: "0x" // destination wallet for dust
@@ -226,7 +224,7 @@ describe('SecondaryVault.executeActions', () => {
             console.log("srcVault received nativeToken", nativeFee.toString());
 
             // swapRemote
-            const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256","uint256"], [amountSwap, srcToken.address, dstChainId, dstPoolId, nativeFee]);
+            const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256","uint256"], [amountSwap, srcTokenAddr, dstChainId, dstPoolId, nativeFee]);
             console.log("payloadSwapRemote", payloadSwapRemote);
             console.log("owner", owner.address);
             const swapRemoteAction: SecondaryVault.ActionStruct  = {
@@ -336,114 +334,309 @@ describe('SecondaryVault.executeActions', () => {
             [owner, alice, ben] = await ethers.getSigners();
             const primaryChainId = exportData.testnetTestConstants.chainIds[1];
             const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
-            const tokenAPrimaryAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("USDT")!;
             let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-            const tokenAPrimary = MockTokenFactory.attach(tokenAPrimaryAddr);
-            const decimalsA = await tokenAPrimary.decimals();
-            const aliceTotalLD = ethers.utils.parseUnits("10", decimalsA);
-            const aliceDeposit1LD = ethers.utils.parseUnits("3", decimalsA);
-            const aliceDeposit2LD = ethers.utils.parseUnits("4", decimalsA);
+            const tokenAAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("USDT")!;
+            const tokenA = MockTokenFactory.attach(tokenAAddr);
+            const decimalsA = await tokenA.decimals();
+            console.log("tokenA decimals", decimalsA);
+            const aliceTotalLD_A = ethers.utils.parseUnits("10", decimalsA);
+            const aliceDeposit1LD_A = ethers.utils.parseUnits("3", decimalsA);
+            const aliceDeposit2LD_A = ethers.utils.parseUnits("2", decimalsA);
+            const tokenBAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("BUSD")!;
+            const tokenB = MockTokenFactory.attach(tokenBAddr);
+            const decimalsB = await tokenB.decimals();
+            console.log("tokenB decimals", decimalsB);
+            const benTotalLD_B = ethers.utils.parseUnits("20", decimalsB);
+            const benDepositLD_B = ethers.utils.parseUnits("7", decimalsB);
             // Mint tokens
-            let tx = await tokenAPrimary.connect(owner).mint(alice.address, aliceTotalLD);
+            let tx = await tokenA.connect(owner).mint(alice.address, aliceTotalLD_A);
+            await tx.wait();
+            tx = await tokenB.connect(owner).mint(ben.address, benTotalLD_B);
             await tx.wait();
 
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
-            const secondaryChainId = exportData.testnetTestConstants.chainIds[2];
+            const secondaryChainId = exportData.testnetTestConstants.chainIds[2]; // Fantom
             const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault as SecondaryVault;
-            const tokenBSecondaryAddr = exportData.testnetTestConstants.stablecoins.get(secondaryChainId)!.get("USDC")!;
             MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-            const tokenBSecondary = MockTokenFactory.attach(tokenBSecondaryAddr);
-            const decimalsB = await tokenBSecondary.decimals();
-            const benTotalLD = ethers.utils.parseUnits("20", decimalsB);
-            const benDepositLD = ethers.utils.parseUnits("5", decimalsB);
-            const benWithdrawMLP = ethers.utils.parseUnits("3", decimalsB);
+            const tokenCAddr = exportData.testnetTestConstants.stablecoins.get(secondaryChainId)!.get("USDC")!;
+            const tokenC = MockTokenFactory.attach(tokenCAddr);
+            const decimalsC = await tokenC.decimals();
+            console.log("tokenC decimals", decimalsC);
+            const benTotalLD_C = ethers.utils.parseUnits("15", decimalsC);
+            const benDepositLD_C = ethers.utils.parseUnits("5", decimalsC);
             // Mint tokens
-            tx = await tokenBSecondary.connect(owner).mint(ben.address, benTotalLD);
+            tx = await tokenC.connect(owner).mint(ben.address, benTotalLD_C);
             await tx.wait();
 
             // ----------------------- First Round: ----------------------------
             console.log("First Round:");
+
             // Algostory: ### 1. User Books Deposit
-            // Alice -> PrimaryVault Token A
-            // Ben -> SecondaryVault Token B
+            console.log("1. User books deposit");
+
+            // get amounts before in pending buffer
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenAPrimary.connect(alice).approve(primaryVault.address, aliceDeposit1LD);
+            let totalDepositAmountBefore = await primaryVault.getTotalDepositAmount(false);
+            let aliceDepositAmountBefore = await primaryVault.getDepositAmount(false, alice.address, tokenA.address, primaryChainId);
+            let depositAmountPerTokenABefore = await primaryVault.getDepositAmountPerToken(false, tokenA.address);
+            
+            // alice deposits to primaryVault
+            console.log("Alice deposits tokenA to primaryVault");
+            tx = await tokenA.connect(alice).approve(primaryVault.address, aliceDeposit1LD_A);
             await tx.wait();
-            tx = await primaryVault.connect(alice).addDepositRequest(aliceDeposit1LD, tokenAPrimary.address, primaryChainId);
+            tx = await primaryVault.connect(alice).addDepositRequest(aliceDeposit1LD_A, tokenA.address, primaryChainId);
             await tx.wait();
 
+            // ben deposits to primaryVault
+            console.log("Ben deposits tokenB to primaryVault");
+            tx = await tokenB.connect(ben).approve(primaryVault.address, benDepositLD_B);
+            await tx.wait();
+            tx = await primaryVault.connect(ben).addDepositRequest(benDepositLD_B, tokenB.address, primaryChainId);
+            await tx.wait();
+
+            // check pending buffer
+            let totalDepositAmount = await primaryVault.getTotalDepositAmount(false);
+            expect(totalDepositAmount.sub(totalDepositAmountBefore)).to.eq(aliceDeposit1LD_A.add(benDepositLD_B));
+            let aliceDepositAmount = await primaryVault.getDepositAmount(false, alice.address, tokenA.address, primaryChainId);
+            expect(aliceDepositAmount.sub(aliceDepositAmountBefore)).to.eq(aliceDeposit1LD_A);
+            let depositAmountPerTokenA = await primaryVault.getDepositAmountPerToken(false, tokenA.address);
+            expect(depositAmountPerTokenA.sub(depositAmountPerTokenABefore)).to.eq(aliceDeposit1LD_A);
+
+            // ben deposits to secondaryVault
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenBSecondary.connect(ben).approve(secondaryVault.address, benDepositLD);
+            console.log("Ben deposits tokenC to secondaryVault");
+            tx = await tokenC.connect(ben).approve(secondaryVault.address, benDepositLD_C);
             await tx.wait();
-            tx = await secondaryVault.connect(ben).addDepositRequest(benDepositLD, tokenBSecondary.address, secondaryChainId);
+            tx = await secondaryVault.connect(ben).addDepositRequest(benDepositLD_C, tokenC.address, secondaryChainId);
             await tx.wait();
 
-            // Check Pending Request Buffer
+            // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
+            console.log("3. Start optimizing");
+            
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            expect(await primaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit1LD.add(benDepositLD));
-            expect(await primaryVault.getDepositRequestAmount(false, alice.address, tokenAPrimary.address, primaryChainId)).to.eq(aliceDeposit1LD);
-
-            // Algostory: #### 3-1. Session Start (Protocol Status: Idle -> Optimizing)
+            expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
             tx = await primaryVault.connect(owner).initOptimizationSession();
             await tx.wait();
-            // Protocol Status : IDLE -> OPTIMIZING
             expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
 
             // Algostory: #### 3-2. Take Snapshot and Report
-            console.log("ChainId %d, primaryVault %s", primaryChainId, primaryVault.address);
-            tx = await primaryVault.connect(owner).takeSnapshot();
-            await tx.wait();
-            tx = await primaryVault.connect(owner).reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
-            await tx.wait();
+            console.log("Take and report snapshot");
 
-            hre.changeNetwork('fantom');
-            [owner, alice, ben] = await ethers.getSigners();
-            console.log("ChainId %d, secondaryVault %s", secondaryChainId, secondaryVault.address);
-            tx = await secondaryVault.connect(owner).takeSnapshot();
-            await tx.wait();
-            tx = await secondaryVault.connect(owner).reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
-            await tx.wait();
-            
-            // Alice adds to pending request pool, but this should not affect minted mLP amount.
+            // For primaryVault
+            console.log("For primaryVault");
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenAPrimary.connect(alice).approve(primaryVault.address, aliceDeposit2LD);
+            tx = await primaryVault.connect(owner).takeSnapshot();
             await tx.wait();
-            tx = await primaryVault.connect(alice).addDepositRequest(aliceDeposit2LD, tokenAPrimary.address, primaryChainId);
+            tx = await primaryVault.connect(owner).reportSnapshot();
             await tx.wait();
 
-            // Pending/Staged Request Amounts
-            expect(await primaryVault.getTotalDepositRequest(true)).to.eq(aliceDeposit1LD.add(benDepositLD));
-            expect(await primaryVault.getTotalDepositRequest(false)).to.eq(aliceDeposit2LD);
+            // For secondaryVault, switch network
+            console.log("For secondaryVault");
+            hre.changeNetwork('fantom');
+            [owner, alice, ben] = await ethers.getSigners();
+            tx = await secondaryVault.connect(owner).takeSnapshot();
+            await tx.wait();
+            tx = await secondaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0.1")});
+            await tx.wait();
+            
+            // Alice deposits again, but it goes to pending buffer, so cannot affect minted mLP amount.
+            hre.changeNetwork('bsctest');
+            [owner, alice, ben] = await ethers.getSigners();
+            let pendingDepositAmountBefore = await primaryVault.getTotalDepositAmount(false);
+            let stagedDepositAmountBefore = await primaryVault.getTotalDepositAmount(true);
+            
+            console.log("Alice deposits again");
+            tx = await tokenA.connect(alice).approve(primaryVault.address, aliceDeposit2LD_A);
+            await tx.wait();
+            tx = await primaryVault.connect(alice).addDepositRequest(aliceDeposit2LD_A, tokenA.address, primaryChainId);
+            await tx.wait();
+
+            // check pending request amounts: increased
+            let pendingDepositAmount = await primaryVault.getTotalDepositAmount(false);
+            expect(pendingDepositAmount.sub(pendingDepositAmountBefore)).to.eq(aliceDeposit2LD_A);
+            // check staged request amounts: didn't changed
+            let stagedDepositAmount = await primaryVault.getTotalDepositAmount(true);
+            expect(stagedDepositAmount).to.eq(stagedDepositAmountBefore);
 
             // Primary vault now has all snapshot reports.
             expect(await primaryVault.allVaultsSnapshotted()).to.eq(true);
-            const mozaicLpPerStablecoin = await primaryVault.mozaicLpPerStablecoinMil();
-
+            
             // Algostory: #### 3-3. Determine MLP per Stablecoin Rate
+            console.log("Determine MLP per stablecoin rate");
             // Initial rate is 1 mLP per USD
+            const mozaicLpPerStablecoin = await primaryVault.mozaicLpPerStablecoinMil();
             expect(mozaicLpPerStablecoin).to.eq(1000000);
 
-            // Stake
-            // ...
+            // Algostory: ### 4. Execute Asset Transition
+            console.log("4. Execute Asset Transition");
+            
+            // control center orders: 
+            // primaryVault stake 2 USDT and receive LpToken
+            // primaryVault unstake LpToken and redeem USDT
+            // primaryVault swap 1 USDT to BUSD
+            // primaryVault swapRemote 1 BUSD with USDC of secondaryVault
+
+            // 4.1. Stake - primaryVault stake 2 USDT and receive LpToken
+            console.log("4.1. Stake");
+
+            hre.changeNetwork('bsctest');
+            [owner] = await ethers.getSigners();
+            const primaryLpStakingAddr = await primaryVault.stargateLpStaking();
+            const primaryLpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+            const primaryLpStaking = primaryLpStakingFactory.attach(primaryLpStakingAddr);
+            const amountStake = ethers.utils.parseUnits("1", decimalsA);
+            
+            // Check token and lpStaked
+            const amountTokenBefore = await tokenA.connect(owner).balanceOf(primaryVault.address);
+            const amountLPStakedBefore = (await primaryLpStaking.userInfo(BigNumber.from("0"), primaryVault.address)).amount; // pool index in bsctest: 0 USDT, 1 BUSD
+            console.log("Before stake: token %d, LpStaked %d", amountTokenBefore.toString(), amountLPStakedBefore.toString());
+
+            // primaryVault stake USDC
+            const payloadStake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountStake, tokenAAddr]);
+            console.log("payloadStake", payloadStake);
+            const stakeAction: SecondaryVault.ActionStruct  = {
+                driverId: exportData.testnetTestConstants.stargateDriverId,
+                actionType: ActionTypeEnum.StargateStake,
+                payload : payloadStake
+            };
+            tx = await primaryVault.connect(owner).executeActions([stakeAction]);
+            await tx.wait();
+
+            // Check token and lpStaked
+            const amountToken = await tokenA.connect(owner).balanceOf(primaryVault.address);
+            const amountLPStaked = (await primaryLpStaking.userInfo(BigNumber.from("0"), primaryVault.address)).amount;
+            console.log("After stake: token %d, LpStaked %d", amountToken.toString(), amountLPStaked.toString());
+            expect(amountToken).lt(amountTokenBefore);
+            expect(amountLPStaked).gt(amountLPStakedBefore);
+
+            // 4.2. Unstake - primaryVault unstake LpToken and redeem USDT
+            console.log("4.2. Unstake");
+
+            hre.changeNetwork('bsctest');
+            [owner] = await ethers.getSigners();
+
+            const payloadUnstake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLPStaked, tokenA.address]);
+            const unstakeAction: SecondaryVault.ActionStruct  = {
+                driverId: exportData.testnetTestConstants.stargateDriverId,
+                actionType: ActionTypeEnum.StargateUnstake,
+                payload : payloadUnstake
+            };
+
+            tx = await primaryVault.connect(owner).executeActions([unstakeAction]);
+            await tx.wait();
+
+            // Check token and lpStaked
+            const amountTokenAfter = await tokenA.connect(owner).balanceOf(primaryVault.address);
+            const amountLPStakedAfter = (await primaryLpStaking.userInfo(BigNumber.from("0"), primaryVault.address)).amount;
+            console.log("After unstake: token %d, LpStaked %d", amountTokenAfter.toString(), amountLPStakedAfter.toString());
+            expect(amountTokenAfter).gt(amountToken);
+            expect(amountLPStakedAfter).lt(amountLPStaked);
+
+            // 4.3. Swap - primaryVault swap 1 USDT to BUSD
+            console.log("4.3. Swap");
+
+            hre.changeNetwork('bsctest');
+            [owner] = await ethers.getSigners();
+            const amountSwap = ethers.utils.parseUnits("1", decimalsA); 
+            const payloadSwap = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountSwap, tokenAAddr, tokenBAddr]);
+            const amountUSDTBefore = await tokenA.balanceOf(primaryVault.address);
+            const amountBUSDBefore = await tokenB.balanceOf(primaryVault.address);
+            console.log("Before swap, primavyVault has USDT %d, BUSD %d", amountUSDTBefore.toString(), amountBUSDBefore.toString());
+
+            // Swap USDT to BUSD
+            const swapAction: SecondaryVault.ActionStruct  = {
+                driverId: exportData.testnetTestConstants.pancakeSwapDriverId,
+                actionType: ActionTypeEnum.Swap,
+                payload : payloadSwap
+            };
+            tx = await primaryVault.connect(owner).executeActions([swapAction]);
+            await tx.wait();
+
+            // Check USDT amount of vault
+            const amountUSDTAfter = await tokenA.balanceOf(primaryVault.address)
+            const amountBUSDAfter = await tokenB.balanceOf(primaryVault.address);
+            console.log("After swap, primaryVault has USDT %d, BUSD %d", amountUSDTAfter.toString(), amountBUSDAfter.toString());
+            expect(amountUSDTAfter).lt(amountUSDTBefore);
+            expect(amountBUSDAfter).gt(amountBUSDBefore);
+
+            // 4.4. SwapRemote - primaryVault swapRemote 1 BUSD with USDC of secondaryVault
+            console.log("4.4. SwapRemote");
+
+            hre.changeNetwork('bsctest');
+            [owner] = await ethers.getSigners();
+            const amountSrcBefore = await tokenB.balanceOf(primaryVault.address);
+
+            hre.changeNetwork('fantom');
+            [owner] = await ethers.getSigners();
+            const srcChainId = primaryChainId;
+            const dstChainId = secondaryChainId;
+            const dstPoolId = exportData.testnetTestConstants.poolIds.get("USDC")!;
+            const amountDstBefore = await tokenC.balanceOf(secondaryVault.address);
+            const amountSwapRemote = ethers.utils.parseUnits("1", decimalsB);
+            console.log("Before swapRemote, primaryVault has tokenB %d, secondaryVault has tokenC %d", amountSrcBefore.toString(), amountDstBefore.toString());
+
+            hre.changeNetwork('bsctest');
+            [owner] = await ethers.getSigners();
+
+            // send nativeFee to srcVault
+            const routerFactory = await ethers.getContractFactory('Router', owner) as Router__factory;
+            const routerAddr = exportData.testnetTestConstants.routers.get(srcChainId)!;
+            const router = routerFactory.attach(routerAddr);
+            const TYPE_SWAP_REMOTE = 1;   // Bridge.TYPE_SWAP_REMOTE = 1
+            const [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, TYPE_SWAP_REMOTE, tokenCAddr, "0x", ({
+                dstGasForCall: 0,       // extra gas, if calling smart contract,
+                dstNativeAmount: 0,     // amount of dust dropped in destination wallet 
+                dstNativeAddr: "0x" // destination wallet for dust
+            }));
+            console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
+            tx = await owner.sendTransaction({
+                to: primaryVault.address,
+                value: nativeFee
+            });
+            await tx.wait();
+            console.log("primaryVault received nativeToken", nativeFee.toString());
+
+            // swapRemote
+            const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256","uint256"], [amountSwapRemote, tokenBAddr, dstChainId, dstPoolId, nativeFee]);
+            console.log("payloadSwapRemote", payloadSwapRemote);
+            const swapRemoteAction: SecondaryVault.ActionStruct  = {
+                driverId: exportData.testnetTestConstants.stargateDriverId,
+                actionType: ActionTypeEnum.SwapRemote,
+                payload : payloadSwapRemote
+            };
+            tx = await primaryVault.connect(owner).executeActions([swapRemoteAction]);
+            await tx.wait();
+            console.log("swapRemote executeActions tx hash", tx.hash);
+
+            // Check both tokens
+            const amountSrcRemain = await tokenB.balanceOf(primaryVault.address);
+            hre.changeNetwork('fantom');
+            const amountDstRemain = await tokenC.balanceOf(secondaryVault.address);
+            console.log("After swapRemote, primaryVault has tokenB %d, secondaryVault has tokenC %d", amountSrcRemain.toString(), amountDstRemain.toString());
+            expect(amountSrcRemain).lt(amountSrcBefore);
+            // expect(amountDstRemain).greaterThan(amountDstBefore);    // kevin
 
             // Algostory: #### 5. Settle Requests
+            console.log("5. Settle Requests");
+
             // Alice, Ben receive mLP, Vaults receive coin
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             tx = await primaryVault.connect(owner).settleRequestsAllVaults();
             await tx.wait();
-            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address)).to.eq(aliceDeposit1LD);  // mLP eq to SD
+            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address)).to.eq(aliceDeposit1LD_A);  // mLP eq to SD
+            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDepositLD_B);  // mLP eq to SD
 
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
             tx = await secondaryVault.connect(owner).reportSettled();
             await tx.wait();
-            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDepositLD);     // mLP eq to SD
+            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDepositLD_C);     // mLP eq to SD
 
             // Algostory: #### 6. Session Closes
             hre.changeNetwork('bsctest');
@@ -452,16 +645,20 @@ describe('SecondaryVault.executeActions', () => {
 
             // Second Round:
             console.log("Second Round:");
-            // Alice's booked deposit request 4k now turns into staged from pending.
+            // Alice's booked deposit request now turns into staged from pending.
             // Ben books withdraw (half of his mLP)
-            hre.changeNetwork('fantom');
+            hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            const benMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-            const benCoinBefore = await tokenBSecondary.balanceOf(ben.address);
-            console.log("ben:", ben.address);
-            console.log("benMLPBefore", benMLPBefore, "benCoinBefore", benCoinBefore);
-            tx = await secondaryVault.connect(ben).addWithdrawRequest(benWithdrawMLP, tokenBSecondary.address, secondaryChainId);
+            const benMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
+            const benTokenBBefore = await tokenB.balanceOf(ben.address);
+            const benWithdrawMLP = benMLPBefore;    // withdraw whole mLP
+            console.log("benMLPBefore %d, benTokenBefore %d", benMLPBefore, benTokenBBefore);
+            tx = await primaryVault.connect(ben).addWithdrawRequest(benWithdrawMLP, tokenBAddr, primaryChainId);
             await tx.wait();
+
+            // check
+            const benMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
+            expect(benMLPAfter).to.eq(benMLPBefore);
             
             // Settle Requests
             hre.changeNetwork('bsctest');
@@ -470,7 +667,7 @@ describe('SecondaryVault.executeActions', () => {
             await tx.wait();
             tx = await primaryVault.connect(owner).takeSnapshot();
             await tx.wait();
-            tx = await primaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0")});
+            tx = await primaryVault.connect(owner).reportSnapshot();
             await tx.wait();
 
             hre.changeNetwork('fantom');
@@ -482,174 +679,23 @@ describe('SecondaryVault.executeActions', () => {
 
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            console.log("before", await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address));
+            const aliceMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
             tx = await primaryVault.settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
             await tx.wait();
-            console.log("after", await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address));
+            const aliceMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+            console.log("alice mLP before %d, after %d", aliceMLPBefore, aliceMLPAfter);
+            expect(aliceMLPAfter).gt(aliceMLPBefore);
 
-            expect(await primaryVault.getTotalDepositRequest(true)).to.eq(0);
-            console.log(await primaryVault.getTotalDepositRequest(true));
+            const totalDepositAmountLast = await primaryVault.getTotalDepositAmount(true);
+            console.log(totalDepositAmountLast);
+            expect(totalDepositAmountLast).to.eq(0);
             // console.log(txresult);
             // console.log("wait for settling");
             // await new Promise( resolve => setTimeout(resolve, 5000) );
             // console.log("settled");
 
-            hre.changeNetwork('fantom');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await secondaryVault.reportSettled({value:ethers.utils.parseEther("0.1")});
-            await tx.wait();
-            const benMLPAfter = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-            const benCoinAfter = await tokenBSecondary.balanceOf(ben.address);
-            console.log("benMLPAfter", benMLPAfter, "benCoinAfter", benCoinAfter);
-            expect(benMLPBefore.sub(benMLPAfter)).to.eq(benWithdrawMLP);
-            expect(benCoinAfter.sub(benCoinBefore)).to.eq(benWithdrawMLP);
             // settle requests
 
-        })
-        it ('single chain flow', async () => {
-            [owner, alice, ben] = await ethers.getSigners();
-            const chainId = exportData.testnetTestConstants.chainIds[0];
-            const vault = mozaicDeployments.get(chainId)!.mozaicVault as PrimaryVault;
-            const mozLp = mozaicDeployments.get(chainId)!.mozaicLp as MozaicLP;
-            const MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-            const tokenAPrimaryAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDC")!;
-            const tokenAPrimary = MockTokenFactory.attach(tokenAPrimaryAddr);
-            const tokenBPrimaryAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get("USDT")!;
-            const tokenBPrimary = MockTokenFactory.attach(tokenBPrimaryAddr);
-            
-            const decimalsA = await tokenAPrimary.decimals();
-            const aliceTotalLD = ethers.utils.parseUnits("10", decimalsA);
-            const aliceDeposit1LD = ethers.utils.parseUnits("3", decimalsA);
-            const aliceDeposit2LD = ethers.utils.parseUnits("4", decimalsA);
-            const decimalsB = await tokenBPrimary.decimals();
-            const benTotalLD = ethers.utils.parseUnits("20", decimalsB);
-            const benDepositLD = ethers.utils.parseUnits("5", decimalsB);
-            const benWithdrawMLP = ethers.utils.parseUnits("3", decimalsB);
-
-            // Mint tokens
-            let tx = await tokenAPrimary.connect(owner).mint(alice.address, aliceTotalLD);
-            await tx.wait();
-            tx = await tokenBPrimary.connect(owner).mint(ben.address, benTotalLD);
-            await tx.wait();
-
-            // ----------------------- First Round: ----------------------------
-            console.log("First Round:");
-            // Algostory: ### 1. User Books Deposit
-            // Alice -> PrimaryVault Token A
-            // Ben -> PrimaryVault Token B
-            let totalDepositRequestPendingBefore = await vault.getTotalDepositRequest(false);
-            let depositRequestPendingBefore = await vault.getDepositRequestAmount(false, alice.address, tokenAPrimary.address, chainId);
-
-            tx = await tokenAPrimary.connect(alice).approve(vault.address, aliceDeposit1LD);
-            await tx.wait();
-            tx = await vault.connect(alice).addDepositRequest(aliceDeposit1LD, tokenAPrimary.address, chainId);
-            await tx.wait();
-
-            tx = await tokenBPrimary.connect(ben).approve(vault.address, benDepositLD);
-            await tx.wait();
-            tx = await vault.connect(ben).addDepositRequest(benDepositLD, tokenBPrimary.address, chainId);
-            await tx.wait();
-
-            // Check Pending Request Buffer
-            let totalDepositRequestPending = await vault.getTotalDepositRequest(false);
-            console.log("totalDepositRequestPending %d, totalDepositRequestPendingBefore %d, aliceDeposit1LD %d, benDepositLD %d", totalDepositRequestPending, totalDepositRequestPendingBefore, aliceDeposit1LD, benDepositLD);
-            expect(totalDepositRequestPending.sub(totalDepositRequestPendingBefore)).to.eq(aliceDeposit1LD.add(benDepositLD));
-            let depositRequestPending = await vault.getDepositRequestAmount(false, alice.address, tokenAPrimary.address, chainId);
-            console.log("depositRequestPending %d, depositRequestPendingBefore %d, aliceDeposit1LD %d", depositRequestPending, depositRequestPendingBefore, aliceDeposit1LD);
-            expect(depositRequestPending.sub(depositRequestPendingBefore)).to.eq(aliceDeposit1LD);
-
-            // Algostory: #### 3-1. Session Start (Protocol Status: Idle -> Optimizing)
-            tx = await vault.connect(owner).initOptimizationSession();
-            await tx.wait();
-            // Protocol Status : IDLE -> OPTIMIZING
-            expect(await vault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
-
-            // Algostory: #### 3-2. Take Snapshot and Report
-            console.log("ChainId %d, Vault %s", chainId, vault.address);
-            tx = await vault.connect(owner).takeSnapshot();
-            await tx.wait();
-            tx = await vault.connect(owner).reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
-            await tx.wait();
-
-            // Alice adds to pending request pool, but this should not affect minted mLP amount.
-            let totalDepositRequestStagedBefore = await vault.getTotalDepositRequest(true);
-            totalDepositRequestPendingBefore = await vault.getTotalDepositRequest(false);
-
-            tx = await tokenAPrimary.connect(alice).approve(vault.address, aliceDeposit2LD);
-            await tx.wait();
-            tx = await vault.connect(alice).addDepositRequest(aliceDeposit2LD, tokenAPrimary.address, chainId);
-            await tx.wait();
-
-            // Pending/Staged Request Amounts
-            let totalDepositRequestStaged = await vault.getTotalDepositRequest(true);
-            totalDepositRequestPending = await vault.getTotalDepositRequest(false);
-            console.log("totalDepositRequestStaged %d, totalDepositRequestStagedBefore %d, aliceDeposit1LD %d, benDepositLD %d", totalDepositRequestStaged, totalDepositRequestStagedBefore, aliceDeposit1LD, benDepositLD);
-            expect(totalDepositRequestStaged.sub(totalDepositRequestStagedBefore)).to.eq(aliceDeposit1LD.add(benDepositLD));
-            console.log("totalDepositRequestPending %d, totalDepositRequestPendingBefore %d, aliceDeposit2LD %d", totalDepositRequestPending, totalDepositRequestPendingBefore, aliceDeposit2LD);
-            expect(totalDepositRequestPending.sub(totalDepositRequestPendingBefore)).to.eq(aliceDeposit2LD);
-
-            // Primary vault now has all snapshot reports.
-            expect(await vault.allVaultsSnapshotted()).to.eq(true);
-            const mozaicLpPerStablecoin = await vault.mozaicLpPerStablecoinMil();
-
-            // Algostory: #### 3-3. Determine MLP per Stablecoin Rate
-            // Initial rate is 1 mLP per USD
-            console.log("mozaicLpPerStablecoin %d", mozaicLpPerStablecoin);
-            expect(mozaicLpPerStablecoin).to.eq(1000000);
-
-            // Stake
-            // ...
-
-            // Algostory: #### 5. Settle Requests
-            // Alice, Ben receive mLP, Vaults receive coin
-            tx = await vault.settleRequestsAllVaults();
-            await tx.wait();
-            
-            let aliceDepositRequestStaged = await vault.getDepositRequestAmount(true, alice.address, tokenAPrimary.address, chainId);
-            console.log("aliceDepositRequestStaged %d", aliceDepositRequestStaged);
-            expect(await mozLp.balanceOf(alice.address)).to.eq(aliceDepositRequestStaged);  // mLP eq to SD
-            let benDepositRequestStaged = await vault.getDepositRequestAmount(true, ben.address, tokenBPrimary.address, chainId);
-            console.log("benDepositRequestStaged %d", benDepositRequestStaged);
-            expect(await mozLp.balanceOf(ben.address)).to.eq(benDepositRequestStaged);     // mLP eq to SD
-
-            // Algostory: #### 6. Session Closes
-            expect(await vault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
-
-            // Second Round:
-            console.log("Second Round:");
-
-            // Alice's booked deposit2 request now turns into staged from pending.
-            // Ben books withdraw (half of his mLP)
-            const benMLPBefore = await mozLp.balanceOf(ben.address);
-            const benCoinBefore = await tokenBPrimary.balanceOf(ben.address);
-            console.log("ben:", ben.address);
-            console.log("benMLPBefore", benMLPBefore, "benCoinBefore", benCoinBefore);
-            tx = await vault.connect(ben).addWithdrawRequest(benWithdrawMLP, tokenBPrimary.address, chainId);
-            await tx.wait();
-
-            // Settle Requests
-            tx = await vault.connect(owner).initOptimizationSession();
-            await tx.wait();
-            tx = await vault.connect(owner).takeSnapshot();
-            await tx.wait();
-            tx = await vault.connect(owner).reportSnapshot(); //{value:ethers.utils.parseEther("0.1")}
-            await tx.wait();
-            // console.log("before", await mozLp.balanceOf(alice.address));
-            tx = await vault.settleRequestsAllVaults();
-            await tx.wait();
-            console.log("alice has mozLp %d, aliceDepositRequestStaged %d, aliceDeposit2LD %d", await mozLp.balanceOf(alice.address), aliceDepositRequestStaged, aliceDeposit2LD);
-            expect(await mozLp.balanceOf(alice.address)).to.eq(aliceDepositRequestStaged.add(aliceDeposit2LD));  // mLP eq to SD
-            console.log("getTotalDepositRequestStaged %d", await vault.getTotalDepositRequest(true));
-            expect(await vault.getTotalDepositRequest(true)).to.eq(0);
-            
-            // await vault.reportSettled({value:ethers.utils.parseEther("0.1")});
-            const benMLPAfter = await mozLp.balanceOf(ben.address);
-            const benCoinAfter = await tokenBPrimary.balanceOf(ben.address);
-            console.log("benMLPAfter", benMLPAfter, "benCoinAfter", benCoinAfter);
-
-            expect(benMLPBefore.sub(benMLPAfter)).to.eq(benWithdrawMLP);
-            expect(benCoinAfter.sub(benCoinBefore)).to.eq(benWithdrawMLP);
-            // settle requests
         })
     })
 })
