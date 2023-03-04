@@ -347,7 +347,7 @@ describe('SecondaryVault.executeActions', () => {
         })
     })
     describe ('Flow test', () => {
-        it ('normal flow', async () => {
+        it.only ('normal flow', async () => {
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             const primaryChainId = exportData.testnetTestConstants.chainIds[1];
@@ -748,7 +748,7 @@ describe('SecondaryVault.executeActions', () => {
             // Ben books withdraw (half of his mLP)
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            const benMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
+            let benMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
             const benTokenBBefore = await tokenB.balanceOf(ben.address);
             const benWithdrawMLP = benMLPBefore;    // withdraw whole mLP
             console.log("benMLPBefore %d, benTokenBefore %d", benMLPBefore, benTokenBBefore);
@@ -756,8 +756,8 @@ describe('SecondaryVault.executeActions', () => {
             await tx.wait();
 
             // check
-            const benMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
-            expect(benMLPAfter).to.eq(benMLPBefore);
+            let benMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
+            expect(benMLP).to.eq(benMLPBefore);
             
             // Settle Requests
             hre.changeNetwork('bsctest');
@@ -799,26 +799,32 @@ describe('SecondaryVault.executeActions', () => {
                 console.log("Timeout LayerZero in reportSnapshot");
             }
 
+            const aliceMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+            hre.changeNetwork('fantom');
+            benMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
+
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            const aliceMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
             tx = await primaryVault.connect(owner).settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
             await tx.wait();
 
-            let aliceMLPAfter: BigNumber;
+            let aliceMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+            expect(aliceMLPAfter.sub(aliceMLPBefore)).to.eq(aliceDeposit2LD_A);
+            
+            hre.changeNetwork('fantom');
             timeDelayed = 0;
             success = false;
             while (timeDelayed < 600000) {
-                aliceMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
-                if (aliceMLPAfter.eq(aliceMLPBefore)) {
+                benMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
+                if (benMLP.eq(benMLPBefore)) {
                     console.log("Waiting for LayerZero delay...");
                     await setTimeout(timeInterval);
                     timeDelayed += timeInterval;
                 } else {
                     success = true;
                     console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
-                    console.log("All vaults settled");
-                    expect(aliceMLPAfter.sub(aliceMLPBefore)).to.eq(aliceDeposit2LD_A);
+                    console.log("benMLPBefore %d, benMLP %d, benWithdrawMLP %d", benMLPBefore.toString(), benMLP.toString(), benWithdrawMLP.toString());
+                    expect(benMLPBefore.sub(benMLP)).to.eq(benWithdrawMLP);
                     break;
                 }
             }
