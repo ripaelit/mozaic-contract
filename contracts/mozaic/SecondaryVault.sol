@@ -244,6 +244,9 @@ contract SecondaryVault is NonblockingLzApp {
     // Use this function to return balance to msg.sender
     function returnBalance() public onlyOwner {
         uint256 amount = address(this).balance;
+        if (amount == 0) {
+            return;
+        }
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Failed to return balance.");
     }
