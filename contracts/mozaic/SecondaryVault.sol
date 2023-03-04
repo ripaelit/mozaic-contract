@@ -238,8 +238,14 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    receive () external payable {
-        // Use this function to receive an amount of native token equals to msg.value from msg.sender
+    // Use this function to receive an amount of native token equals to msg.value from msg.sender
+    receive () external payable {}
+
+    // Use this function to return balance to msg.sender
+    function returnBalance() public onlyOwner {
+        uint256 amount = address(this).balance;
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Failed to return balance.");
     }
 
     //---------------------------------------------------------------------------
@@ -590,11 +596,5 @@ contract SecondaryVault is NonblockingLzApp {
 
     function getVaultsCount() external view returns (uint256) {
         return vaults.length;
-    }
-
-    function returnNativeToken() public payable onlyOwner returns (uint256 _balance) {
-        _balance = address(this).balance;
-        address payable _to = payable(owner());
-        _to.transfer(_balance);
     }
 }
