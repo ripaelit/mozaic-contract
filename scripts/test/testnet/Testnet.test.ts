@@ -49,22 +49,22 @@ describe('SecondaryVault.executeActions', () => {
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
         
-        await initMozaics(mozaicDeployments);
+        // await initMozaics(mozaicDeployments);
     })
     beforeEach(async () => {
         hre.changeNetwork('bsctest');
         [owner] = await ethers.getSigners();
         const primaryChainId = exportData.testnetTestConstants.chainIds[1];
         const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault;
-        let amountReturn = await primaryVault.connect(owner).returnNativeToken();
-        console.log("bscVault returned %d ETH", amountReturn);
+        let tx = await primaryVault.connect(owner).returnBalance();
+        await tx.wait();
 
         hre.changeNetwork('fantom');
         [owner] = await ethers.getSigners();
         const secondaryChainId = exportData.testnetTestConstants.chainIds[2];
         const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault;
-        amountReturn = await secondaryVault.connect(owner).returnNativeToken();
-        console.log("fantomVault returned %d ETH", amountReturn);
+        tx = await secondaryVault.connect(owner).returnBalance();
+        await tx.wait();
     })
     describe ('StargateDriver.execute', () => {
         it ("can stake token", async () => {
@@ -82,17 +82,17 @@ describe('SecondaryVault.executeActions', () => {
             console.log("bsctest USDT decimals", decimals);
             const amountLD = ethers.utils.parseUnits("1", decimals);
             
-            // Mint USDC to SecondaryVault
-            console.log("Before mint, SecondaryVault has token:", (await coinContract.balanceOf(vault.address)).toString());
+            // Mint USDT to vault
+            console.log("Before mint, vault has token:", (await coinContract.balanceOf(vault.address)).toString());
             let tx = await coinContract.connect(owner).mint(vault.address, amountLD);
             await tx.wait();
-            console.log("After mint, SecondaryVault has token:", (await coinContract.balanceOf(vault.address)).toString());
+            console.log("After mint, vault has token:", (await coinContract.balanceOf(vault.address)).toString());
             
             // Check LpTokens for vault in LpStaking
             const amountLPStakedBefore = (await lpStaking.userInfo(BigNumber.from("0"), vault.address)).amount; // pool index in bsctest: 0 USDT, 1 BUSD
-            console.log("Before stake: LpTokens for SecondaryVault in LpStaking is", amountLPStakedBefore.toString());
+            console.log("Before stake: LpTokens for vault in LpStaking is", amountLPStakedBefore.toString());
 
-            // SecondaryVault stake USDC
+            // vault stake USDC
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, coinAddr]);
             console.log("payloadStake", payload);
             const stakeAction: SecondaryVault.ActionStruct  = {
@@ -102,11 +102,11 @@ describe('SecondaryVault.executeActions', () => {
             };
             tx = await vault.connect(owner).executeActions([stakeAction]);
             await tx.wait();
-            console.log("After stake SecondaryVault has token:", (await coinContract.balanceOf(vault.address)).toString());
+            console.log("After stake vault has token:", (await coinContract.balanceOf(vault.address)).toString());
 
             // Check LpTokens for vault in LpStaking
             const amountLPStakedAfter = (await lpStaking.userInfo(BigNumber.from("0"), vault.address)).amount;
-            console.log("After stake LpTokens for SecondaryVault in LpStaking is", amountLPStakedAfter.toString());
+            console.log("After stake LpTokens for vault in LpStaking is", amountLPStakedAfter.toString());
             expect(amountLPStakedAfter).gt(amountLPStakedBefore);
         })
         it ("can unstake USDC", async () => {
@@ -201,7 +201,7 @@ describe('SecondaryVault.executeActions', () => {
             const amountDstBefore = await dstToken.balanceOf(dstVault.address);
             console.log("Before swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcBefore.toString(), amountDstBefore.toString());
             
-            // SwapRemote: Ethereum USDT -> BSC USDT
+            // SwapRemote: Bsc USDT -> Fantom USDC
             hre.changeNetwork('bsctest');
             [owner] = await ethers.getSigners();
 
@@ -329,7 +329,7 @@ describe('SecondaryVault.executeActions', () => {
         })
     })
     describe ('Flow test', () => {
-        it ('normal flow', async () => {
+        it.only ('normal flow', async () => {
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             const primaryChainId = exportData.testnetTestConstants.chainIds[1];
