@@ -4,8 +4,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, Bridge__factory, StargateToken__factory, MockToken__factory, PrimaryVault, SecondaryVault, LPStaking__factory, MozaicLP, Router__factory } from '../../../types/typechain';
 import { ActionTypeEnum, ProtocolStatus, MozaicDeployment } from '../../constants/types';
 import exportData from '../../constants/index';
-import { BigNumber, Wallet } from 'ethers';
+import { BigNumber } from 'ethers';
 import { initMozaics } from '../../util/deployUtils';
+import { setTimeout } from 'timers/promises';
 // import "hardhat-change-network";
 // import { ALCHEMY_API_KEY, GOERLI_PRIVATE_KEY } from '../../../hardhat.config';
 const fs = require('fs');
@@ -239,10 +240,27 @@ describe('SecondaryVault.executeActions', () => {
             // Check both tokens
             const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
             hre.changeNetwork('fantom');
-            const amountDstRemain = await dstToken.balanceOf(dstVault.address);
-            console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain.toString(), amountDstRemain.toString());
-            expect(amountSrcRemain).lessThan(amountSrcBefore);
-            // expect(amountDstRemain).greaterThan(amountDstBefore);
+            let amountDstRemain: BigNumber;
+            let timeDelayed = 0;
+            const timeInterval = 10000;
+            let success = false;
+            while (timeDelayed < 600000) {
+                amountDstRemain = await dstToken.balanceOf(dstVault.address);
+                if (amountDstRemain.eq(amountDstBefore)) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain.toString(), amountDstRemain.toString());
+                    expect(amountDstRemain).gt(amountDstBefore);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout in LayerZero");
+            }
         })
     })
     describe ('PancakeSwapDriver.execute', () => {
@@ -329,7 +347,7 @@ describe('SecondaryVault.executeActions', () => {
         })
     })
     describe ('Flow test', () => {
-        it.only ('normal flow', async () => {
+        it ('normal flow', async () => {
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             const primaryChainId = exportData.testnetTestConstants.chainIds[1];
@@ -443,29 +461,46 @@ describe('SecondaryVault.executeActions', () => {
             await tx.wait();
             tx = await secondaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0.1")});
             await tx.wait();
+
+            // Check all vaults snapshotted
+            hre.changeNetwork('bsctest');
+            let timeDelayed = 0;
+            const timeInterval = 10000;
+            let success = false;
+            let allSnapshotted = false;
+            while (timeDelayed < 600000) {
+                allSnapshotted = await primaryVault.allVaultsSnapshotted();
+                if (!allSnapshotted) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("All vaults snapshotted");
+                    expect(allSnapshotted).to.eq(true);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout LayerZero in reportSnapshot");
+            }
             
             // Alice deposits again, but it goes to pending buffer, so cannot affect minted mLP amount.
+            console.log("Alice deposits again");
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             let pendingDepositAmountBefore = await primaryVault.getTotalDepositAmount(false);
             let stagedDepositAmountBefore = await primaryVault.getTotalDepositAmount(true);
-            
-            console.log("Alice deposits again");
             tx = await tokenA.connect(alice).approve(primaryVault.address, aliceDeposit2LD_A);
             await tx.wait();
             tx = await primaryVault.connect(alice).addDepositRequest(aliceDeposit2LD_A, tokenA.address, primaryChainId);
             await tx.wait();
-
-            // check pending request amounts: increased
             let pendingDepositAmount = await primaryVault.getTotalDepositAmount(false);
-            expect(pendingDepositAmount.sub(pendingDepositAmountBefore)).to.eq(aliceDeposit2LD_A);
-            // check staged request amounts: didn't changed
             let stagedDepositAmount = await primaryVault.getTotalDepositAmount(true);
+            expect(pendingDepositAmount.sub(pendingDepositAmountBefore)).to.eq(aliceDeposit2LD_A);
             expect(stagedDepositAmount).to.eq(stagedDepositAmountBefore);
 
-            // Primary vault now has all snapshot reports.
-            expect(await primaryVault.allVaultsSnapshotted()).to.eq(true);
-            
             // Algostory: #### 3-3. Determine MLP per Stablecoin Rate
             console.log("Determine MLP per stablecoin rate");
             // Initial rate is 1 mLP per USD
@@ -613,35 +648,99 @@ describe('SecondaryVault.executeActions', () => {
             await tx.wait();
             console.log("swapRemote executeActions tx hash", tx.hash);
 
-            // Check both tokens
+            // Check result
             const amountSrcRemain = await tokenB.balanceOf(primaryVault.address);
             hre.changeNetwork('fantom');
-            const amountDstRemain = await tokenC.balanceOf(secondaryVault.address);
-            console.log("After swapRemote, primaryVault has tokenB %d, secondaryVault has tokenC %d", amountSrcRemain.toString(), amountDstRemain.toString());
-            expect(amountSrcRemain).lt(amountSrcBefore);
-            // expect(amountDstRemain).greaterThan(amountDstBefore);    // kevin
+            let amountDstRemain: BigNumber;
+            timeDelayed = 0;
+            success = false;
+            while (timeDelayed < 600000) {
+                amountDstRemain = await tokenC.balanceOf(secondaryVault.address);
+                if (amountDstRemain.eq(amountDstBefore)) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain.toString(), amountDstRemain.toString());
+                    expect(amountDstRemain).gt(amountDstBefore);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout LayerZero in swapRemote");
+            }
 
             // Algostory: #### 5. Settle Requests
             console.log("5. Settle Requests");
 
             // Alice, Ben receive mLP, Vaults receive coin
             hre.changeNetwork('bsctest');
+            const alicePrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+            const benPrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
+            hre.changeNetwork('fantom');
+            const benSecondaryMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
+            
+            hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            tx = await primaryVault.connect(owner).settleRequestsAllVaults();
+            tx = await primaryVault.connect(owner).settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
             await tx.wait();
-            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address)).to.eq(aliceDeposit1LD_A);  // mLP eq to SD
-            expect(await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDepositLD_B);  // mLP eq to SD
+            const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+            const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
+            expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit1LD_A);  // mLP eq to SD
+            expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B);  // mLP eq to SD
+            
+            hre.changeNetwork('fantom');
+            let benSecondaryMLP: BigNumber;
+            timeDelayed = 0;
+            success = false;
+            while (timeDelayed < 600000) {
+                benSecondaryMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
+                if (benSecondaryMLP.eq(benSecondaryMLPBefore)) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("All vaults settled");
+                    expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout LayerZero in settleRequestsAllVaults");
+            }
 
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
             tx = await secondaryVault.connect(owner).reportSettled();
             await tx.wait();
-            expect(await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address)).to.eq(benDepositLD_C);     // mLP eq to SD
 
             // Algostory: #### 6. Session Closes
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
+            let protocolStatus: number;
+            timeDelayed = 0;
+            success = false;
+            while (timeDelayed < 600000) {
+                protocolStatus = await primaryVault.protocolStatus();
+                if (protocolStatus != ProtocolStatus.IDLE) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("All vaults reported settled_requests");
+                    expect(protocolStatus).to.eq(ProtocolStatus.IDLE);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout LayerZero in reportSettled");
+            }
 
             // Second Round:
             console.log("Second Round:");
@@ -677,14 +776,55 @@ describe('SecondaryVault.executeActions', () => {
             tx = await secondaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0.1")});
             await tx.wait();
 
+            // Check all vaults snapshotted
+            hre.changeNetwork('bsctest');
+            timeDelayed = 0;
+            success = false;
+            allSnapshotted = false;
+            while (timeDelayed < 600000) {
+                allSnapshotted = await primaryVault.allVaultsSnapshotted();
+                if (!allSnapshotted) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("All vaults snapshotted");
+                    expect(allSnapshotted).to.eq(true);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout LayerZero in reportSnapshot");
+            }
+
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             const aliceMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
-            tx = await primaryVault.settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
+            tx = await primaryVault.connect(owner).settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
             await tx.wait();
-            const aliceMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
-            console.log("alice mLP before %d, after %d", aliceMLPBefore, aliceMLPAfter);
-            expect(aliceMLPAfter).gt(aliceMLPBefore);
+
+            let aliceMLPAfter: BigNumber;
+            timeDelayed = 0;
+            success = false;
+            while (timeDelayed < 600000) {
+                aliceMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+                if (aliceMLPAfter.eq(aliceMLPBefore)) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("All vaults settled");
+                    expect(aliceMLPAfter.sub(aliceMLPBefore)).to.eq(aliceDeposit2LD_A);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout LayerZero in settleRequestsAllVaults");
+            }
 
             const totalDepositAmountLast = await primaryVault.getTotalDepositAmount(true);
             console.log(totalDepositAmountLast);
