@@ -422,9 +422,9 @@ export const initMozaics = async (
             let tx = await mozLeft.mozaicVault.connect(owner).registerVault(chainIdRight, mozRight.mozaicVault.address);
             await tx.wait();
             if (chainIdLeft == chainIdRight) continue;
-            tx = await mozLeft.mozaicVault.connect(owner).setTrustedRemote(chainIdRight, mozRight.mozaicVault.address);
+            tx = await mozLeft.mozaicVault.connect(owner).setTrustedRemoteAddress(chainIdRight, mozRight.mozaicVault.address);
             await tx.wait();
-            tx = await mozLeft.mozaicLp.connect(owner).setTrustedRemote(chainIdRight, mozRight.mozaicLp.address);
+            tx = await mozLeft.mozaicLp.connect(owner).setTrustedRemoteAddress(chainIdRight, mozRight.mozaicLp.address);
             await tx.wait();
         }
     }
