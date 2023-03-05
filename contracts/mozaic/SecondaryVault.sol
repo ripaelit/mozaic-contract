@@ -7,10 +7,10 @@ import "./MozaicLP.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+// import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract SecondaryVault is NonblockingLzApp {
     using SafeMath for uint256;
@@ -110,7 +110,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    mapping (uint256=>ProtocolDriver) public protocolDrivers;
+    mapping (uint256 => ProtocolDriver) public protocolDrivers;
     VaultStatus public status;
     Snapshot public snapshot;
     address public stargateLpStaking;
@@ -124,11 +124,24 @@ contract SecondaryVault is NonblockingLzApp {
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
 
-    struct VaultDescriptor {
-        uint16 chainId;
+    uint16[] public chainIds;
+
+    struct VaultInfo {
         address vaultAddress;
+        VaultStatus vaultStatus;
     }
-    VaultDescriptor[] public vaults;
+
+    mapping(uint16 => VaultInfo) public vaultInfos;
+
+    // For primary
+    enum ProtocolStatus {
+        IDLE,
+        OPTIMIZING
+    }
+    ProtocolStatus public protocolStatus;
+    mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
+    uint256 public mozaicLpPerStablecoinMil = 0; // mozLP/stablecoinSD*1_000_000
+    uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
 
     function _pendingReqs() internal view returns (RequestBuffer storage) {
         if (bufferFlag) {
@@ -267,6 +280,7 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
         status = VaultStatus.IDLE;
+        protocolStatus = ProtocolStatus.IDLE;
     }
 
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
@@ -426,8 +440,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(status == VaultStatus.SNAPSHOTTED, "reportSnapshotted: Not snapshotted yet.");
 
         if (chainId == primaryChainId) {
-            // CHECKLATER:
-            // _acceptSnapshot(chainId, snapshot);
+            _acceptSnapshot(chainId, snapshot);
         } else {
             bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
             _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
@@ -503,6 +516,14 @@ contract SecondaryVault is NonblockingLzApp {
         if (packetType == PT_SETTLE_REQUESTS) {
             (, uint256 _mozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
             _settleRequests(_mozaicLpPerStablecoinMil);
+        } else if (packetType == PT_REPORTSNAPSHOT) {
+            (, Snapshot memory _newSnapshot) = abi.decode(_payload, (uint16, Snapshot));
+            _acceptSnapshot(_srcChainId, _newSnapshot);
+        } else if (packetType == PT_SETTLED_REQUESTS) {
+            vaultInfos[_srcChainId].vaultStatus = VaultStatus.IDLE;
+            if (_allVaultsSettled()) {
+                protocolStatus = ProtocolStatus.IDLE;
+            }
         } else {
             emit UnexpectedLzMessage(packetType, _payload);
         }
@@ -574,21 +595,19 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
-        bool flagExist = false;
-        // if it already exists, update vault address 
-        for (uint256 i = 0; i < vaults.length; i++) {
-            if (vaults[i].chainId == _chainId) {
-                vaults[i].vaultAddress = _vaultAddress;
-                flagExist = true;
+        bool isNew = true;
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            if (chainIds[i] == _chainId) {
+                isNew = false;
                 break;
             }
         }
-        
-        if (!flagExist) {   // if new vault, add it.
-            VaultDescriptor memory _newVault;
-            _newVault.chainId = _chainId;
-            _newVault.vaultAddress = _vaultAddress;
-            vaults.push(_newVault);
+        if (isNew) {
+            chainIds.push(_chainId);
+            vaultInfos[_chainId] = VaultInfo(_vaultAddress, VaultStatus.IDLE);
+        } else {
+            vaultInfos[_chainId].vaultAddress = _vaultAddress;
+            vaultInfos[_chainId].vaultStatus = VaultStatus.IDLE;
         }
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
@@ -598,6 +617,129 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function getVaultsCount() external view returns (uint256) {
-        return vaults.length;
+        return chainIds.length;
+    }
+
+    // Only for test
+    function resetStatusAndBuffer() public virtual onlyOwner {
+        status = VaultStatus.IDLE;
+        bufferFlag = false;
+        // clean left buffer
+        for (uint256 i = 0; i < leftBuffer.depositRequestList.length; i++) {
+            address _user = leftBuffer.depositRequestList[i].user;
+            address _token = leftBuffer.depositRequestList[i].token;
+            uint16 _chainId = leftBuffer.depositRequestList[i].chainId;
+            delete leftBuffer.depositRequestLookup[_user][_token][_chainId];
+            delete leftBuffer.depositAmountPerToken[_token];
+            delete leftBuffer.depositRequestList[i];
+            leftBuffer.totalDepositAmount = 0;
+        }
+        for (uint256 i = 0; i < leftBuffer.withdrawRequestList.length; i++) {
+            address _user = leftBuffer.withdrawRequestList[i].user;
+            uint16 _chainId = leftBuffer.withdrawRequestList[i].chainId;
+            address _token = leftBuffer.withdrawRequestList[i].token;
+            delete leftBuffer.withdrawRequestLookup[_user][_chainId][_token];
+            delete leftBuffer.withdrawAmountPerUser[_user];
+            delete leftBuffer.withdrawAmountPerToken[_token];
+            delete leftBuffer.withdrawRequestList[i];
+            leftBuffer.totalWithdrawAmount = 0;
+        }
+        // clean right buffer
+        for (uint256 i = 0; i < rightBuffer.depositRequestList.length; i++) {
+            address _user = rightBuffer.depositRequestList[i].user;
+            address _token = rightBuffer.depositRequestList[i].token;
+            uint16 _chainId = rightBuffer.depositRequestList[i].chainId;
+            delete rightBuffer.depositRequestLookup[_user][_token][_chainId];
+            delete rightBuffer.depositAmountPerToken[_token];
+            delete rightBuffer.depositRequestList[i];
+            rightBuffer.totalDepositAmount = 0;
+        }
+        for (uint256 i = 0; i < rightBuffer.withdrawRequestList.length; i++) {
+            address _user = rightBuffer.withdrawRequestList[i].user;
+            uint16 _chainId = rightBuffer.withdrawRequestList[i].chainId;
+            address _token = rightBuffer.withdrawRequestList[i].token;
+            delete rightBuffer.withdrawRequestLookup[_user][_chainId][_token];
+            delete rightBuffer.withdrawAmountPerUser[_user];
+            delete rightBuffer.withdrawAmountPerToken[_token];
+            delete rightBuffer.withdrawRequestList[i];
+            rightBuffer.totalWithdrawAmount = 0;
+        }
+    }
+
+    // Only for Primary
+    function initOptimizationSession() public onlyOwner {
+        require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
+        // reset
+        mozaicLpPerStablecoinMil = 0;
+        protocolStatus = ProtocolStatus.OPTIMIZING;
+        for (uint i = 0; i < chainIds.length; i++) {
+            vaultInfos[chainIds[i]].vaultStatus = VaultStatus.SNAPSHOTTING;
+        }
+    }
+
+    function _acceptSnapshot(uint16 _srcChainId, Snapshot memory _newSnapshot) internal {
+        require(vaultInfos[_srcChainId].vaultStatus == VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
+        snapshotReported[_srcChainId] = _newSnapshot;
+        vaultInfos[_srcChainId].vaultStatus = VaultStatus.SNAPSHOTTED;
+        if (allVaultsSnapshotted()) {
+            calculateMozLpPerStablecoinMil();
+        }
+    }
+
+    function allVaultsSnapshotted() public view returns (bool) {
+        for (uint i = 0; i < chainIds.length ; i++) {
+            if (vaultInfos[chainIds[i]].vaultStatus != VaultStatus.SNAPSHOTTED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function calculateMozLpPerStablecoinMil() public {
+        require(allVaultsSnapshotted(), "Some Snapshots not reached");
+        uint256 _stargatePriceMil = _getStargatePriceMil();
+        uint256 _totalStablecoinValue = 0;
+        uint256 _mintedMozLp = 0;
+        // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
+        for (uint i = 0; i < chainIds.length ; i++) {
+            Snapshot memory report = snapshotReported[chainIds[i]];
+            _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
+            _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
+        }
+        if (_totalStablecoinValue > 0) {
+            mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
+        }
+        else {
+            mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
+        }
+    }
+
+    function _allVaultsSettled() internal view returns (bool) {
+        for (uint i = 0; i < chainIds.length; i++) {
+            if (vaultInfos[chainIds[i]].vaultStatus != VaultStatus.IDLE) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function settleRequestsAllVaults() public payable {
+        require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
+        require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
+        _settleRequests(mozaicLpPerStablecoinMil);
+        vaultInfos[chainId].vaultStatus = VaultStatus.IDLE;
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            if (chainIds[i] == primaryChainId)   continue;
+            vaultInfos[chainIds[i]].vaultStatus = VaultStatus.SETTLING;
+            bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
+            _lzSend(chainIds[i], lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+        }
+    }
+
+    function _getStargatePriceMil() internal returns (uint256) {
+        // PoC: right now deploy to TestNet only. We work with MockSTG token and Mocked Stablecoins.
+        // And thus we don't have real DEX market.
+        // KEVIN-TODO:
+        return 1000000;
     }
 }
