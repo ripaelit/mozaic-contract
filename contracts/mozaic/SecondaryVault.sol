@@ -18,8 +18,6 @@ contract SecondaryVault is NonblockingLzApp {
 
     //--------------------------------------------------------------------------
     // EVENTS
-    event UnexpectedLzMessage(uint16 packetType, bytes payload);
-
     event DepositRequestAdded (
         address indexed depositor,
         address indexed token,
@@ -516,7 +514,7 @@ contract SecondaryVault is NonblockingLzApp {
                 protocolStatus = ProtocolStatus.IDLE;
             }
         } else {
-            emit UnexpectedLzMessage(packetType, _payload);
+            emit MessageFailed(_srcChainId, _srcAddress, _nonce, _payload, "Invalid packetType");
         }
     }
 
