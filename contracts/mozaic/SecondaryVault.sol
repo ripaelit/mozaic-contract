@@ -119,10 +119,12 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public primaryChainId = 0;
     uint16 public chainId = 0;
     address[] public acceptingTokens;
+    mapping (address => uint256) public vaultAsset;
 
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
+
 
     struct VaultDescriptor {
         uint16 chainId;
@@ -335,6 +337,7 @@ contract SecondaryVault is NonblockingLzApp {
 
         // transfer stablecoin from depositor to this vault
         _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
+        vaultAsset[_token] = vaultAsset[_token].add(_amountLDAccept);
 
         // add deposit request to pending buffer
         RequestBuffer storage buffer = _pendingReqs();
@@ -546,15 +549,17 @@ contract SecondaryVault is NonblockingLzApp {
                 // The vault does not have enough balance. Only give as much as it has.
                 // TODO: Check numerical logic.
                 _withdrawAmountMLP = _withdrawAmountMLP.mul(_vaultBalance).div(_cointToGive);
-                // Burn MLP
-                mozaicLpContract.burn(request.user, _withdrawAmountMLP);
-                // Give Stablecoin
-                _giveStablecoin(request.user, request.token, _vaultBalance);
+                _cointToGive = _vaultBalance;
+                // // Burn MLP
+                // mozaicLpContract.burn(request.user, _withdrawAmountMLP);
+                // // Give Stablecoin
+                // _giveStablecoin(request.user, request.token, _vaultBalance);
             }
             // Burn MLP
             mozaicLpContract.burn(request.user, _withdrawAmountMLP);
             // Give Stablecoin
             _giveStablecoin(request.user, request.token, _cointToGive);
+            vaultAsset[request.token] = vaultAsset[request.token].sub(_cointToGive);
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         status = VaultStatus.IDLE;
