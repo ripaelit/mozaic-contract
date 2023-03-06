@@ -183,7 +183,7 @@ contract StargateDriver is ProtocolDriver{
                     _to = _getConfig().vaults[i].vaultAddress;
                 }
             }
-            require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
+            require(_to != address(0x0), "Dst cannot be 0x0");
         }
 
         // Swap
@@ -194,7 +194,7 @@ contract StargateDriver is ProtocolDriver{
         uint256 _amountStaked = 0;
         address _stgLPStaking = _getConfig().stgLPStaking;
         (bool _success, bytes memory _response) = address(_stgLPStaking).call(abi.encodeWithSignature("poolLength()"));
-        require(_success, "Failed to get LPStaking.poolLength");
+        require(_success, "Failed to get poolLength");
         uint256 _poolLength = abi.decode(_response, (uint256));
 
         for (uint256 poolIndex = 0; poolIndex < _poolLength; poolIndex++) {
@@ -237,7 +237,7 @@ contract StargateDriver is ProtocolDriver{
         address _router = _getConfig().stgRouter;
         
         (bool _success, bytes memory _response) = address(_router).call(abi.encodeWithSignature("factory()"));
-        require(_success, "Failed to get factory in StargateDriver");
+        require(_success, "Failed to get factory");
         address _factory = abi.decode(_response, (address));
 
         (_success, _response) = _factory.call(abi.encodeWithSignature("allPoolsLength()"));
@@ -266,11 +266,11 @@ contract StargateDriver is ProtocolDriver{
         address _router = _getConfig().stgRouter;
 
         (bool _success, bytes memory _response) = _router.call(abi.encodeWithSignature("factory()"));
-        require(_success, "Failed to get factory in StargateDriver");
+        require(_success, "Failed to get factory");
         address _factory = abi.decode(_response, (address));
 
         (_success, _response) = _factory.call(abi.encodeWithSignature("getPool(uint256)", _poolId));
-        require(_success, "Failed to get pool in StargateDriver");
+        require(_success, "Failed to get pool");
         _pool = abi.decode(_response, (address));
     }
 
@@ -301,14 +301,14 @@ contract StargateDriver is ProtocolDriver{
         address _lpStaking = _getConfig().stgLPStaking;
         
         (bool _success, bytes memory _response) = address(_lpStaking).call(abi.encodeWithSignature("poolLength()"));
-        require(_success, "Failed to get LPStaking.poolLength");
+        require(_success, "Failed to get poolLength");
         uint256 _poolLength = abi.decode(_response, (uint256));
 
         for (uint256 poolIndex = 0; poolIndex < _poolLength; poolIndex++) {
             (_success, _response) = address(_lpStaking).call(abi.encodeWithSignature("getPoolInfo(uint256)", poolIndex));
             require(_success, "Failed to call getPoolInfo");
-            address _pool__ = abi.decode(_response, (address));
-            if (_pool__ == _pool) {
+            address __pool = abi.decode(_response, (address));
+            if (__pool == _pool) {
                 return (true, poolIndex);
             }
         }
