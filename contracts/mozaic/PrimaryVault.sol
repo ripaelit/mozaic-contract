@@ -55,7 +55,7 @@ contract PrimaryVault is SecondaryVault {
      */
     function reportSnapshot() virtual override public payable onlyOwner {
         // Processing Amount Should be Zero!
-        require(status == VaultStatus.SNAPSHOTTED, "reportSnapshot: Not snapshotted yet.");
+        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet.");
         // Send Report
         _acceptSnapshot(chainId, snapshot);
     }
@@ -130,7 +130,7 @@ contract PrimaryVault is SecondaryVault {
 
     function settleRequestsAllVaults() public payable {
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
-        require(mozaicLpPerStablecoinMil != 0, "mozaic lp-stablecoin ratio not ready");
+        require(mozaicLpPerStablecoinMil != 0, "mozaiclp ratio not ready");
         _settleRequests(mozaicLpPerStablecoinMil);
         vaultStatus[chainId] = VaultStatus.IDLE;
         for (uint i = 0; i < vaults.length; i++) {
