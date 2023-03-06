@@ -119,7 +119,6 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public primaryChainId = 0;
     uint16 public chainId = 0;
     address[] public acceptingTokens;
-    mapping (address => uint256) public vaultAsset;
 
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     RequestBuffer public leftBuffer;
@@ -337,7 +336,6 @@ contract SecondaryVault is NonblockingLzApp {
 
         // transfer stablecoin from depositor to this vault
         _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
-        vaultAsset[_token] = vaultAsset[_token].add(_amountLDAccept);
 
         // add deposit request to pending buffer
         RequestBuffer storage buffer = _pendingReqs();
@@ -491,10 +489,12 @@ contract SecondaryVault is NonblockingLzApp {
         address _from,
         address _to,
         uint256 _value
-    ) private {
-        // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
-        (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0x23b872dd, _from, _to, _value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "Mozaic: TRANSFER_FROM_FAILED");
+    ) internal {
+        IERC20(_token).transferFrom(_from, _to, _value);
+    }
+
+    function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
+        IERC20(_token).transfer(_user, _amountLD);
     }
 
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
@@ -553,13 +553,12 @@ contract SecondaryVault is NonblockingLzApp {
                 // // Burn MLP
                 // mozaicLpContract.burn(request.user, _withdrawAmountMLP);
                 // // Give Stablecoin
-                // _giveStablecoin(request.user, request.token, _vaultBalance);
+                // _safeTransfer(request.user, request.token, _vaultBalance);
             }
             // Burn MLP
             mozaicLpContract.burn(request.user, _withdrawAmountMLP);
             // Give Stablecoin
-            _giveStablecoin(request.user, request.token, _cointToGive);
-            vaultAsset[request.token] = vaultAsset[request.token].sub(_cointToGive);
+            _safeTransfer(request.user, request.token, _cointToGive);
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         status = VaultStatus.IDLE;
@@ -572,10 +571,6 @@ contract SecondaryVault is NonblockingLzApp {
         // report to primary vault
         bytes memory lzPayload = abi.encode(PT_SETTLED_REQUESTS);
         _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
-    }
-
-    function _giveStablecoin(address _user, address _token, uint256 _amountLD) internal {
-        IERC20(_token).transfer(_user, _amountLD);
     }
 
     function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
