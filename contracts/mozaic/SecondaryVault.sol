@@ -274,7 +274,7 @@ contract SecondaryVault is NonblockingLzApp {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
         (bool _success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
-        require(_success, "Failed to access configDriver in setProtocolDriver");
+        require(_success, "Failed to delegate");
     }
 
     function addToken(address _token) public onlyOwner {
@@ -362,7 +362,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
-        require(_chainId == chainId, "PoC restriction - withdraw onchain");
+        require(_chainId == chainId, "withdraw onchain on PoC");
         require(primaryChainId > 0, "main chain should be set");
         require(isAcceptingToken(_token), "should be accepting token");
 
@@ -424,7 +424,7 @@ contract SecondaryVault is NonblockingLzApp {
     * Allowing double execution. Just giving freedom to report again at additional cost.
     **/
     function reportSnapshot() virtual public payable onlyOwner {
-        require(status == VaultStatus.SNAPSHOTTED, "reportSnapshotted: Not snapshotted yet.");
+        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
 
         if (chainId == primaryChainId) {
             // CHECKLATER:
@@ -445,8 +445,8 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _takeSnapshot() internal virtual returns (Snapshot memory result){
-        require(_stagedReqs().totalDepositAmount==0, "Still has processing requests");
-        require(_stagedReqs().totalWithdrawAmount==0, "Still has processing requests");
+        require(_stagedReqs().totalDepositAmount==0, "Still processing requests");
+        require(_stagedReqs().totalWithdrawAmount==0, "Still processing requests");
 
         // Stage Requests: Pending --> Processing
         bufferFlag = !bufferFlag;
@@ -465,7 +465,7 @@ contract SecondaryVault is NonblockingLzApp {
         ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmount;
         bytes memory _payload;
         (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
-        require(success, "Failed to delegate to ProtocolDriver in _takeSnapshot");
+        require(success, "Failed to delegate");
         (uint256 _amountStaked) = abi.decode(abi.decode(data, (bytes)), (uint256));
         _totalStablecoin = _totalStablecoin.add(_amountStaked);
 
@@ -512,7 +512,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
-        require(status == VaultStatus.SNAPSHOTTED, "_settleRequests: Unexpected status.");
+        require(status == VaultStatus.SNAPSHOTTED, "Unexpected status.");
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
@@ -593,7 +593,7 @@ contract SecondaryVault is NonblockingLzApp {
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
         (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
-        require(success, "Failed to register vault to stg driver");
+        require(success, "Failed to delegate");
 
     }
 
