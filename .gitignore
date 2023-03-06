@@ -5,3 +5,6 @@ typechain
 artifacts
 coverage*
 .env
+yarn.lock
+.gitignore
+scripts/args/*.js
