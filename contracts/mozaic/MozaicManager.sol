@@ -1,10 +1,9 @@
 pragma solidity ^0.8.9;
 
 import "../libraries/lzApp/NonblockingLzApp.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-
-import "./ProtocolDriver.sol";
+// import "./ProtocolDriver.sol";
 
 contract MozaicManager is NonblockingLzApp {
     using SafeMath for uint256;
@@ -15,8 +14,8 @@ contract MozaicManager is NonblockingLzApp {
     uint16 public constant PT_SETTLE_REQUESTS = 10002;
     uint16 public constant PT_SETTLED_REQUESTS = 10003;
 
-    uint16 public constant STG_DRIVER_ID = 1;
-    uint16 public constant PANCAKE_DRIVER_ID = 2;
+    // uint16 public constant STG_DRIVER_ID = 1;
+    // uint16 public constant PANCAKE_DRIVER_ID = 2;
 
     enum VaultStatus {
         // No staged requests. Neutral status.
@@ -40,12 +39,6 @@ contract MozaicManager is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // STRUCTS
-    struct Action {
-        uint16 driverId;
-        ProtocolDriver.ActionType actionType;
-        bytes payload;
-    }
-
     struct VaultInfo {
         address vaultAddress;
         VaultStatus vaultStatus;
@@ -61,8 +54,8 @@ contract MozaicManager is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    uint16[] public protocolDriverIds;
-    mapping (uint16 => ProtocolDriver) public protocolDrivers;
+    // uint16[] public protocolDriverIds;
+    // mapping (uint16 => ProtocolDriver) public protocolDrivers;
     uint16[] public chainIds;
     mapping(uint16 => VaultInfo) public vaultInfos;
     mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
@@ -77,33 +70,6 @@ contract MozaicManager is NonblockingLzApp {
         address _lzEndpoint
     ) NonblockingLzApp(_lzEndpoint) {
         protocolStatus = ProtocolStatus.IDLE;
-    }
-
-    function setProtocolDriver(uint16 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
-        bool isNew = true;
-        for (uint i = 0; i < protocolDriverIds.length; ++i) {
-            if (protocolDriverIds[i] == _driverId) {
-                isNew = false;
-                break;
-            }
-        }
-        if (isNew) {
-            protocolDriverIds.push(_driverId);
-        }
-        protocolDrivers[_driverId] = _driver;
-        // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
-        (bool _success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
-        require(_success, "Failed to delegate");
-    }
-
-    function executeActions(Action[] calldata _actions) external onlyOwner {
-        for (uint i = 0; i < _actions.length ; i++) {
-            Action calldata _action = _actions[i];
-            ProtocolDriver _driver = protocolDrivers[_action.driverId];
-            (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", _action.actionType, _action.payload));
-            (string memory errorMessage) = abi.decode(response, (string));
-            require(success, errorMessage);
-        }
     }
 
     function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {

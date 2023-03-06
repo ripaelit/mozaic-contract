@@ -401,9 +401,7 @@ export const deployAllToLocalNets = async (
 }
 
 // After deployed all vaults, register trustedRemote and secondaryVaults
-export const initMozaics = async (
-    mozaicDeployments: Map<number, MozaicDeployment>, 
-) => {
+export const initMozaics = async (mozaicDeployments: Map<number, MozaicDeployment>) => {
     let owner: SignerWithAddress;
 
     // Register TrustedRemote and Vaults
@@ -418,6 +416,9 @@ export const initMozaics = async (
             hre.changeNetwork(networkName);
         }
         [owner] = await ethers.getSigners();
+        if (chainIdLeft == primaryChainId) {
+            // TODO: kevin  reset protocolStatus = IDLE
+        }
         for (const [chainIdRight, mozRight] of mozaicDeployments) {
             let tx = await mozLeft.mozaicVault.connect(owner).registerVault(chainIdRight, mozRight.mozaicVault.address);
             await tx.wait();

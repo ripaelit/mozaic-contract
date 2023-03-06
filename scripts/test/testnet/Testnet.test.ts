@@ -50,7 +50,7 @@ describe('SecondaryVault.executeActions', () => {
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
         
-        // await initMozaics(mozaicDeployments);
+        await initMozaics(mozaicDeployments);
     })
     beforeEach(async () => {
         hre.changeNetwork('bsctest');
@@ -715,7 +715,7 @@ describe('SecondaryVault.executeActions', () => {
 
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
-            tx = await secondaryVault.connect(owner).reportSettled();
+            tx = await secondaryVault.connect(owner).reportSettled({value: xxx});
             await tx.wait();
 
             // Algostory: #### 6. Session Closes
