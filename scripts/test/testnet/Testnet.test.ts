@@ -171,7 +171,7 @@ describe('SecondaryVault.executeActions', () => {
             amountLPStaked = (await lpStaking.userInfo(BigNumber.from("0"), vault.address)).amount;
             console.log("After unstake LpTokens for SecondaryVault in LpStaking is", amountLPStaked);
         })
-        it ("can swapRemote", async () => {
+        it ("can swapRemote Bsc USDT => Fantom USDC", async () => {
             hre.changeNetwork('bsctest');
             [owner] = await ethers.getSigners();
             const srcChainId = exportData.testnetTestConstants.chainIds[1];  // Bsc
@@ -238,6 +238,94 @@ describe('SecondaryVault.executeActions', () => {
             // Check both tokens
             const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
             hre.changeNetwork('fantom');
+            let amountDstRemain: BigNumber;
+            let timeDelayed = 0;
+            const timeInterval = 10000;
+            let success = false;
+            while (timeDelayed < 600000) {
+                amountDstRemain = await dstToken.balanceOf(dstVault.address);
+                if (amountDstRemain.eq(amountDstBefore)) {
+                    console.log("Waiting for LayerZero delay...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                } else {
+                    success = true;
+                    console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+                    console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain.toString(), amountDstRemain.toString());
+                    expect(amountDstRemain).gt(amountDstBefore);
+                    break;
+                }
+            }
+            if (!success) {
+                console.log("Timeout in LayerZero");
+            }
+        })
+        it ("can swapRemote Fantom USDC => Bsc USDT", async () => {
+            hre.changeNetwork('fantom');
+            [owner] = await ethers.getSigners();
+            const srcChainId = exportData.testnetTestConstants.chainIds[2];
+            const srcVault = mozaicDeployments.get(srcChainId)!.mozaicVault;
+            const srcMockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
+            const srcTokenAddr = exportData.testnetTestConstants.stablecoins.get(srcChainId)!.get("USDC")!;
+            const srcToken = srcMockTokenFactory.attach(srcTokenAddr);
+            const srcDecimals = await srcToken.decimals();
+            console.log("srcDecimals", srcDecimals);
+            const amountSrc = ethers.utils.parseUnits("1", srcDecimals);
+            const amountSwap = amountSrc;
+
+            // Mint srcToken to srcVault
+            let tx = await srcToken.connect(owner).mint(srcVault.address, amountSrc);
+            await tx.wait();
+            const amountSrcBefore = await srcToken.balanceOf(srcVault.address);
+            
+            hre.changeNetwork('bsctest');
+            [owner] = await ethers.getSigners();
+            const dstChainId = exportData.testnetTestConstants.chainIds[1];
+            const dstVault = mozaicDeployments.get(dstChainId)!.mozaicVault;
+            const dstPoolId = exportData.testnetTestConstants.poolIds.get("USDT")!;
+            const dstTokenAddr = exportData.testnetTestConstants.stablecoins.get(dstChainId)!.get("USDT")!;
+            const dstMockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
+            const dstToken = dstMockTokenFactory.attach(dstTokenAddr);
+            const amountDstBefore = await dstToken.balanceOf(dstVault.address);
+            console.log("Before swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcBefore.toString(), amountDstBefore.toString());
+            
+            // SwapRemote: Fantom USDC => Bsc USDT
+            hre.changeNetwork('fantom');
+            [owner] = await ethers.getSigners();
+
+            // send nativeFee to srcVault
+            const routerFactory = await ethers.getContractFactory('Router', owner) as Router__factory;
+            const routerAddr = exportData.testnetTestConstants.routers.get(srcChainId)!;
+            const router = routerFactory.attach(routerAddr);
+            const TYPE_SWAP_REMOTE = 1;   // Bridge.TYPE_SWAP_REMOTE = 1
+            const [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, TYPE_SWAP_REMOTE, dstTokenAddr, "0x", ({
+                dstGasForCall: 0,       // extra gas, if calling smart contract,
+                dstNativeAmount: 0,     // amount of dust dropped in destination wallet 
+                dstNativeAddr: "0x" // destination wallet for dust
+            }));
+            console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
+            tx = await owner.sendTransaction({
+                to: srcVault.address,
+                value: nativeFee
+            });
+            await tx.wait();
+            console.log("srcVault received nativeToken", nativeFee.toString());
+
+            // swapRemote
+            const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256","uint256"], [amountSwap, srcTokenAddr, dstChainId, dstPoolId, nativeFee]);
+            console.log("payloadSwapRemote", payloadSwapRemote);
+            const swapRemoteAction: SecondaryVault.ActionStruct  = {
+                driverId: exportData.testnetTestConstants.stargateDriverId,
+                actionType: ActionTypeEnum.SwapRemote,
+                payload : payloadSwapRemote
+            };
+            tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
+            console.log("swapRemote executeActions tx hash", tx.hash);
+            await tx.wait();
+
+            // Check both tokens
+            const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
+            hre.changeNetwork('bsctest');
             let amountDstRemain: BigNumber;
             let timeDelayed = 0;
             const timeInterval = 10000;
@@ -841,7 +929,7 @@ describe('SecondaryVault.executeActions', () => {
             // settle requests
 
         })
-        it.only ('reportSnapshot', async () => {
+        it ('reportSnapshot', async () => {
             // For secondaryVault, switch network
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
