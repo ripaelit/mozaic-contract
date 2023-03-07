@@ -545,7 +545,10 @@ describe('SecondaryVault.executeActions', () => {
             [owner, alice, ben] = await ethers.getSigners();
             tx = await secondaryVault.connect(owner).takeSnapshot();
             await tx.wait();
-            tx = await secondaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0.1")});
+            const PT_REPORTSNAPSHOT = 10001;
+            let [nativeFee, zroFee] = await secondaryVault.connect(owner).quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT);
+            console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
+            tx = await secondaryVault.connect(owner).reportSnapshot({value: nativeFee});
             await tx.wait();
 
             // Check all vaults snapshotted
@@ -709,7 +712,7 @@ describe('SecondaryVault.executeActions', () => {
             const routerAddr = exportData.testnetTestConstants.routers.get(srcChainId)!;
             const router = routerFactory.attach(routerAddr);
             const TYPE_SWAP_REMOTE = 1;   // Bridge.TYPE_SWAP_REMOTE = 1
-            const [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, TYPE_SWAP_REMOTE, tokenCAddr, "0x", ({
+            [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, TYPE_SWAP_REMOTE, tokenCAddr, "0x", ({
                 dstGasForCall: 0,       // extra gas, if calling smart contract,
                 dstNativeAmount: 0,     // amount of dust dropped in destination wallet 
                 dstNativeAddr: "0x" // destination wallet for dust
@@ -770,7 +773,10 @@ describe('SecondaryVault.executeActions', () => {
             
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            tx = await primaryVault.connect(owner).settleRequestsAllVaults({value:ethers.utils.parseEther("0.1")});
+            const PT_SETTLE_REQUESTS = 10002;
+            [nativeFee, zroFee] = await secondaryVault.connect(owner).quoteLayerZeroFee(primaryChainId, PT_SETTLE_REQUESTS);
+            console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
+            tx = await primaryVault.connect(owner).settleRequestsAllVaults({value: nativeFee});
             await tx.wait();
             const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
             const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
@@ -799,9 +805,13 @@ describe('SecondaryVault.executeActions', () => {
                 console.log("Timeout LayerZero in settleRequestsAllVaults");
             }
 
+            console.log("reportSettled");
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
-            tx = await secondaryVault.connect(owner).reportSettled();
+            const PT_SETTLED_REQUESTS = 10003;
+            [nativeFee, zroFee] = await secondaryVault.connect(owner).quoteLayerZeroFee(primaryChainId, PT_SETTLED_REQUESTS);
+            console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
+            tx = await secondaryVault.connect(owner).reportSettled({value: nativeFee});
             await tx.wait();
 
             // Algostory: #### 6. Session Closes
