@@ -435,15 +435,6 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function _clearPendingBuffer() internal {
-        // Clear Pending
-        RequestBuffer storage pending = _pendingReqs();
-        require(pending.totalDepositAmount == 0, "expected totalDeposit = 0");
-        require(pending.totalWithdrawAmount == 0, "expected totalWithdraw = 0");
-        delete pending.depositRequestList;
-        delete pending.withdrawRequestList;
-    }
-
     function _takeSnapshot() internal virtual returns (Snapshot memory result){
         require(_stagedReqs().totalDepositAmount==0, "Still processing requests");
         require(_stagedReqs().totalWithdrawAmount==0, "Still processing requests");
