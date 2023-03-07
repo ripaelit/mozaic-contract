@@ -588,4 +588,22 @@ contract SecondaryVault is NonblockingLzApp {
     function getVaultsCount() external view returns (uint256) {
         return vaults.length;
     }
+
+    function quoteLayerZeroFee(
+        uint16 _chainId,
+        uint8 _packetType
+    ) external view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
+        bytes memory payload = "";
+        if (_packetType == PT_REPORTSNAPSHOT) {
+            payload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
+        } else if (_packetType == PT_SETTLED_REQUESTS) {
+            payload = abi.encode(PT_SETTLED_REQUESTS);
+        } else {
+            revert("Valut: unsupported packet type");
+        }
+
+        bytes memory lzTxParamBuilt = "";
+        bool useLayerZeroToken = false;
+        return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
+    }
 }
