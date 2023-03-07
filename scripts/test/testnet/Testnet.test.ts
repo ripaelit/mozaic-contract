@@ -49,8 +49,6 @@ describe('SecondaryVault.executeActions', () => {
             mozaicVault: secondaryVault
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
-        
-        await initMozaics(mozaicDeployments);
     })
     beforeEach(async () => {
         hre.changeNetwork('bsctest');
@@ -849,7 +847,9 @@ describe('SecondaryVault.executeActions', () => {
             [owner, alice, ben] = await ethers.getSigners();
             const secondaryChainId = exportData.testnetTestConstants.chainIds[2]; // Fantom
             const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault as SecondaryVault;
-            let tx = await secondaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0.1")});
+            let tx = await secondaryVault.connect(owner).takeSnapshot();
+            await tx.wait();
+            tx = await secondaryVault.connect(owner).reportSnapshot({value:ethers.utils.parseEther("0.1")});
             await tx.wait();
         })
     })
