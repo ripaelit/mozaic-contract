@@ -417,24 +417,6 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    /**
-    * Report snapshot. Need to call snapshot() before.
-    * NOTE: 
-    * Does not turn into SNAPSHOTREPORTED status.
-    * Allowing double execution. Just giving freedom to report again at additional cost.
-    **/
-    function reportSnapshot() virtual public payable onlyOwner {
-        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
-
-        if (chainId == primaryChainId) {
-            // CHECKLATER:
-            // _acceptSnapshot(chainId, snapshot);
-        } else {
-            bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-            _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
-        }
-    }
-
     function _takeSnapshot() internal virtual returns (Snapshot memory result){
         require(_stagedReqs().totalDepositAmount==0, "Still processing requests");
         require(_stagedReqs().totalWithdrawAmount==0, "Still processing requests");
@@ -470,8 +452,32 @@ contract SecondaryVault is NonblockingLzApp {
         snapshot = result;
     }
 
-    //---------------------------------------------------------------------------
-    // VIEWS
+    /**
+    * Report snapshot. Need to call snapshot() before.
+    * NOTE: 
+    * Does not turn into SNAPSHOTREPORTED status.
+    * Allowing double execution. Just giving freedom to report again at additional cost.
+    **/
+    function reportSnapshot() virtual public payable onlyOwner {
+        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
+
+        if (chainId == primaryChainId) {
+            // CHECKLATER:
+            // _acceptSnapshot(chainId, snapshot);
+        } else {
+            bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
+            _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+        }
+    }
+
+    function reportSettled() public payable onlyOwner {
+        require(status == VaultStatus.IDLE, "Not settled yet");
+        require(_stagedReqs().totalDepositAmount == 0, "Has unsettled deposit amount.");
+        require(_stagedReqs().totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
+        // report to primary vault
+        bytes memory lzPayload = abi.encode(PT_SETTLED_REQUESTS);
+        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+    }
 
     //---------------------------------------------------------------------------
     // INTERNAL
@@ -553,15 +559,6 @@ contract SecondaryVault is NonblockingLzApp {
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         status = VaultStatus.IDLE;
-    }
-
-    function reportSettled() public payable {
-        // TODO: Check vault status
-        require(_stagedReqs().totalDepositAmount == 0, "Has unsettled deposit amount.");
-        require(_stagedReqs().totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
-        // report to primary vault
-        bytes memory lzPayload = abi.encode(PT_SETTLED_REQUESTS);
-        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
     }
 
     function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
