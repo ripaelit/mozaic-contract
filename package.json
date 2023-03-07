@@ -18,6 +18,7 @@
     "deploy-goerli": "npx hardhat run --network goerli ./scripts/deploy/deployGoerli.ts",
     "deploy-bsctest": "npx hardhat run --network bsctest ./scripts/deploy/deployBsc.ts",
     "deploy-fantom": "npx hardhat run --network fantom ./scripts/deploy/deployFantom.ts",
+    "init-mozaic": "npx hardhat run ./scripts/deploy/initMozaic.ts",
     "verify-bsctest": "npx hardhat verify --network bsctest",
     "verify-fantom": "npx hardhat verify --network fantom",
     "selftest": "npx hardhat run ./scripts/other/selftest.ts",
