@@ -33,9 +33,10 @@ contract PrimaryVault is SecondaryVault {
         address _lzEndpoint,
         uint16 _chainId,
         uint16 _primaryChainId,
+        address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp
-    ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateToken, _mozaicLp) {
+    ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
     }
 
