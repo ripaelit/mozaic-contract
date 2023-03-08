@@ -332,6 +332,9 @@ contract SecondaryVault is NonblockingLzApp {
         // uint256 _amountLDAccept = _amountLD.div(IERC20Metadata(_token).decimals()).mul(IERC20Metadata(_token).decimals());
         uint256 _amountLDAccept = _amountLD;
 
+        // transfer stablecoin from depositor to this vault
+        _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
+
         // add deposit request to pending buffer
         RequestBuffer storage buffer = _pendingReqs();
         bool exists = false;
@@ -517,7 +520,6 @@ contract SecondaryVault is NonblockingLzApp {
             }
             uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
             mozaicLpContract.mint(request.user, _amountToMint);
-            _safeTransferFrom(request.token, request.user, address(this), _depositAmount);
             // Reduce Handled Amount from Buffer
             _reqs.totalDepositAmount = _reqs.totalDepositAmount.sub(_depositAmount);
             _reqs.depositAmountPerToken[request.token] = _reqs.depositAmountPerToken[request.token].sub(_depositAmount);
