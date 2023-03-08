@@ -334,9 +334,6 @@ contract SecondaryVault is NonblockingLzApp {
         // uint256 _amountLDAccept = _amountLD.div(IERC20Metadata(_token).decimals()).mul(IERC20Metadata(_token).decimals());
         uint256 _amountLDAccept = _amountLD;
 
-        // transfer stablecoin from depositor to this vault
-        _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
-
         // add deposit request to pending buffer
         RequestBuffer storage buffer = _pendingReqs();
         bool exists = false;
@@ -522,6 +519,7 @@ contract SecondaryVault is NonblockingLzApp {
             }
             uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
             mozaicLpContract.mint(request.user, _amountToMint);
+            _safeTransferFrom(request.token, request.user, address(this), _depositAmount);
             // Reduce Handled Amount from Buffer
             _reqs.totalDepositAmount = _reqs.totalDepositAmount.sub(_depositAmount);
             _reqs.depositAmountPerToken[request.token] = _reqs.depositAmountPerToken[request.token].sub(_depositAmount);
@@ -538,24 +536,20 @@ contract SecondaryVault is NonblockingLzApp {
             uint256 _cointToGive = _withdrawAmountMLP.mul(1000000).div(_mozaicLpPerStablecoinMil);
             uint256 _vaultBalance = IERC20(request.token).balanceOf(address(this));
             // Reduce Handled Amount from Buffer
-            _reqs.totalWithdrawAmount = _reqs.totalWithdrawAmount.sub(_withdrawAmountMLP);
-            _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token].sub(_withdrawAmountMLP);
-            _reqs.withdrawAmountPerUser[request.user] = _reqs.withdrawAmountPerUser[request.user].sub(_withdrawAmountMLP);
-            _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token].sub(_withdrawAmountMLP);
             if (_vaultBalance <= _cointToGive) {
                 // The vault does not have enough balance. Only give as much as it has.
                 // TODO: Check numerical logic.
                 _withdrawAmountMLP = _withdrawAmountMLP.mul(_vaultBalance).div(_cointToGive);
                 _cointToGive = _vaultBalance;
-                // // Burn MLP
-                // mozaicLpContract.burn(request.user, _withdrawAmountMLP);
-                // // Give Stablecoin
-                // _safeTransfer(request.user, request.token, _vaultBalance);
             }
-            // Burn MLP
             mozaicLpContract.burn(request.user, _withdrawAmountMLP);
-            // Give Stablecoin
             _safeTransfer(request.user, request.token, _cointToGive);
+            // Reduce Handled Amount from Buffer
+            _reqs.totalWithdrawAmount = _reqs.totalWithdrawAmount.sub(_withdrawAmountMLP);
+            _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token].sub(_withdrawAmountMLP);
+            _reqs.withdrawAmountPerUser[request.user] = _reqs.withdrawAmountPerUser[request.user].sub(_withdrawAmountMLP);
+            _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token].sub(_withdrawAmountMLP);
+            
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         status = VaultStatus.IDLE;
