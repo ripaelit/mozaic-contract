@@ -591,7 +591,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     function quoteLayerZeroFee(
         uint16 _chainId,
-        uint8 _packetType
+        uint16 _packetType
     ) external view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
         if (_packetType == PT_REPORTSNAPSHOT) {
@@ -599,7 +599,7 @@ contract SecondaryVault is NonblockingLzApp {
         } else if (_packetType == PT_SETTLED_REQUESTS) {
             payload = abi.encode(PT_SETTLED_REQUESTS);
         } else {
-            revert("Valut: unsupported packet type");
+            revert("Vault: unsupported packet type");
         }
 
         bytes memory lzTxParamBuilt = "";

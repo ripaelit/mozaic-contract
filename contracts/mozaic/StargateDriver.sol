@@ -96,7 +96,7 @@ contract StargateDriver is ProtocolDriver{
         (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
         require(_success, "Failed to call balanceOf");
         uint256 balancePre = abi.decode(_response, (uint256));
-        // 2. Valut adds liquidity
+        // 2. Vault adds liquidity
         IStargateRouter(_stgRouter).addLiquidity(_poolId, _amountLD, address(this));
         // 3. Pool.LPToken of vault after
         (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
@@ -109,7 +109,7 @@ contract StargateDriver is ProtocolDriver{
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
         
-        // Approve LPToken transfer from valut to LPStaking
+        // Approve LPToken transfer from vault to LPStaking
         address _stgLPStaking = _getConfig().stgLPStaking;
         (_success, ) = _pool.call(abi.encodeWithSignature("approve(address,uint256)", _stgLPStaking, amountLPToken));
         require(_success, "Failed to call approve");
