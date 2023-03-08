@@ -788,7 +788,8 @@ describe('SecondaryVault.executeActions', () => {
                 const benPrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
                 hre.changeNetwork('fantom');
                 const benSecondaryMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-                
+                console.log("alicePrimaryMLPBefore %d, benPrimaryMLPBefore %d, benSecondaryMLPBefore %d", alicePrimaryMLPBefore, benPrimaryMLPBefore, benSecondaryMLPBefore);
+
                 hre.changeNetwork('bsctest');
                 [owner, alice, ben] = await ethers.getSigners();
                 const PT_SETTLE_REQUESTS = 10002;
@@ -798,6 +799,7 @@ describe('SecondaryVault.executeActions', () => {
                 await tx.wait();
                 const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
                 const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
+                console.log("After settle, alicePrimaryMLP %d, benPrimaryMLP %d", alicePrimaryMLP, benPrimaryMLP);
                 expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit1LD_A);  // mLP eq to SD
                 expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B);  // mLP eq to SD
                 
@@ -866,8 +868,8 @@ describe('SecondaryVault.executeActions', () => {
                 [owner, alice, ben] = await ethers.getSigners();
                 const benMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
                 const benTokenBBefore = await tokenB.balanceOf(ben.address);
-                benWithdrawMLP = benMLPBefore;    // withdraw whole mLP
                 console.log("benMLPBefore %d, benTokenBefore %d", benMLPBefore, benTokenBBefore);
+                benWithdrawMLP = benMLPBefore;    // withdraw whole mLP
                 tx = await primaryVault.connect(ben).addWithdrawRequest(benWithdrawMLP, tokenBAddr, primaryChainId);
                 await tx.wait();
 
@@ -924,6 +926,7 @@ describe('SecondaryVault.executeActions', () => {
                 const aliceMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
                 hre.changeNetwork('fantom');
                 const benMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
+                console.log("aliceMLPBefore %d, benMLPBefore %d", aliceMLPBefore, benMLPBefore);
 
                 hre.changeNetwork('bsctest');
                 [owner, alice, ben] = await ethers.getSigners();
@@ -933,7 +936,8 @@ describe('SecondaryVault.executeActions', () => {
                 tx = await primaryVault.connect(owner).settleRequestsAllVaults({value: nativeFee});
                 await tx.wait();
 
-                let aliceMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+                const aliceMLPAfter = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
+                console.log("aliceMLPAfter %d", aliceMLPAfter);
                 expect(aliceMLPAfter.sub(aliceMLPBefore)).to.eq(aliceDeposit2LD_A);
                 
                 hre.changeNetwork('fantom');
