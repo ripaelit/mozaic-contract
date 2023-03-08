@@ -113,7 +113,6 @@ contract SecondaryVault is NonblockingLzApp {
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
     VaultStatus public status;
     Snapshot public snapshot;
-    address public stargateLpStaking;
     address public stargateToken;
     address public mozaicLp;
     uint16 public primaryChainId = 0;
@@ -258,13 +257,11 @@ contract SecondaryVault is NonblockingLzApp {
         address _lzEndpoint,
         uint16 _chainId,
         uint16 _primaryChainId,
-        address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp
     ) NonblockingLzApp(_lzEndpoint) {
         chainId = _chainId;
         primaryChainId = _primaryChainId;
-        stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
         status = VaultStatus.IDLE;
