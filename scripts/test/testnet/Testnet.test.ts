@@ -51,13 +51,14 @@ describe('SecondaryVault.executeActions', () => {
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
     })
-    beforeEach(async () => {
+    after (async () => {
         hre.changeNetwork('bsctest');
         [owner] = await ethers.getSigners();
         const primaryChainId = exportData.testnetTestConstants.chainIds[1];
         const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault;
         let tx = await primaryVault.connect(owner).returnBalance();
         await tx.wait();
+        console.log("primaryVault returned balance");
 
         hre.changeNetwork('fantom');
         [owner] = await ethers.getSigners();
@@ -65,6 +66,7 @@ describe('SecondaryVault.executeActions', () => {
         const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault;
         tx = await secondaryVault.connect(owner).returnBalance();
         await tx.wait();
+        console.log("secondaryVault returned balance");
     })
     describe.skip ('StargateDriver.execute', () => {
         it ("can stake token", async () => {
@@ -856,7 +858,7 @@ describe('SecondaryVault.executeActions', () => {
                 }
             })
         })
-        describe.only ('Round 2', () => {
+        describe ('Round 2', () => {
             it ('1. User books deposit', async () => {
                 // Alice's booked deposit request now turns into staged from pending.
                 // Ben books withdraw (half of his mLP)
