@@ -353,11 +353,13 @@ contract SecondaryVault is NonblockingLzApp {
             req.chainId = _chainId;
             buffer.depositRequestList.push(req);
         }
-        buffer.depositRequestLookup[_depositor][_token][_chainId] = buffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountLDAccept);
-        buffer.totalDepositAmount = buffer.totalDepositAmount.add(_amountLDAccept);
-        buffer.depositAmountPerToken[_token] = buffer.depositAmountPerToken[_token].add(_amountLDAccept);
+        uint256 _decimals = IERC20Metadata(_token).decimals();
+        uint256 _amountMD = amountLDtoMD(_amountLDAccept, _decimals);
+        buffer.depositRequestLookup[_depositor][_token][_chainId] = buffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountMD);
+        buffer.totalDepositAmount = buffer.totalDepositAmount.add(_amountMD);
+        buffer.depositAmountPerToken[_token] = buffer.depositAmountPerToken[_token].add(_amountMD);
 
-        emit DepositRequestAdded(_depositor, _token, _chainId, _amountLDAccept);
+        emit DepositRequestAdded(_depositor, _token, _chainId, _amountMD);
     }
 
     function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
@@ -425,29 +427,29 @@ contract SecondaryVault is NonblockingLzApp {
 
         // Make Report
         // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
-        uint256 _totalStablecoin = 0;
+        uint256 _totalStablecoinMD = 0;
 
         // Add stablecoins remaining in this vault
         for (uint i = 0; i < acceptingTokens.length; i++) {
             uint256 _balanceLD = IERC20(acceptingTokens[i]).balanceOf(address(this));
             uint256 _decimals = IERC20Metadata(acceptingTokens[i]).decimals();
-            _totalStablecoin = _totalStablecoin.add(_balanceLD * (10**(MOZAIC_DECIMALS - _decimals)));
+            _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_balanceLD, _decimals));
+            // Add stablecoins staked in stargate using stargateDriver
+            // TODO: Do not specify driver type
+            ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+            ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
+            bytes memory _payload = abi.encode(acceptingTokens[i]);
+            (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
+            require(success, "Failed to delegate");
+            (uint256 _amountStakedLD) = abi.decode(abi.decode(data, (bytes)), (uint256));
+            _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
         }
-
-        // Add stablecoins staked in stargate using stargateDriver
-        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmount;
-        bytes memory _payload;
-        (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
-        require(success, "Failed to delegate");
-        (uint256 _amountStaked) = abi.decode(abi.decode(data, (bytes)), (uint256));
-        _totalStablecoin = _totalStablecoin.add(_amountStaked);
 
         // TODO: Protocol-Specific Logic. Move to StargateDriver
         result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-        result.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositAmount);
+        result.totalStablecoin = _totalStablecoinMD.sub(_stagedReqs().totalDepositAmount);
         result.depositRequestAmount = _stagedReqs().totalDepositAmount;
         result.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawAmount;
         result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
@@ -603,5 +605,9 @@ contract SecondaryVault is NonblockingLzApp {
         bytes memory lzTxParamBuilt = "";
         bool useLayerZeroToken = false;
         return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
+    }
+
+    function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
+        return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
     }
 }
