@@ -10,6 +10,8 @@ import { describe } from 'mocha';
 const fs = require('fs');
 const hre = require('hardhat');
 
+const TIME_DELAY_MAX = 120000;
+
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
     let alice: SignerWithAddress;
@@ -242,7 +244,7 @@ describe('SecondaryVault.executeActions', () => {
             let timeDelayed = 0;
             const timeInterval = 10000;
             let success = false;
-            while (timeDelayed < 600000) {
+            while (timeDelayed < TIME_DELAY_MAX) {
                 amountDstRemain = await dstToken.balanceOf(dstVault.address);
                 if (amountDstRemain.eq(amountDstBefore)) {
                     console.log("Waiting for LayerZero delay...");
@@ -330,7 +332,7 @@ describe('SecondaryVault.executeActions', () => {
             let timeDelayed = 0;
             const timeInterval = 10000;
             let success = false;
-            while (timeDelayed < 600000) {
+            while (timeDelayed < TIME_DELAY_MAX) {
                 amountDstRemain = await dstToken.balanceOf(dstVault.address);
                 if (amountDstRemain.eq(amountDstBefore)) {
                     console.log("Waiting for LayerZero delay...");
@@ -587,7 +589,7 @@ describe('SecondaryVault.executeActions', () => {
                 let timeDelayed = 0;
                 let success = false;
                 let allSnapshotted = false;
-                while (timeDelayed < 600000) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     allSnapshotted = await primaryVault.allVaultsSnapshotted();
                     if (!allSnapshotted) {
                         console.log("Waiting for LayerZero delay...");
@@ -721,7 +723,7 @@ describe('SecondaryVault.executeActions', () => {
                 const dstChainId = secondaryChainId;
                 const dstPoolId = exportData.testnetTestConstants.poolIds.get("USDC")!;
                 const amountDstBefore = await tokenC.balanceOf(secondaryVault.address);
-                const amountSwapRemote = ethers.utils.parseUnits("2", decimalsB);
+                const amountSwapRemote = ethers.utils.parseUnits("1", decimalsB);
                 console.log("Before swapRemote, primaryVault has tokenB %d, secondaryVault has tokenC %d", amountSrcBefore.toString(), amountDstBefore.toString());
 
                 hre.changeNetwork('bsctest');
@@ -763,7 +765,7 @@ describe('SecondaryVault.executeActions', () => {
                 let amountDstRemain: BigNumber;
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < 600000) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     amountDstRemain = await tokenC.balanceOf(secondaryVault.address);
                     if (amountDstRemain.eq(amountDstBefore)) {
                         console.log("Waiting for LayerZero delay...");
@@ -789,7 +791,7 @@ describe('SecondaryVault.executeActions', () => {
                 const benPrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
                 hre.changeNetwork('fantom');
                 const benSecondaryMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-                console.log("alicePrimaryMLPBefore %d, benPrimaryMLPBefore %d, benSecondaryMLPBefore %d", alicePrimaryMLPBefore, benPrimaryMLPBefore, benSecondaryMLPBefore);
+                console.log("alicePrimaryMLPBefore %d, benPrimaryMLPBefore %d, benSecondaryMLPBefore %d", alicePrimaryMLPBefore.toString(), benPrimaryMLPBefore.toString(), benSecondaryMLPBefore.toString());
 
                 hre.changeNetwork('bsctest');
                 [owner, alice, ben] = await ethers.getSigners();
@@ -808,7 +810,7 @@ describe('SecondaryVault.executeActions', () => {
                 let benSecondaryMLP: BigNumber;
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < 600000) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     benSecondaryMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
                     if (benSecondaryMLP.eq(benSecondaryMLPBefore)) {
                         console.log("Waiting for LayerZero delay...");
@@ -842,7 +844,7 @@ describe('SecondaryVault.executeActions', () => {
                 let protocolStatus: number;
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < 600000) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.IDLE) {
                         console.log("Waiting for LayerZero delay...");
@@ -906,7 +908,7 @@ describe('SecondaryVault.executeActions', () => {
                 let timeDelayed = 0;
                 let success = false;
                 let allSnapshotted = false;
-                while (timeDelayed < 600000) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     allSnapshotted = await primaryVault.allVaultsSnapshotted();
                     if (!allSnapshotted) {
                         console.log("Waiting for LayerZero delay...");
@@ -944,7 +946,7 @@ describe('SecondaryVault.executeActions', () => {
                 hre.changeNetwork('fantom');
                 timeDelayed = 0;
                 success = false;
-                while (timeDelayed < 600000) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     let benMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
                     if (benMLP.eq(benMLPBefore)) {
                         console.log("Waiting for LayerZero delay...");
