@@ -68,8 +68,8 @@ contract StargateDriver is ProtocolDriver{
         else if (_actionType == ActionType.SwapRemote) {
             _swapRemote(_payload);
         }
-        else if (_actionType == ActionType.GetStakedAmount) {
-            response = _getStakedAmount();
+        else if (_actionType == ActionType.GetStakedAmountLD) {
+            response = _getStakedAmountLDPerToken(_payload);
         }
         else {
             revert("Undefined Action");
@@ -188,47 +188,48 @@ contract StargateDriver is ProtocolDriver{
         IStargateRouter(_router).swap{value:_nativeFee}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
     }
 
-    function _getStakedAmount() private returns (bytes memory response) {
-        uint256 _amountStaked = 0;
+    function _getStakedAmountLDPerToken(bytes calldata _payload) private returns (bytes memory response) {
+        (address _token) = abi.decode(_payload, (address));
+
+        // Get pool and poolId
+        address _pool = getStargatePoolFromToken(_token);
+        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId()"));
+        require(_success, "Failed to call poolId");
+        uint256 _poolId = abi.decode(_response, (uint256));
+
+        // Find the Liquidity Pool's index in the Farming Pool.
+        (bool found, uint256 poolIndex) = getPoolIndexInFarming(_poolId);
+        require(found, "The LP token not acceptable.");
+
+        // Collect pending STG rewards
         address _stgLPStaking = _getConfig().stgLPStaking;
-        (bool _success, bytes memory _response) = address(_stgLPStaking).call(abi.encodeWithSignature("poolLength()"));
-        require(_success, "Failed to get LPStaking.poolLength");
-        uint256 _poolLength = abi.decode(_response, (uint256));
+        (_success, ) = address(_stgLPStaking).call(abi.encodeWithSignature("withdraw(uint256,uint256)", poolIndex, 0));
+        require(_success, "Failed to LPStaking.withdraw");
 
-        for (uint256 poolIndex = 0; poolIndex < _poolLength; poolIndex++) {
-            // 1. Collect pending STG rewards
-            (_success, ) = address(_stgLPStaking).call(abi.encodeWithSignature("withdraw(uint256,uint256)", poolIndex, 0));
-            require(_success, "Failed to LPStaking.withdraw");
-
-            // 2. Check total staked assets measured as stablecoin
-            (_success, _response) = address(_stgLPStaking).call(abi.encodeWithSignature("getPoolInfo(uint256)", poolIndex));
-            require(_success, "Failed to LPStaking.getPoolInfo");
-            address _pool = abi.decode(_response, (address));
-            
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-            require(_success, "Failed to Pool.balanceOf");
-            uint256 _amountLPToken = abi.decode(_response, (uint256));
-            
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalLiquidity()"));
-            require(_success, "Failed to Pool.totalLiquidity");
-            uint256 _totalLiquidity = abi.decode(_response, (uint256));
-            
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("convertRate()"));
-            require(_success, "Failed to Pool.convertRate");
-            uint256 _convertRate = abi.decode(_response, (uint256));
-            
-            uint256 _totalLiquidityLD = _totalLiquidity.mul(_convertRate);
-            
-            (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
-            require(_success, "Failed to Pool.totalSupply");
-            uint256 _totalSupply = abi.decode(_response, (uint256));
-            
-            if (_totalSupply > 0) {
-                _amountStaked = _amountStaked.add(_totalLiquidityLD.mul(_amountLPToken).div(_totalSupply));
-            }
+        (_success, _response) = address(_pool).call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(_success, "Failed to Pool.balanceOf");
+        uint256 _amountLPToken = abi.decode(_response, (uint256));
+        
+        (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalLiquidity()"));
+        require(_success, "Failed to Pool.totalLiquidity");
+        uint256 _totalLiquidity = abi.decode(_response, (uint256));
+        
+        (_success, _response) = address(_pool).call(abi.encodeWithSignature("convertRate()"));
+        require(_success, "Failed to Pool.convertRate");
+        uint256 _convertRate = abi.decode(_response, (uint256));
+        
+        uint256 _totalLiquidityLD = _totalLiquidity.mul(_convertRate);
+        
+        (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
+        require(_success, "Failed to Pool.totalSupply");
+        uint256 _totalSupply = abi.decode(_response, (uint256));
+        
+        uint256 _amountStakedLD = 0;
+        if (_totalSupply > 0) {
+            _amountStakedLD = _amountStakedLD.add(_totalLiquidityLD.mul(_amountLPToken).div(_totalSupply));
         }
 
-        response = abi.encode(_amountStaked);
+        response = abi.encode(_amountStakedLD);
     }
 
     function getStargatePoolFromToken(address _token) public returns (address) {
