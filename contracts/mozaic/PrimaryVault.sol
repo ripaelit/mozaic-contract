@@ -94,16 +94,16 @@ contract PrimaryVault is SecondaryVault {
     function calculateMozLpPerStablecoinMil() public {
         require(allVaultsSnapshotted(), "Some Snapshots not reached");
         uint256 _stargatePriceMil = _getStargatePriceMil();
-        uint256 _totalStablecoinValue = 0;
+        uint256 _totalStablecoinMD = 0;
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
         for (uint i = 0; i < vaults.length ; i++) {
             Snapshot memory report = snapshotReported[vaults[i].chainId];
-            _totalStablecoinValue = _totalStablecoinValue.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
+            _totalStablecoinMD = _totalStablecoinMD.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
-        if (_totalStablecoinValue > 0) {
-            mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinValue);
+        if (_totalStablecoinMD > 0) {
+            mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinMD);
         }
         else {
             mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
