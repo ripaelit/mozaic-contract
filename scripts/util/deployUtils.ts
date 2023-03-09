@@ -311,7 +311,7 @@ export const deployAllToTestNet = async (
     const lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
     const lpStaking = await lpStakingFactory.deploy(
         stargateToken.address, 
-        BigNumber.from("100000"), 
+        BigNumber.from("1000000"), 
         latestBlockNumber + 3, 
         latestBlockNumber + 3
     );
