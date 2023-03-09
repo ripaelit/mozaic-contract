@@ -11,6 +11,7 @@ const fs = require('fs');
 const hre = require('hardhat');
 
 const TIME_DELAY_MAX = 120000;
+const MOZAIC_DECIMALS = 18;
 
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
@@ -803,8 +804,8 @@ describe('SecondaryVault.executeActions', () => {
                 const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
                 const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
                 console.log("After settle, alicePrimaryMLP %d, benPrimaryMLP %d", alicePrimaryMLP, benPrimaryMLP);
-                expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit1LD_A);  // mLP eq to SD
-                expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B);  // mLP eq to SD
+                expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit1LD_A.mul(10**(MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
+                expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B.mul(10**(MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
                 
                 hre.changeNetwork('fantom');
                 let benSecondaryMLP: BigNumber;
@@ -820,7 +821,7 @@ describe('SecondaryVault.executeActions', () => {
                         success = true;
                         console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
                         console.log("All vaults settled");
-                        expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C);
+                        expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C.mul(10**(MOZAIC_DECIMALS - decimalsC)));
                         break;
                     }
                 }
@@ -957,7 +958,7 @@ describe('SecondaryVault.executeActions', () => {
                         console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
                         console.log("benMLPBefore %d, benMLP %d, benWithdrawMLP %d", benMLPBefore.toString(), benMLP.toString(), benWithdrawMLP.toString());
                         console.log("All vaults settled");
-                        expect(benMLPBefore.sub(benMLP)).to.eq(benWithdrawMLP);
+                        expect(benMLPBefore.sub(benMLP)).to.eq(benWithdrawMLP.mul(10**(MOZAIC_DECIMALS - decimalsC)));
                         break;
                     }
                 }
