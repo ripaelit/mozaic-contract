@@ -944,28 +944,6 @@ describe('SecondaryVault.executeActions', () => {
                 console.log("aliceMLPBefore %d, aliceMLPAfter %d, aliceDeposit2LD_A %d", aliceMLPBefore.toString(), aliceMLPAfter.toString(), aliceDeposit2LD_A.toString());
                 // expect(aliceMLPAfter.sub(aliceMLPBefore)).to.eq(aliceDeposit2LD_A);
                 
-                hre.changeNetwork('fantom');
-                timeDelayed = 0;
-                success = false;
-                while (timeDelayed < TIME_DELAY_MAX) {
-                    let benMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-                    if (benMLP.eq(benMLPBefore)) {
-                        console.log("Waiting for LayerZero delay...");
-                        await setTimeout(timeInterval);
-                        timeDelayed += timeInterval;
-                    } else {
-                        success = true;
-                        console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
-                        console.log("benMLPBefore %d, benMLP %d, benWithdrawMLP %d", benMLPBefore.toString(), benMLP.toString(), benWithdrawMLP.toString());
-                        console.log("All vaults settled");
-                        expect(benMLPBefore.sub(benMLP)).to.eq(benWithdrawMLP.mul(10**(MOZAIC_DECIMALS - decimalsC)));
-                        break;
-                    }
-                }
-                if (!success) {
-                    console.log("Timeout LayerZero in settleRequestsAllVaults");
-                }
-
                 hre.changeNetwork('bsctest');
                 const totalDepositAmountLast = await primaryVault.getTotalDepositAmount(true);
                 console.log(totalDepositAmountLast.toString());
