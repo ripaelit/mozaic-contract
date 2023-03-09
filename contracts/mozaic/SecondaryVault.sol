@@ -44,6 +44,7 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public constant PT_SETTLED_REQUESTS = 10003;
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
+    uint256 public constant MOZAIC_DECIMALS = 18;
 
     bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
     bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
@@ -428,7 +429,9 @@ contract SecondaryVault is NonblockingLzApp {
 
         // Add stablecoins remaining in this vault
         for (uint i = 0; i < acceptingTokens.length; i++) {
-            _totalStablecoin = _totalStablecoin.add(IERC20(acceptingTokens[i]).balanceOf(address(this)));
+            uint256 _balanceLD = IERC20(acceptingTokens[i]).balanceOf(address(this));
+            uint256 _decimals = IERC20Metadata(acceptingTokens[i]).decimals();
+            _totalStablecoin = _totalStablecoin.add(_balanceLD * (10**(MOZAIC_DECIMALS - _decimals)));
         }
 
         // Add stablecoins staked in stargate using stargateDriver
