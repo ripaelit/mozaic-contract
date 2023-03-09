@@ -440,10 +440,11 @@ contract SecondaryVault is NonblockingLzApp {
         (uint256 _amountStaked) = abi.decode(abi.decode(data, (bytes)), (uint256));
         _totalStablecoin = _totalStablecoin.add(_amountStaked);
 
+        // TODO: Protocol-Specific Logic. Move to StargateDriver
         result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-        result.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositAmount).sub(_pendingReqs().totalDepositAmount);
+        result.totalStablecoin = _totalStablecoin.sub(_stagedReqs().totalDepositAmount);
         result.depositRequestAmount = _stagedReqs().totalDepositAmount;
         result.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawAmount;
         result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
