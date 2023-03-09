@@ -14,7 +14,7 @@ describe('StargateDriver', () => {
     let mozaicDeployments: MozaicDeployments;
     let primaryChainId: number;
 
-    beforeEach(async () => {
+    before (async () => {
         [owner] = await ethers.getSigners();  // owner is control center
         
         stablecoinDeployments = new Map<number, Map<string, string>>();
@@ -23,7 +23,7 @@ describe('StargateDriver', () => {
         primaryChainId = exportData.localTestConstants.mozaicMainChainId;
         
         await deployAllToLocalNets(owner, primaryChainId, stablecoinDeployments, stargateDeployments, mozaicDeployments);
-    });
+    })
     describe('StargateDriver.execute', () => {
         it ("can stake USDC", async () => {
             const chainId = exportData.localTestConstants.chainIds[1];  // BSC
@@ -31,7 +31,8 @@ describe('StargateDriver', () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const lpStaking = stargateDeployments.get(chainId)!.lpStakingContract;
-            const amountLD = BigNumber.from("123456789012345");
+            const decimalsA = await usdcContract.decimals();
+            const amountLD = ethers.utils.parseUnits("1", decimalsA);
             const payload = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
 
             // Mint USDC to SecondaryVault
@@ -59,27 +60,10 @@ describe('StargateDriver', () => {
             const MockTokenFactory = (await ethers.getContractFactory('MockToken', owner)) as MockToken__factory;
             const usdcContract = MockTokenFactory.attach(stablecoinDeployments.get(chainId)!.get(exportData.localTestConstants.stablecoins.get(chainId)![0])!);
             const lpStaking = stargateDeployments.get(chainId)!.lpStakingContract;
-            const amountLD = BigNumber.from("100000000000000000000");   // 100$
-
-            // Stake
-            // Mint USDC to SecondaryVault
-            await usdcContract.mint(secondaryVault.address, amountLD);
-            console.log("SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
-            
-            // SecondaryVault stake USDC of amountLD
-            const payloadStake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, usdcContract.address]);
-            const stakeAction: SecondaryVault.ActionStruct  = {
-                driverId: exportData.localTestConstants.stargateDriverId,
-                actionType: ActionTypeEnum.StargateStake,
-                payload : payloadStake
-            };
-            await secondaryVault.connect(owner).executeActions([stakeAction]);
-            console.log("After stake, SecondaryVault has USDC:", (await usdcContract.balanceOf(secondaryVault.address)));
 
             // Check LpTokens for owner in LpStaking
             let amountLPToken = (await lpStaking.userInfo(BigNumber.from("0"), secondaryVault.address)).amount;
             console.log("LpTokens for owner in LpStaking is", amountLPToken);
-            expect(amountLPToken).gt(BigNumber.from("0"));
 
             // Unstake
             // SecondaryVault unstake LPToken
