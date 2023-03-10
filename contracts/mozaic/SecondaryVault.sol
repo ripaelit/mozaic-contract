@@ -374,7 +374,7 @@ contract SecondaryVault is NonblockingLzApp {
 
         // add withdraw request to pending buffer
         bool _exists = false;
-        for (uint i = 0; i < pendingBuffer.withdrawRequestList.length; i++) {
+        for (uint i = 0; i < pendingBuffer.withdrawRequestList.length; ++i) {
             WithdrawRequest memory req = pendingBuffer.withdrawRequestList[i];
             if (req.user == _withdrawer && req.token == _token && req.chainId == _chainId) {
                 _exists = true;
@@ -550,7 +550,7 @@ contract SecondaryVault is NonblockingLzApp {
     function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
         bool flagExist = false;
         // if it already exists, update vault address 
-        for (uint256 i = 0; i < vaults.length; i++) {
+        for (uint256 i = 0; i < vaults.length; ++i) {
             if (vaults[i].chainId == _chainId) {
                 vaults[i].vaultAddress = _vaultAddress;
                 flagExist = true;
