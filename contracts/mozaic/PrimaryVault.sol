@@ -57,8 +57,8 @@ contract PrimaryVault is SecondaryVault {
         }
     }
 
-    function _acceptSnapshot(uint16 _srcChainId, Snapshot memory _newSnapshot) internal {
-        require(vaultStatus[_srcChainId]==VaultStatus.SNAPSHOTTING, "Expect: prevStatus=SNAPSHOTTING");
+    function _acceptSnapshotReport(uint16 _srcChainId, Snapshot memory _newSnapshot) internal {
+        vaultStatus[_srcChainId] = VaultStatus.SNAPSHOTTED;
         snapshotReported[_srcChainId] = _newSnapshot;
         vaultStatus[_srcChainId]=VaultStatus.SNAPSHOTTED;
         if (allVaultsSnapshotted()) {
