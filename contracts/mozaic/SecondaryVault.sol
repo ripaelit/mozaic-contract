@@ -397,8 +397,9 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _takeSnapshot() internal {
         if (status == VaultStatus.IDLE) {
-            require(_stagedReqs().totalDepositAmount==0, "Still processing requests");
-            require(_stagedReqs().totalWithdrawAmount==0, "Still processing requests");
+            RequestBuffer storage buffer = _stagedReqs();
+            require(buffer.totalDepositAmount==0, "Still processing requests");
+            require(buffer.totalWithdrawAmount==0, "Still processing requests");
 
             // Stage Requests: Pending --> Processing
             bufferFlag = !bufferFlag;
@@ -424,7 +425,7 @@ contract SecondaryVault is NonblockingLzApp {
             }
 
             // TODO: Protocol-Specific Logic. Move to StargateDriver
-            RequestBuffer storage buffer = _stagedReqs();
+            
             Snapshot memory result;
             result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
@@ -439,7 +440,6 @@ contract SecondaryVault is NonblockingLzApp {
         } else {
             revert("snapshot: Unexpected Status");
         }
-        
     }
 
     function _reportSnapshot() internal {
