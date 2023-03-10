@@ -248,8 +248,8 @@ contract SecondaryVault is NonblockingLzApp {
         if (amount == 0) {
             return;
         }
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success, "Failed to return balance.");
+        (bool success, bytes memory response) = msg.sender.call{value: amount}("");
+        require(success, abi.decode(response, (string)));
     }
 
     //---------------------------------------------------------------------------
@@ -273,8 +273,8 @@ contract SecondaryVault is NonblockingLzApp {
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
-        (bool _success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
-        require(_success, "Failed to delegate");
+        (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
+        require(success, abi.decode(response, (string)));
     }
 
     function addToken(address _token) external onlyOwner {
@@ -316,8 +316,7 @@ contract SecondaryVault is NonblockingLzApp {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
             (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
-            (string memory errorMessage) = abi.decode(response, (string));
-            require(success, errorMessage);
+            require(success, abi.decode(response, (string)));
         }
     }
 
@@ -418,9 +417,9 @@ contract SecondaryVault is NonblockingLzApp {
                 ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
                 ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
                 bytes memory _payload = abi.encode(acceptingTokens[i]);
-                (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
-                require(success, "Failed to delegate");
-                (uint256 _amountStakedLD) = abi.decode(abi.decode(data, (bytes)), (uint256));
+                (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
+                require(success, abi.decode(response, (string)));
+                (uint256 _amountStakedLD) = abi.decode(abi.decode(response, (bytes)), (uint256));
                 _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
             }
 
@@ -569,8 +568,8 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
-        require(success, "Failed to delegate");
+        (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
+        require(success, abi.decode(response, (string)));
 
     }
 
