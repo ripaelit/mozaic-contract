@@ -125,10 +125,12 @@ contract PrimaryVault is SecondaryVault {
     function quoteLayerZeroFee(
         uint16 _chainId,
         uint16 _packetType
-    ) external view virtual override returns (uint256 _nativeFee, uint256 _zroFee) {
+    ) public view virtual override returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
         if (_packetType == PT_SETTLE_REQUESTS) {
             payload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
+        } else if (_packetType == PT_TAKE_SNAPSHOT) {
+            payload = abi.encode(PT_TAKE_SNAPSHOT);
         } else {
             revert("Vault: unsupported packet type");
         }
