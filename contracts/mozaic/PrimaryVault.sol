@@ -34,17 +34,12 @@ contract PrimaryVault is SecondaryVault {
         mozaicLpPerStablecoinMil = 0;
     }
 
-    /**
-     * Call this with zero gas
-     */
-    function reportSnapshot() virtual override public payable onlyOwner {
-        // Processing Amount Should be Zero!
-        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet.");
-        // Send Report
-        _acceptSnapshot(chainId, snapshot);
-    }
-
-    function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
+    function _nonblockingLzReceive(
+        uint16 _srcChainId, 
+        bytes memory _srcAddress, 
+        uint64 _nonce, 
+        bytes memory _payload
+    ) internal virtual override {
         uint16 packetType;
         assembly {
             packetType := mload(add(_payload, 32))
@@ -52,13 +47,10 @@ contract PrimaryVault is SecondaryVault {
 
         if (packetType == PT_REPORTSNAPSHOT) {
             (, Snapshot memory _newSnapshot) = abi.decode(_payload, (uint16, Snapshot));
-            _acceptSnapshot(_srcChainId, _newSnapshot);
+            _acceptSnapshotReport(_srcChainId, _newSnapshot);
         } 
-        else if (packetType == PT_SETTLED_REQUESTS) {
-            vaultStatus[_srcChainId] = VaultStatus.IDLE;
-            if (_checkRequestsSettledAllVaults()) {
-                _resetProtocolStatus();
-            }
+        else if (packetType == PT_SETTLED_REPORT) {
+            _acceptSettledReport(_srcChainId);
         }
         else {
             emit UnexpectedLzMessage(packetType, _payload);
