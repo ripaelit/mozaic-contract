@@ -435,6 +435,7 @@ contract SecondaryVault is NonblockingLzApp {
             result.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
             result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
             snapshot = result;
+            status = VaultStatus.SNAPSHOTTED;
         } else if (status == VaultStatus.SNAPSHOTTED) {
             return;
         } else {
