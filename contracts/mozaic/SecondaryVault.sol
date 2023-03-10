@@ -289,7 +289,7 @@ contract SecondaryVault is NonblockingLzApp {
     function removeToken(address _token) external onlyOwner {
         // TODO: Make sure there's no asset as this token.
         uint _idxToken = acceptingTokens.length;
-        for (uint i = 0; i < acceptingTokens.length; i++) {
+        for (uint i = 0; i < acceptingTokens.length; ++i) {
             if (acceptingTokens[i] == _token) {
                 _idxToken = i;
                 break;
@@ -303,7 +303,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function isAcceptingToken(address _token) public view returns (bool) {
-        for (uint i = 0; i < acceptingTokens.length; i++) {
+        for (uint i = 0; i < acceptingTokens.length; ++i) {
             if (acceptingTokens[i] == _token) {
                 return true;
             }
@@ -312,7 +312,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function executeActions(Action[] calldata _actions) external onlyOwner {
-        for (uint i = 0; i < _actions.length ; i++) {
+        for (uint i = 0; i < _actions.length ; ++i) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
             (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
@@ -337,7 +337,7 @@ contract SecondaryVault is NonblockingLzApp {
         // add deposit request to pending buffer
         RequestBuffer storage buffer = _pendingReqs();
         bool exists = false;
-        for (uint i = 0; i < buffer.depositRequestList.length; i++) {
+        for (uint i = 0; i < buffer.depositRequestList.length; ++i) {
             DepositRequest memory req = buffer.depositRequestList[i];
             if (req.user == _depositor && req.token == _token) {
                 exists = true;
@@ -516,7 +516,7 @@ contract SecondaryVault is NonblockingLzApp {
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
         RequestBuffer storage _reqs = _stagedReqs();
-        for (uint i = 0; i < _reqs.depositRequestList.length; i++) {
+        for (uint i = 0; i < _reqs.depositRequestList.length; ++i) {
             DepositRequest memory request = _reqs.depositRequestList[i];
             uint256 _depositAmount = _reqs.depositRequestLookup[request.user][request.token][request.chainId];
             if (_depositAmount == 0) {
@@ -531,7 +531,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
         require(_reqs.totalDepositAmount == 0, "Has unsettled deposit amount.");
 
-        for (uint i = 0; i < _reqs.withdrawRequestList.length; i++) {
+        for (uint i = 0; i < _reqs.withdrawRequestList.length; ++i) {
             WithdrawRequest memory request = _reqs.withdrawRequestList[i];
             uint256 _withdrawAmountMLP = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
             if (_withdrawAmountMLP == 0) {
