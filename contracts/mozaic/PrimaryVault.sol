@@ -5,9 +5,6 @@ import "./SecondaryVault.sol";
 
 contract PrimaryVault is SecondaryVault {
     using SafeMath for uint256;
-    //---------------------------------------------------------------------------
-    // EVENTS
-    
     //--------------------------------------------------------------------------
     // ENUMS
     enum ProtocolStatus {
@@ -18,13 +15,9 @@ contract PrimaryVault is SecondaryVault {
     //---------------------------------------------------------------------------
     // VARIABLES
     ProtocolStatus public protocolStatus;
-
-    // VaultDescriptor[] public secondaryVaults;
     mapping(uint16 => SecondaryVault.VaultStatus) public vaultStatus;
-
     mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
-
-    uint256 public mozaicLpPerStablecoinMil = 0; // mozLP/stablecoinSD*1_000_000
+    uint256 public mozaicLpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
     uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
     
     //---------------------------------------------------------------------------
