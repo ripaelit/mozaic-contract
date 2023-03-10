@@ -425,13 +425,16 @@ contract SecondaryVault is NonblockingLzApp {
             }
 
             // TODO: Protocol-Specific Logic. Move to StargateDriver
-            snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
+            RequestBuffer storage buffer = _stagedReqs();
+            Snapshot memory result;
+            result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
             // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-            snapshot.totalStablecoin = _totalStablecoinMD.sub(_stagedReqs().totalDepositAmount);
-            snapshot.depositRequestAmount = _stagedReqs().totalDepositAmount;
-            snapshot.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawAmount;
-            snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
+            result.totalStablecoin = _totalStablecoinMD.sub(buffer.totalDepositAmount);
+            result.depositRequestAmount = buffer.totalDepositAmount;
+            result.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
+            result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
+            snapshot = result;
         } else if (status == VaultStatus.SNAPSHOTTED) {
             return;
         } else {
