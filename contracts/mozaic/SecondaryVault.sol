@@ -396,89 +396,48 @@ contract SecondaryVault is NonblockingLzApp {
         emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
     }
 
-    /**
-    * Make Snapshot.
-    * Save as State Variable.
-    * Return Snapshot to caller.
-    * NOTE:
-    * Turn vault status into SNAPSHOTTED, not allowing snapshotting again in a session.
-    **/
-    function takeSnapshot() public onlyOwner returns (Snapshot memory) {
+    function _takeSnapshot() internal {
         if (status == VaultStatus.IDLE) {
-            status = VaultStatus.SNAPSHOTTED;
-            return _takeSnapshot();
-        }
-        else if (status == VaultStatus.SNAPSHOTTED) {
-            return snapshot;
-        }
-        else {
+            require(_stagedReqs().totalDepositAmount==0, "Still processing requests");
+            require(_stagedReqs().totalWithdrawAmount==0, "Still processing requests");
+
+            // Stage Requests: Pending --> Processing
+            bufferFlag = !bufferFlag;
+
+            // Make Report
+            // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
+            uint256 _totalStablecoinMD = 0;
+
+            // Add stablecoins remaining in this vault
+            for (uint i = 0; i < acceptingTokens.length; ++i) {
+                uint256 _balanceLD = IERC20(acceptingTokens[i]).balanceOf(address(this));
+                uint256 _decimals = IERC20Metadata(acceptingTokens[i]).decimals();
+                _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_balanceLD, _decimals));
+                // Add stablecoins staked in stargate using stargateDriver
+                // TODO: Do not specify driver type
+                ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+                ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
+                bytes memory _payload = abi.encode(acceptingTokens[i]);
+                (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
+                require(success, "Failed to delegate");
+                (uint256 _amountStakedLD) = abi.decode(abi.decode(data, (bytes)), (uint256));
+                _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
+            }
+
+            // TODO: Protocol-Specific Logic. Move to StargateDriver
+            snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
+
+            // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
+            snapshot.totalStablecoin = _totalStablecoinMD.sub(_stagedReqs().totalDepositAmount);
+            snapshot.depositRequestAmount = _stagedReqs().totalDepositAmount;
+            snapshot.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawAmount;
+            snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
+        } else if (status == VaultStatus.SNAPSHOTTED) {
+            return;
+        } else {
             revert("snapshot: Unexpected Status");
         }
-    }
-
-    function _takeSnapshot() internal virtual returns (Snapshot memory result){
-        require(_stagedReqs().totalDepositAmount==0, "Still processing requests");
-        require(_stagedReqs().totalWithdrawAmount==0, "Still processing requests");
-
-        // Stage Requests: Pending --> Processing
-        bufferFlag = !bufferFlag;
-
-        // Make Report
-        // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
-        uint256 _totalStablecoinMD = 0;
-
-        // Add stablecoins remaining in this vault
-        for (uint i = 0; i < acceptingTokens.length; i++) {
-            uint256 _balanceLD = IERC20(acceptingTokens[i]).balanceOf(address(this));
-            uint256 _decimals = IERC20Metadata(acceptingTokens[i]).decimals();
-            _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_balanceLD, _decimals));
-            // Add stablecoins staked in stargate using stargateDriver
-            // TODO: Do not specify driver type
-            ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-            ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
-            bytes memory _payload = abi.encode(acceptingTokens[i]);
-            (bool success, bytes memory data) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
-            require(success, "Failed to delegate");
-            (uint256 _amountStakedLD) = abi.decode(abi.decode(data, (bytes)), (uint256));
-            _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
-        }
-
-        // TODO: Protocol-Specific Logic. Move to StargateDriver
-        result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
-
-        // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-        result.totalStablecoin = _totalStablecoinMD.sub(_stagedReqs().totalDepositAmount);
-        result.depositRequestAmount = _stagedReqs().totalDepositAmount;
-        result.withdrawRequestAmountMLP = _stagedReqs().totalWithdrawAmount;
-        result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        snapshot = result;
-    }
-
-    /**
-    * Report snapshot. Need to call snapshot() before.
-    * NOTE: 
-    * Does not turn into SNAPSHOTREPORTED status.
-    * Allowing double execution. Just giving freedom to report again at additional cost.
-    **/
-    function reportSnapshot() virtual public payable onlyOwner {
-        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
-
-        if (chainId == primaryChainId) {
-            // CHECKLATER:
-            // _acceptSnapshot(chainId, snapshot);
-        } else {
-            bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-            _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
-        }
-    }
-
-    function reportSettled() public payable onlyOwner {
-        require(status == VaultStatus.IDLE, "Not settled yet");
-        require(_stagedReqs().totalDepositAmount == 0, "Has unsettled deposit amount.");
-        require(_stagedReqs().totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
-        // report to primary vault
-        bytes memory lzPayload = abi.encode(PT_SETTLED_REQUESTS);
-        _lzSend(primaryChainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+        
     }
 
     //---------------------------------------------------------------------------
