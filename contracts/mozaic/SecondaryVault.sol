@@ -440,33 +440,12 @@ contract SecondaryVault is NonblockingLzApp {
         
     }
 
-    //---------------------------------------------------------------------------
-    // INTERNAL
-    function _safeTransferFrom(
-        address _token,
-        address _from,
-        address _to,
-        uint256 _value
-    ) internal {
-        IERC20(_token).transferFrom(_from, _to, _value);
-    }
+    function _reportSnapshot() internal {
+        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
 
-    function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
-        IERC20(_token).transfer(_user, _amountLD);
-    }
-
-    function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {
-        uint16 packetType;
-        assembly {
-            packetType := mload(add(_payload, 32))
-        }
-
-        if (packetType == PT_SETTLE_REQUESTS) {
-            (, uint256 _mozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
-            _settleRequests(_mozaicLpPerStablecoinMil);
-        } else {
-            emit UnexpectedLzMessage(packetType, _payload);
-        }
+        bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
+        (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT);
+        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
     }
 
     function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
@@ -518,6 +497,56 @@ contract SecondaryVault is NonblockingLzApp {
         status = VaultStatus.IDLE;
     }
 
+    function _reportSettled() internal {
+        require(status == VaultStatus.IDLE, "Not settled yet");
+        require(_stagedReqs().totalDepositAmount == 0, "Has unsettled deposit amount.");
+        require(_stagedReqs().totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
+        
+        bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
+        (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT);
+        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
+    }
+
+    //---------------------------------------------------------------------------
+    // INTERNAL
+    function _safeTransferFrom(
+        address _token,
+        address _from,
+        address _to,
+        uint256 _value
+    ) internal {
+        IERC20(_token).transferFrom(_from, _to, _value);
+    }
+
+    function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
+        IERC20(_token).transfer(_user, _amountLD);
+    }
+
+    function _nonblockingLzReceive(
+        uint16 _srcChainId, 
+        bytes memory _srcAddress, 
+        uint64 _nonce, 
+        bytes memory _payload
+    ) internal virtual override {
+        uint16 packetType;
+        assembly {
+            packetType := mload(add(_payload, 32))
+        }
+
+        if (packetType == PT_SETTLE_REQUESTS) {
+            (, uint256 _mozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
+            _settleRequests(_mozaicLpPerStablecoinMil);
+            _reportSettled();
+        } else if (packetType == PT_TAKE_SNAPSHOT) {
+            _takeSnapshot();
+            _reportSnapshot();
+        } else {
+            emit UnexpectedLzMessage(packetType, _payload);
+        }
+    }
+
+    
+
     function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
         bool flagExist = false;
         // if it already exists, update vault address 
@@ -549,12 +578,12 @@ contract SecondaryVault is NonblockingLzApp {
     function quoteLayerZeroFee(
         uint16 _chainId,
         uint16 _packetType
-    ) external view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
+    ) public view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
         if (_packetType == PT_REPORTSNAPSHOT) {
             payload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        } else if (_packetType == PT_SETTLED_REQUESTS) {
-            payload = abi.encode(PT_SETTLED_REQUESTS);
+        } else if (_packetType == PT_SETTLED_REPORT) {
+            payload = abi.encode(PT_SETTLED_REPORT);
         } else {
             revert("Vault: unsupported packet type");
         }
