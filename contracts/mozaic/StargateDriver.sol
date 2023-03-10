@@ -81,9 +81,9 @@ contract StargateDriver is ProtocolDriver{
         
         // Get pool and poolId
         address _pool = getStargatePoolFromToken(_token);
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId()"));
-        require(_success, "Failed to call poolId");
-        uint256 _poolId = abi.decode(_response, (uint256));
+        (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _poolId = abi.decode(response, (uint256));
         
         // Approve token transfer from vault to STG.Pool
         address _stgRouter = _getConfig().stgRouter;
@@ -91,15 +91,15 @@ contract StargateDriver is ProtocolDriver{
         
         // Stake token from vault to STG.Pool and get LPToken
         // 1. Pool.LPToken of vault before
-        (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-        require(_success, "Failed to call balanceOf");
-        uint256 balancePre = abi.decode(_response, (uint256));
+        (success, response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(success, abi.decode(response, (string)));
+        uint256 balancePre = abi.decode(response, (uint256));
         // 2. Vault adds liquidity
         IStargateRouter(_stgRouter).addLiquidity(_poolId, _amountLD, address(this));
         // 3. Pool.LPToken of vault after
-        (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-        require(_success, "Failed to call balanceOf");
-        uint256 balanceAfter = abi.decode(_response, (uint256));
+        (success, response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(success, abi.decode(response, (string)));
+        uint256 balanceAfter = abi.decode(response, (uint256));
         // 4. Increased LPToken of vault
         uint256 amountLPToken = balanceAfter - balancePre;
         
@@ -109,12 +109,12 @@ contract StargateDriver is ProtocolDriver{
         
         // Approve LPToken transfer from vault to LPStaking
         address _stgLPStaking = _getConfig().stgLPStaking;
-        (_success, ) = _pool.call(abi.encodeWithSignature("approve(address,uint256)", _stgLPStaking, amountLPToken));
-        require(_success, "Failed to call approve");
+        (success, response) = _pool.call(abi.encodeWithSignature("approve(address,uint256)", _stgLPStaking, amountLPToken));
+        require(success, abi.decode(response, (string)));
 
         // Stake LPToken from vault to LPStaking
-        (_success, ) = _stgLPStaking.call(abi.encodeWithSignature("deposit(uint256,uint256)", stkPoolIndex, amountLPToken));
-        require(_success, "Failed to call deposit");
+        (success, response) = _stgLPStaking.call(abi.encodeWithSignature("deposit(uint256,uint256)", stkPoolIndex, amountLPToken));
+        require(success, abi.decode(response, (string)));
     }
 
     function _unstake(bytes calldata _payload) private {
@@ -123,9 +123,9 @@ contract StargateDriver is ProtocolDriver{
 
         // Get pool and poolId
         address _pool = getStargatePoolFromToken(_token);
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId()"));
-        require(_success, "Failed to call poolId");
-        uint256 _poolId = abi.decode(_response, (uint256));
+        (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _poolId = abi.decode(response, (uint256));
 
         // Find the Liquidity Pool's index in the Farming Pool.
         (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
@@ -133,17 +133,17 @@ contract StargateDriver is ProtocolDriver{
 
         // Withdraw LPToken from LPStaking to vault
         // 1. Pool.LPToken of vault before
-        (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-        require(_success, "Failed to call balanceOf");
-        uint256 balancePre = abi.decode(_response, (uint256));
+        (success, response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(success, abi.decode(response, (string)));
+        uint256 balancePre = abi.decode(response, (uint256));
         // 2. Withdraw LPToken from LPStaking to vault
         address _stgLPStaking = _getConfig().stgLPStaking;
-        (_success, ) = _stgLPStaking.call(abi.encodeWithSignature("withdraw(uint256,uint256)", stkPoolIndex, _amountLPToken));
-        require(_success, "Failed to call withdraw");
+        (success, response) = _stgLPStaking.call(abi.encodeWithSignature("withdraw(uint256,uint256)", stkPoolIndex, _amountLPToken));
+        require(success, abi.decode(response, (string)));
         // 3. Pool.LPToken of vault after
-        (_success, _response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-        require(_success, "Failed to call balanceOf");
-        uint256 balanceAfter = abi.decode(_response, (uint256));
+        (success, response) = _pool.call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(success, abi.decode(response, (string)));
+        uint256 balanceAfter = abi.decode(response, (uint256));
         // 4. Increased LPToken of vault
         uint256 _amountLPTokenWithdrawn = balanceAfter - balancePre;
 
@@ -166,9 +166,9 @@ contract StargateDriver is ProtocolDriver{
             require (_amountLD > 0, "Cannot stake zero amount");
 
             address _srcPool = getStargatePoolFromToken(_srcToken);
-            (bool _success, bytes memory _response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
-            require(_success, "Failed to call poolId");
-            _srcPoolId = abi.decode(_response, (uint256));
+            (bool success, bytes memory response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
+            require(success, abi.decode(response, (string)));
+            _srcPoolId = abi.decode(response, (uint256));
 
             _router = _getConfig().stgRouter;
             IERC20(_srcToken).approve(_router, _amountLD);
@@ -188,14 +188,14 @@ contract StargateDriver is ProtocolDriver{
         IStargateRouter(_router).swap{value:_nativeFee}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
     }
 
-    function _getStakedAmountLDPerToken(bytes calldata _payload) private returns (bytes memory response) {
+    function _getStakedAmountLDPerToken(bytes calldata _payload) private returns (bytes memory) {
         (address _token) = abi.decode(_payload, (address));
 
         // Get pool and poolId
         address _pool = getStargatePoolFromToken(_token);
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("poolId()"));
-        require(_success, "Failed to call poolId");
-        uint256 _poolId = abi.decode(_response, (uint256));
+        (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _poolId = abi.decode(response, (uint256));
 
         // Find the Liquidity Pool's index in the Farming Pool.
         (bool found, uint256 poolIndex) = getPoolIndexInFarming(_poolId);
@@ -203,26 +203,26 @@ contract StargateDriver is ProtocolDriver{
 
         // Collect pending STG rewards
         address _stgLPStaking = _getConfig().stgLPStaking;
-        (_success, ) = address(_stgLPStaking).call(abi.encodeWithSignature("withdraw(uint256,uint256)", poolIndex, 0));
-        require(_success, "Failed to LPStaking.withdraw");
+        (success, response) = address(_stgLPStaking).call(abi.encodeWithSignature("withdraw(uint256,uint256)", poolIndex, 0));
+        require(success, abi.decode(response, (string)));
 
-        (_success, _response) = address(_pool).call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-        require(_success, "Failed to Pool.balanceOf");
-        uint256 _amountLPToken = abi.decode(_response, (uint256));
+        (success, response) = address(_pool).call(abi.encodeWithSignature("balanceOf(address)", address(this)));
+        require(success, abi.decode(response, (string)));
+        uint256 _amountLPToken = abi.decode(response, (uint256));
         
-        (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalLiquidity()"));
-        require(_success, "Failed to Pool.totalLiquidity");
-        uint256 _totalLiquidity = abi.decode(_response, (uint256));
+        (success, response) = address(_pool).call(abi.encodeWithSignature("totalLiquidity()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _totalLiquidity = abi.decode(response, (uint256));
         
-        (_success, _response) = address(_pool).call(abi.encodeWithSignature("convertRate()"));
-        require(_success, "Failed to Pool.convertRate");
-        uint256 _convertRate = abi.decode(_response, (uint256));
+        (success, response) = address(_pool).call(abi.encodeWithSignature("convertRate()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _convertRate = abi.decode(response, (uint256));
         
         uint256 _totalLiquidityLD = _totalLiquidity.mul(_convertRate);
         
-        (_success, _response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
-        require(_success, "Failed to Pool.totalSupply");
-        uint256 _totalSupply = abi.decode(_response, (uint256));
+        (success, response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _totalSupply = abi.decode(response, (uint256));
         
         uint256 _amountStakedLD = 0;
         if (_totalSupply > 0) {
@@ -235,22 +235,22 @@ contract StargateDriver is ProtocolDriver{
     function getStargatePoolFromToken(address _token) public returns (address) {
         address _router = _getConfig().stgRouter;
         
-        (bool _success, bytes memory _response) = address(_router).call(abi.encodeWithSignature("factory()"));
-        require(_success, "Failed to get factory in StargateDriver");
-        address _factory = abi.decode(_response, (address));
+        (bool success, bytes memory response) = address(_router).call(abi.encodeWithSignature("factory()"));
+        require(success, abi.decode(response, (string)));
+        address _factory = abi.decode(response, (address));
 
-        (_success, _response) = _factory.call(abi.encodeWithSignature("allPoolsLength()"));
-        require(_success, "Failed to get allPoolsLength");
-        uint256 _allPoolsLength = abi.decode(_response, (uint256));
+        (success, response) = _factory.call(abi.encodeWithSignature("allPoolsLength()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _allPoolsLength = abi.decode(response, (uint256));
 
         for (uint i = 0; i < _allPoolsLength; i++) {
-            (_success, _response) = _factory.call(abi.encodeWithSignature("allPools(uint256)", i));
-            require(_success, "Failed to get allPools");
-            address _pool = abi.decode(_response, (address));
+            (success, response) = _factory.call(abi.encodeWithSignature("allPools(uint256)", i));
+            require(success, abi.decode(response, (string)));
+            address _pool = abi.decode(response, (address));
 
-            (_success, _response) = _pool.call(abi.encodeWithSignature("token()"));
-            require(_success, "Failed to call token");
-            address _poolToken = abi.decode(_response, (address));
+            (success, response) = _pool.call(abi.encodeWithSignature("token()"));
+            require(success, abi.decode(response, (string)));
+            address _poolToken = abi.decode(response, (address));
 
             if (_poolToken == _token) {
                 return _pool;
@@ -264,22 +264,22 @@ contract StargateDriver is ProtocolDriver{
     function _getPool(uint256 _poolId) internal returns (address _pool) {
         address _router = _getConfig().stgRouter;
 
-        (bool _success, bytes memory _response) = _router.call(abi.encodeWithSignature("factory()"));
-        require(_success, "Failed to get factory in StargateDriver");
-        address _factory = abi.decode(_response, (address));
+        (bool success, bytes memory response) = _router.call(abi.encodeWithSignature("factory()"));
+        require(success, abi.decode(response, (string)));
+        address _factory = abi.decode(response, (address));
 
-        (_success, _response) = _factory.call(abi.encodeWithSignature("getPool(uint256)", _poolId));
-        require(_success, "Failed to get pool in StargateDriver");
-        _pool = abi.decode(_response, (address));
+        (success, response) = _factory.call(abi.encodeWithSignature("getPool(uint256)", _poolId));
+        require(success, abi.decode(response, (string)));
+        _pool = abi.decode(response, (address));
     }
 
     function convertSDtoLD(address _token, uint256 _amountSD) public returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
         address _pool = getStargatePoolFromToken(_token);
 
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("convertRate()"));
-        require(_success, "Failed to call convertRate");
-        uint256 _convertRate = abi.decode(_response, (uint256));
+        (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("convertRate()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _convertRate = abi.decode(response, (uint256));
 
         return  _amountSD.mul(_convertRate); // pool.amountSDtoLD(_amountSD);
     }
@@ -288,9 +288,9 @@ contract StargateDriver is ProtocolDriver{
         // TODO: gas fee optimization by avoiding duplicate calculation.
         address _pool = getStargatePoolFromToken(_token);
 
-        (bool _success, bytes memory _response) = _pool.call(abi.encodeWithSignature("convertRate()"));
-        require(_success, "Failed to call convertRate");
-        uint256 _convertRate = abi.decode(_response, (uint256));
+        (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("convertRate()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _convertRate = abi.decode(response, (uint256));
 
         return  _amountLD.div(_convertRate); // pool.amountLDtoSD(_amountLD);
     }
@@ -299,14 +299,14 @@ contract StargateDriver is ProtocolDriver{
         address _pool = _getPool(_poolId);
         address _lpStaking = _getConfig().stgLPStaking;
         
-        (bool _success, bytes memory _response) = address(_lpStaking).call(abi.encodeWithSignature("poolLength()"));
-        require(_success, "Failed to get LPStaking.poolLength");
-        uint256 _poolLength = abi.decode(_response, (uint256));
+        (bool success, bytes memory response) = address(_lpStaking).call(abi.encodeWithSignature("poolLength()"));
+        require(success, abi.decode(response, (string)));
+        uint256 _poolLength = abi.decode(response, (uint256));
 
         for (uint256 poolIndex = 0; poolIndex < _poolLength; poolIndex++) {
-            (_success, _response) = address(_lpStaking).call(abi.encodeWithSignature("getPoolInfo(uint256)", poolIndex));
-            require(_success, "Failed to call getPoolInfo");
-            address _pool__ = abi.decode(_response, (address));
+            (success, response) = address(_lpStaking).call(abi.encodeWithSignature("getPoolInfo(uint256)", poolIndex));
+            require(success, abi.decode(response, (string)));
+            address _pool__ = abi.decode(response, (address));
             if (_pool__ == _pool) {
                 return (true, poolIndex);
             }
