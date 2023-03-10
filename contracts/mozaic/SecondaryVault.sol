@@ -446,7 +446,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
 
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT);
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT);
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
     }
 
@@ -505,7 +505,7 @@ contract SecondaryVault is NonblockingLzApp {
         require(_stagedReqs().totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
-        (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT);
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT);
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
     }
 

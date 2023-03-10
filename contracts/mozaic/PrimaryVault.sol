@@ -150,7 +150,7 @@ contract PrimaryVault is SecondaryVault {
                 _acceptSnapshotReport(primaryChainId, snapshot);
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-                (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(vaults[i].chainId, PT_TAKE_SNAPSHOT);
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(vaults[i].chainId, PT_TAKE_SNAPSHOT);
                 _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
             }
         }
@@ -167,7 +167,7 @@ contract PrimaryVault is SecondaryVault {
                 _acceptSettledReport(vaults[i].chainId);
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
-                (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(vaults[i].chainId, PT_SETTLE_REQUESTS);
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(vaults[i].chainId, PT_SETTLE_REQUESTS);
                 _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
             }
         }
