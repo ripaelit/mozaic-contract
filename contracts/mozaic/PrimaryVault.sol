@@ -54,7 +54,6 @@ contract PrimaryVault is SecondaryVault {
         }
         else {
             emit UnexpectedLzMessage(packetType, _payload);
-            // super._nonblockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
         }
     }
 
