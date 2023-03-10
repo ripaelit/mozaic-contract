@@ -41,7 +41,8 @@ contract SecondaryVault is NonblockingLzApp {
     // CONSTANTS
     uint16 public constant PT_REPORTSNAPSHOT = 10001;
     uint16 public constant PT_SETTLE_REQUESTS = 10002;
-    uint16 public constant PT_SETTLED_REQUESTS = 10003;
+    uint16 public constant PT_SETTLED_REPORT = 10003;
+    uint16 public constant PT_TAKE_SNAPSHOT = 10004;
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
     uint256 public constant MOZAIC_DECIMALS = 18;
