@@ -31,16 +31,7 @@ contract PrimaryVault is SecondaryVault {
         address _mozaicLp
     ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
-    }
-
-    function initOptimizationSession() public onlyOwner {
-        require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
-        // reset
         mozaicLpPerStablecoinMil = 0;
-        protocolStatus = ProtocolStatus.OPTIMIZING;
-        for (uint i = 0; i < vaults.length; i++) {
-            vaultStatus[vaults[i].chainId] = VaultStatus.SNAPSHOTTING;
-        }
     }
 
     /**
