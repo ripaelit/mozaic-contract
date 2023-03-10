@@ -139,4 +139,38 @@ contract PrimaryVault is SecondaryVault {
         bool useLayerZeroToken = false;
         return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
     }
+
+    function determineMozaicLpPrice() external onlyOwner {
+        require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
+        protocolStatus = ProtocolStatus.OPTIMIZING;
+        mozaicLpPerStablecoinMil = 0;
+        for (uint i = 0; i < vaults.length; ++i) {
+            vaultStatus[vaults[i].chainId] = VaultStatus.SNAPSHOTTING;
+            if (vaults[i].chainId == primaryChainId) {
+                _takeSnapshot();
+                _acceptSnapshotReport(primaryChainId, snapshot);
+            } else {
+                bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
+                (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(vaults[i].chainId, PT_TAKE_SNAPSHOT);
+                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
+            }
+        }
+    }
+
+    function settleRequestsAllVaults() external onlyOwner {
+        require(protocolStatus == ProtocolStatus.OPTIMIZING, "optimizing before settle");
+        require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
+        require(mozaicLpPerStablecoinMil > 0, "mozaiclp price not ready");
+        for (uint i = 0; i < vaults.length; ++i) {
+            vaultStatus[chainId] = VaultStatus.SETTLING;
+            if (vaults[i].chainId == primaryChainId) {
+                _settleRequests(mozaicLpPerStablecoinMil);
+                _acceptSettledReport(vaults[i].chainId);
+            } else {
+                bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
+                (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(vaults[i].chainId, PT_SETTLE_REQUESTS);
+                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
+            }
+        }
+    }
 }
