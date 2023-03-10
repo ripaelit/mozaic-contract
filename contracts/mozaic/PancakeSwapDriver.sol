@@ -54,7 +54,7 @@ contract PancakeSwapDriver is ProtocolDriver {
 
         // Swap
         (bool success, bytes memory response) = address(_getConfig().pancakeSwapSmartRouter).call(abi.encodeWithSignature("swap(address,address,uint256,uint256,uint8)", _srcToken, _dstToken, _amount, 0, 0));
-        require(success, abi.decode(response, (string)));
+        require(success, "PancakeSwap failed");
     }
 
     function _getStargatePriceMil() internal view returns (bytes memory) {
