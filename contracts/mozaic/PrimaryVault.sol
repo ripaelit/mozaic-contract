@@ -141,7 +141,7 @@ contract PrimaryVault is SecondaryVault {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
     }
 
-    function determineMlpPerStablecoinMil() external onlyOwner {
+    function determineMlpPerStablecoinMil() public onlyOwner {
         require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
         protocolStatus = ProtocolStatus.OPTIMIZING;
         mlpPerStablecoinMil = 0;
@@ -158,7 +158,7 @@ contract PrimaryVault is SecondaryVault {
         }
     }
 
-    function settleRequestsAllVaults() external onlyOwner {
+    function settleRequestsAllVaults() public onlyOwner {
         require(protocolStatus == ProtocolStatus.OPTIMIZING, "optimizing before settle");
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
         require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
