@@ -66,22 +66,10 @@ contract PrimaryVault is SecondaryVault {
         }
     }
 
-    function calculateMozLpPerStablecoinMil() public {
-        require(allVaultsSnapshotted(), "Some Snapshots not reached");
-        uint256 _stargatePriceMil = _getStargatePriceMil();
-        uint256 _totalStablecoinMD = 0;
-        uint256 _mintedMozLp = 0;
-        // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
-        for (uint i = 0; i < vaults.length ; i++) {
-            Snapshot memory report = snapshotReported[vaults[i].chainId];
-            _totalStablecoinMD = _totalStablecoinMD.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
-            _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
-        }
-        if (_totalStablecoinMD > 0) {
-            mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinMD);
-        }
-        else {
-            mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
+    function _acceptSettledReport(uint16 _srcChainId) internal {
+        vaultStatus[_srcChainId] = VaultStatus.IDLE;
+        if (allVaultsSettled()) {
+            protocolStatus = ProtocolStatus.IDLE;
         }
     }
 
@@ -94,8 +82,8 @@ contract PrimaryVault is SecondaryVault {
         return true;
     }
 
-    function _checkRequestsSettledAllVaults() internal view returns (bool) {
-        for (uint i = 0; i < vaults.length; i++) {
+    function allVaultsSettled() public view returns (bool) {
+        for (uint i = 0; i < vaults.length ; ++i) {
             if (vaultStatus[vaults[i].chainId] != VaultStatus.IDLE) {
                 return false;
             }
@@ -103,23 +91,24 @@ contract PrimaryVault is SecondaryVault {
         return true;
     }
 
-    function settleRequestsAllVaults() public payable {
-        require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
-        require(mozaicLpPerStablecoinMil != 0, "mozaiclp ratio not ready");
-        _settleRequests(mozaicLpPerStablecoinMil);
-        vaultStatus[chainId] = VaultStatus.IDLE;
-        for (uint i = 0; i < vaults.length; i++) {
-            if (vaults[i].chainId == primaryChainId)   continue;
-            VaultDescriptor memory vd = vaults[i];
-            vaultStatus[vd.chainId] = VaultStatus.SETTLING;
-            bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
-            _lzSend(vd.chainId, lzPayload, payable(msg.sender), address(0x0), "", msg.value);
+    function calculateMozLpPerStablecoinMil() public {
+        uint256 _stargatePriceMil = _getStargatePriceMil();
+        uint256 _totalStablecoinMD = 0;
+        uint256 _mintedMozLp = 0;
+        // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
+        for (uint i = 0; i < vaults.length ; ++i) {
+            Snapshot memory report = snapshotReported[vaults[i].chainId];
+            _totalStablecoinMD = _totalStablecoinMD.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
+            _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
+        }
+        if (_totalStablecoinMD > 0) {
+            mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinMD);
+        }
+        else {
+            mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
         }
     }
-
-    function _resetProtocolStatus() internal {
-        protocolStatus = ProtocolStatus.IDLE;
-    }
+   
     //---------------------------------------------------------------------------
     // INTERNAL
 
