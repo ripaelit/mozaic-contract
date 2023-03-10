@@ -251,7 +251,7 @@ contract SecondaryVault is NonblockingLzApp {
             return;
         }
         (bool success, bytes memory response) = msg.sender.call{value: amount}("");
-        require(success, abi.decode(response, (string)));
+        require(success, "Return balance failed");
     }
 
     //---------------------------------------------------------------------------
@@ -272,14 +272,14 @@ contract SecondaryVault is NonblockingLzApp {
         status = VaultStatus.IDLE;
     }
 
-    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
+    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
         (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(success, abi.decode(response, (string)));
     }
 
-    function addToken(address _token) external onlyOwner {
+    function addToken(address _token) public onlyOwner {
         for (uint i = 0; i < acceptingTokens.length; ++i) {
             if (acceptingTokens[i] == _token) {
                 return;
@@ -288,7 +288,7 @@ contract SecondaryVault is NonblockingLzApp {
         acceptingTokens.push(_token);
     }
 
-    function removeToken(address _token) external onlyOwner {
+    function removeToken(address _token) public onlyOwner {
         // TODO: Make sure there's no asset as this token.
         uint _idxToken = acceptingTokens.length;
         for (uint i = 0; i < acceptingTokens.length; ++i) {
@@ -313,7 +313,7 @@ contract SecondaryVault is NonblockingLzApp {
         return false;
     }
 
-    function executeActions(Action[] calldata _actions) external onlyOwner {
+    function executeActions(Action[] calldata _actions) public onlyOwner {
         for (uint i = 0; i < _actions.length ; ++i) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
@@ -322,7 +322,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) external {
+    function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) public {
         require(primaryChainId > 0, "primary chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
         require(isAcceptingToken(_token), "should be accepting token");
@@ -361,7 +361,7 @@ contract SecondaryVault is NonblockingLzApp {
         emit DepositRequestAdded(_depositor, _token, _chainId, _amountMD);
     }
 
-    function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) external {
+    function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
         require(_chainId == chainId, "withdraw onchain on PoC");
         require(primaryChainId > 0, "main chain should be set");
         require(isAcceptingToken(_token), "should be accepting token");
@@ -552,7 +552,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     
 
-    function registerVault(uint16 _chainId, address _vaultAddress) external onlyOwner {
+    function registerVault(uint16 _chainId, address _vaultAddress) public onlyOwner {
         bool flagExist = false;
         // if it already exists, update vault address 
         for (uint256 i = 0; i < vaults.length; ++i) {
@@ -576,7 +576,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     }
 
-    function getVaultsCount() external view returns (uint256) {
+    function getVaultsCount() public view returns (uint256) {
         return vaults.length;
     }
 
