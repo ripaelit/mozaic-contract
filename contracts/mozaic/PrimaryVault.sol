@@ -17,7 +17,7 @@ contract PrimaryVault is SecondaryVault {
     ProtocolStatus public protocolStatus;
     mapping(uint16 => SecondaryVault.VaultStatus) public vaultStatus;
     mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
-    uint256 public mozaicLpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
+    uint256 public mlpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
     uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
     
     //---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ contract PrimaryVault is SecondaryVault {
         address _mozaicLp
     ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
-        mozaicLpPerStablecoinMil = 0;
+        mlpPerStablecoinMil = 0;
     }
 
     function _nonblockingLzReceive(
@@ -101,10 +101,10 @@ contract PrimaryVault is SecondaryVault {
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
         if (_totalStablecoinMD > 0) {
-            mozaicLpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinMD);
+            mlpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinMD);
         }
         else {
-            mozaicLpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
+            mlpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
         }
     }
    
@@ -127,7 +127,7 @@ contract PrimaryVault is SecondaryVault {
     ) public view virtual override returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
         if (_packetType == PT_SETTLE_REQUESTS) {
-            payload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
+            payload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
         } else if (_packetType == PT_TAKE_SNAPSHOT) {
             payload = abi.encode(PT_TAKE_SNAPSHOT);
         } else {
@@ -139,10 +139,10 @@ contract PrimaryVault is SecondaryVault {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
     }
 
-    function determineMozaicLpPrice() external onlyOwner {
+    function determineMlpPerStablecoinMil() external onlyOwner {
         require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
         protocolStatus = ProtocolStatus.OPTIMIZING;
-        mozaicLpPerStablecoinMil = 0;
+        mlpPerStablecoinMil = 0;
         for (uint i = 0; i < vaults.length; ++i) {
             vaultStatus[vaults[i].chainId] = VaultStatus.SNAPSHOTTING;
             if (vaults[i].chainId == primaryChainId) {
@@ -159,14 +159,14 @@ contract PrimaryVault is SecondaryVault {
     function settleRequestsAllVaults() external onlyOwner {
         require(protocolStatus == ProtocolStatus.OPTIMIZING, "optimizing before settle");
         require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
-        require(mozaicLpPerStablecoinMil > 0, "mozaiclp price not ready");
+        require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
         for (uint i = 0; i < vaults.length; ++i) {
             vaultStatus[chainId] = VaultStatus.SETTLING;
             if (vaults[i].chainId == primaryChainId) {
-                _settleRequests(mozaicLpPerStablecoinMil);
+                _settleRequests(mlpPerStablecoinMil);
                 _acceptSettledReport(vaults[i].chainId);
             } else {
-                bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mozaicLpPerStablecoinMil);
+                bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
                 (uint256 _nativeFee, uint256 _zroFee) = quoteLayerZeroFee(vaults[i].chainId, PT_SETTLE_REQUESTS);
                 _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
             }

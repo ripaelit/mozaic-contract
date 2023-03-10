@@ -448,7 +448,7 @@ contract SecondaryVault is NonblockingLzApp {
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
     }
 
-    function _settleRequests(uint256 _mozaicLpPerStablecoinMil) internal {
+    function _settleRequests(uint256 _mlpPerStablecoinMil) internal {
         require(status == VaultStatus.SNAPSHOTTED, "Unexpected status.");
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
@@ -460,7 +460,7 @@ contract SecondaryVault is NonblockingLzApp {
             if (_depositAmount == 0) {
                 continue;
             }
-            uint256 _amountToMint = _depositAmount.mul(_mozaicLpPerStablecoinMil).div(1000000);
+            uint256 _amountToMint = _depositAmount.mul(_mlpPerStablecoinMil).div(1000000);
             mozaicLpContract.mint(request.user, _amountToMint);
             // Reduce Handled Amount from Buffer
             _reqs.totalDepositAmount = _reqs.totalDepositAmount.sub(_depositAmount);
@@ -475,7 +475,7 @@ contract SecondaryVault is NonblockingLzApp {
             if (_withdrawAmountMLP == 0) {
                 continue;
             }
-            uint256 _cointToGive = _withdrawAmountMLP.mul(1000000).div(_mozaicLpPerStablecoinMil);
+            uint256 _cointToGive = _withdrawAmountMLP.mul(1000000).div(_mlpPerStablecoinMil);
             uint256 _vaultBalance = IERC20(request.token).balanceOf(address(this));
             // Reduce Handled Amount from Buffer
             if (_vaultBalance <= _cointToGive) {
@@ -534,8 +534,8 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         if (packetType == PT_SETTLE_REQUESTS) {
-            (, uint256 _mozaicLpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
-            _settleRequests(_mozaicLpPerStablecoinMil);
+            (, uint256 _mlpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
+            _settleRequests(_mlpPerStablecoinMil);
             _reportSettled();
         } else if (packetType == PT_TAKE_SNAPSHOT) {
             _takeSnapshot();
