@@ -60,7 +60,6 @@ contract PrimaryVault is SecondaryVault {
     function _acceptSnapshotReport(uint16 _srcChainId, Snapshot memory _newSnapshot) internal {
         vaultStatus[_srcChainId] = VaultStatus.SNAPSHOTTED;
         snapshotReported[_srcChainId] = _newSnapshot;
-        vaultStatus[_srcChainId]=VaultStatus.SNAPSHOTTED;
         if (allVaultsSnapshotted()) {
             calculateMozLpPerStablecoinMil();
         }
@@ -74,7 +73,7 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function allVaultsSnapshotted() public view returns (bool) {
-        for (uint i = 0; i < vaults.length ; i++) {
+        for (uint i = 0; i < vaults.length ; ++i) {
             if (vaultStatus[vaults[i].chainId] != VaultStatus.SNAPSHOTTED) {
                 return false;
             }
