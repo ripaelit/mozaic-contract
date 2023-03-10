@@ -50,8 +50,39 @@ describe('SecondaryVault.executeActions', () => {
             mozaicVault: secondaryVault
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
+
+        hre.changeNetwork('bsctest');
+        [owner] = await ethers.getSigners();
+        // return balance
+        let tx = await primaryVault.connect(owner).returnBalance();
+        await tx.wait();
+        console.log("primaryVault returned balance");
+        // send BNB to primaryVault
+        const amountBNB = ethers.utils.parseEther("5");
+        tx = await owner.sendTransaction({
+            to: primaryVault.address,
+            value: amountBNB
+        });
+        await tx.wait();
+        console.log("sent BNB to primaryVault", amountBNB.toString());
+
+        hre.changeNetwork('fantom');
+        [owner] = await ethers.getSigners();
+        //return balance
+        tx = await secondaryVault.connect(owner).returnBalance();
+        await tx.wait();
+        console.log("secondaryVault returned balance");
+        // send FTM to secondaryVault
+        const amountFTM = ethers.utils.parseEther("100");
+        tx = await owner.sendTransaction({
+            to: secondaryVault.address,
+            value: amountFTM
+        });
+        await tx.wait();
+        console.log("sent native token to secondaryVault", amountFTM.toString());
     })
     after (async () => {
+        // return balance from vaults to owner
         hre.changeNetwork('bsctest');
         [owner] = await ethers.getSigners();
         const primaryChainId = exportData.testnetTestConstants.chainIds[1];
@@ -223,7 +254,7 @@ describe('SecondaryVault.executeActions', () => {
                 value: nativeFee
             });
             await tx.wait();
-            console.log("srcVault received nativeToken", nativeFee.toString());
+            console.log("sent native fee to srcVault", nativeFee.toString());
 
             // swapRemote
             const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256","uint256"], [amountSwap, srcTokenAddr, dstChainId, dstPoolId, nativeFee]);
