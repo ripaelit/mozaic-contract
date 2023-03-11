@@ -667,21 +667,21 @@ describe('SecondaryVault.executeActions', () => {
                 let protocolStatus = await primaryVault.protocolStatus();
                 console.log("protocolStatus", protocolStatus);
                 expect(protocolStatus).to.eq(ProtocolStatus.IDLE);
-                tx = await primaryVault.connect(owner).determineMlpPerStablecoinMil();
+                tx = await primaryVault.connect(owner).initOptimizationSession();
                 await tx.wait();
-                console.log("Owner called determineMlpPerStablecoinMil");
+                console.log("Owner called initOptimizationSession");
 
                 let timeDelayed = 0;
                 let success = false;
                 while (timeDelayed < TIME_DELAY_MAX) {
                     let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                     if (mlpPerStablecoinMil.eq(0)) {
-                        console.log("Waiting for determining mlp price...");
+                        console.log("Waiting for initOptimization...");
                         await setTimeout(timeInterval);
                         timeDelayed += timeInterval;
                     } else {
                         success = true;
-                        console.log("Determined mlp price in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
+                        console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
                         expect(mlpPerStablecoinMil).to.gt(0);
                         break;
                     }
@@ -1005,7 +1005,7 @@ describe('SecondaryVault.executeActions', () => {
                 hre.changeNetwork('bsctest');
                 [owner, alice, ben] = await ethers.getSigners();
                 expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
-                tx = await primaryVault.connect(owner).determineMlpPerStablecoinMil();
+                tx = await primaryVault.connect(owner).initOptimizationSession();
                 await tx.wait();
 
                 let timeDelayed = 0;
@@ -1013,12 +1013,12 @@ describe('SecondaryVault.executeActions', () => {
                 while (timeDelayed < TIME_DELAY_MAX) {
                     let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                     if (mlpPerStablecoinMil.eq(0)) {
-                        console.log("Waiting for determining mlp price...");
+                        console.log("Waiting for initOptimization...");
                         await setTimeout(timeInterval);
                         timeDelayed += timeInterval;
                     } else {
                         success = true;
-                        console.log("Determined mlp price in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
+                        console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
                         expect(mlpPerStablecoinMil).to.gt(0);
                         break;
                     }
