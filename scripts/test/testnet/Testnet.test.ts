@@ -548,18 +548,18 @@ describe('SecondaryVault.executeActions', () => {
                 let depositAmountPerTokenABefore = await primaryVault.getDepositAmountPerToken(false, tokenA.address);
                 
                 // alice deposits to primaryVault
-                console.log("Alice deposits tokenA to primaryVault");
                 tx = await tokenA.connect(alice).approve(primaryVault.address, aliceDeposit1LD_A);
                 await tx.wait();
                 tx = await primaryVault.connect(alice).addDepositRequest(aliceDeposit1LD_A, tokenA.address, primaryChainId);
                 await tx.wait();
+                console.log("Alice deposited %s %s to primaryVault", await tokenA.name(), aliceDeposit1LD_A.toString());
 
                 // ben deposits to primaryVault
-                console.log("Ben deposits tokenB to primaryVault");
                 tx = await tokenB.connect(ben).approve(primaryVault.address, benDepositLD_B);
                 await tx.wait();
                 tx = await primaryVault.connect(ben).addDepositRequest(benDepositLD_B, tokenB.address, primaryChainId);
                 await tx.wait();
+                console.log("Ben deposited %s %s to primaryVault", await tokenB.name(), benDepositLD_B.toString());
 
                 // check pending buffer
                 let totalDepositAmount = await primaryVault.getTotalDepositAmount(false);
@@ -577,11 +577,11 @@ describe('SecondaryVault.executeActions', () => {
                 tx = await tokenC.connect(owner).mint(ben.address, benTotalLD_C);
                 await tx.wait();
                 
-                console.log("Ben deposits tokenC to secondaryVault");
                 tx = await tokenC.connect(ben).approve(secondaryVault.address, benDepositLD_C);
                 await tx.wait();
                 tx = await secondaryVault.connect(ben).addDepositRequest(benDepositLD_C, tokenC.address, secondaryChainId);
                 await tx.wait();
+                console.log("Ben deposited %s %s to secondaryVault", await tokenC.name(), benDepositLD_C.toString());
             })
             // it ('3. Start optimizing', async () => {
             //     // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
@@ -664,9 +664,12 @@ describe('SecondaryVault.executeActions', () => {
                 // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
                 hre.changeNetwork('bsctest');
                 [owner, alice, ben] = await ethers.getSigners();
-                expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
+                let protocolStatus = await primaryVault.protocolStatus();
+                console.log("protocolStatus", protocolStatus);
+                expect(protocolStatus).to.eq(ProtocolStatus.IDLE);
                 tx = await primaryVault.connect(owner).determineMlpPerStablecoinMil();
                 await tx.wait();
+                console.log("Owner called determineMlpPerStablecoinMil");
 
                 let timeDelayed = 0;
                 let success = false;
