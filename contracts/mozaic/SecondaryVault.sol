@@ -276,7 +276,7 @@ contract SecondaryVault is NonblockingLzApp {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
         (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
-        require(success, abi.decode(response, (string)));
+        require(success, "set driver failed");
     }
 
     function addToken(address _token) public onlyOwner {
@@ -318,7 +318,7 @@ contract SecondaryVault is NonblockingLzApp {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
             (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
-            require(success, abi.decode(response, (string)));
+            require(success, "delegatecall failed");
         }
     }
 
@@ -421,7 +421,7 @@ contract SecondaryVault is NonblockingLzApp {
                 ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
                 bytes memory _payload = abi.encode(acceptingTokens[i]);
                 (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
-                require(success, abi.decode(response, (string)));
+                require(success, "staked amount failed");
                 (uint256 _amountStakedLD) = abi.decode(abi.decode(response, (bytes)), (uint256));
                 _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
             }
@@ -572,7 +572,7 @@ contract SecondaryVault is NonblockingLzApp {
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
         (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
-        require(success, abi.decode(response, (string)));
+        require(success, "register vault failed");
 
     }
 
