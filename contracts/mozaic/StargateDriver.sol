@@ -82,7 +82,7 @@ contract StargateDriver is ProtocolDriver{
         require (_amountLD > 0, "Cannot stake zero amount");
         
         // Get pool and poolId
-        address _pool = getStargatePoolFromToken(_token);
+        address _pool = _getStargatePoolFromToken(_token);
         (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
         require(success, "poolId failed");
         uint256 _poolId = abi.decode(response, (uint256));
@@ -106,7 +106,7 @@ contract StargateDriver is ProtocolDriver{
         uint256 amountLPToken = balanceAfter - balancePre;
         
         // Find the Liquidity Pool's index in the Farming Pool.
-        (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
+        (bool found, uint256 stkPoolIndex) = _getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
         
         // Approve LPToken transfer from vault to LPStaking
@@ -124,13 +124,13 @@ contract StargateDriver is ProtocolDriver{
         require (_amountLPToken > 0, "Cannot unstake zero amount");
 
         // Get pool and poolId
-        address _pool = getStargatePoolFromToken(_token);
+        address _pool = _getStargatePoolFromToken(_token);
         (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
         require(success, "poolId failed");
         uint256 _poolId = abi.decode(response, (uint256));
 
         // Find the Liquidity Pool's index in the Farming Pool.
-        (bool found, uint256 stkPoolIndex) = getPoolIndexInFarming(_poolId);
+        (bool found, uint256 stkPoolIndex) = _getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
 
         // Withdraw LPToken from LPStaking to vault
@@ -167,7 +167,7 @@ contract StargateDriver is ProtocolDriver{
             (_amountLD, _srcToken, _dstChainId, _dstPoolId, _nativeFee) = abi.decode(_payload, (uint256, address, uint16, uint256, uint256));
             require (_amountLD > 0, "Cannot stake zero amount");
 
-            address _srcPool = getStargatePoolFromToken(_srcToken);
+            address _srcPool = _getStargatePoolFromToken(_srcToken);
             (bool success, bytes memory response) = _srcPool.call(abi.encodeWithSignature("poolId()"));
             require(success, "poolId failed");
             _srcPoolId = abi.decode(response, (uint256));
@@ -194,13 +194,13 @@ contract StargateDriver is ProtocolDriver{
         (address _token) = abi.decode(_payload, (address));
 
         // Get pool and poolId
-        address _pool = getStargatePoolFromToken(_token);
+        address _pool = _getStargatePoolFromToken(_token);
         (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
         require(success, "poolId failed");
         uint256 _poolId = abi.decode(response, (uint256));
 
         // Find the Liquidity Pool's index in the Farming Pool.
-        (bool found, uint256 poolIndex) = getPoolIndexInFarming(_poolId);
+        (bool found, uint256 poolIndex) = _getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
 
         // Collect pending STG rewards
@@ -234,7 +234,7 @@ contract StargateDriver is ProtocolDriver{
         result = abi.encode(_amountStakedLD);
     }
 
-    function getStargatePoolFromToken(address _token) public returns (address) {
+    function _getStargatePoolFromToken(address _token) private returns (address) {
         address _router = _getConfig().stgRouter;
         
         (bool success, bytes memory response) = address(_router).call(abi.encodeWithSignature("factory()"));
@@ -256,6 +256,8 @@ contract StargateDriver is ProtocolDriver{
 
             if (_poolToken == _token) {
                 return _pool;
+            } else {
+                continue;
             }
         }
         // revert when not found.
@@ -277,7 +279,7 @@ contract StargateDriver is ProtocolDriver{
 
     function convertSDtoLD(address _token, uint256 _amountSD) public returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
-        address _pool = getStargatePoolFromToken(_token);
+        address _pool = _getStargatePoolFromToken(_token);
 
         (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("convertRate()"));
         require(success, "convertRate failed");
@@ -288,7 +290,7 @@ contract StargateDriver is ProtocolDriver{
 
     function convertLDtoSD(address _token, uint256 _amountLD) public returns (uint256) {
         // TODO: gas fee optimization by avoiding duplicate calculation.
-        address _pool = getStargatePoolFromToken(_token);
+        address _pool = _getStargatePoolFromToken(_token);
 
         (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("convertRate()"));
         require(success, "convertRate failed");
@@ -297,7 +299,7 @@ contract StargateDriver is ProtocolDriver{
         return  _amountLD.div(_convertRate); // pool.amountLDtoSD(_amountLD);
     }
 
-    function getPoolIndexInFarming(uint256 _poolId) public returns (bool, uint256) {
+    function _getPoolIndexInFarming(uint256 _poolId) private returns (bool, uint256) {
         address _pool = _getPool(_poolId);
         address _lpStaking = _getConfig().stgLPStaking;
         
@@ -311,6 +313,8 @@ contract StargateDriver is ProtocolDriver{
             address _pool__ = abi.decode(response, (address));
             if (_pool__ == _pool) {
                 return (true, poolIndex);
+            } else {
+                continue;
             }
         }
        
