@@ -583,83 +583,6 @@ describe('SecondaryVault.executeActions', () => {
                 await tx.wait();
                 console.log("Ben deposited %s %s to secondaryVault", await tokenC.name(), benDepositLD_C.toString());
             })
-            // it ('3. Start optimizing', async () => {
-            //     // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
-            //     hre.changeNetwork('bsctest');
-            //     [owner, alice, ben] = await ethers.getSigners();
-            //     expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
-            //     tx = await primaryVault.connect(owner).initOptimizationSession();
-            //     await tx.wait();
-            //     expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
-
-            //     // Algostory: #### 3-2. Take Snapshot and Report
-            //     console.log("Take and report snapshot");
-
-            //     // For primaryVault
-            //     console.log("For primaryVault");
-            //     hre.changeNetwork('bsctest');
-            //     [owner, alice, ben] = await ethers.getSigners();
-            //     tx = await primaryVault.connect(owner).takeSnapshot();
-            //     await tx.wait();
-            //     tx = await primaryVault.connect(owner).reportSnapshot();
-            //     await tx.wait();
-
-            //     // For secondaryVault, switch network
-            //     console.log("For secondaryVault");
-            //     hre.changeNetwork('fantom');
-            //     [owner, alice, ben] = await ethers.getSigners();
-            //     tx = await secondaryVault.connect(owner).takeSnapshot();
-            //     await tx.wait();
-            //     const PT_REPORTSNAPSHOT = 10001;
-            //     let [nativeFee, zroFee] = await secondaryVault.connect(owner).quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT);
-            //     console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
-            //     tx = await secondaryVault.connect(owner).reportSnapshot({value: nativeFee});
-            //     await tx.wait();
-
-            //     // Check all vaults snapshotted
-            //     hre.changeNetwork('bsctest');
-            //     let timeDelayed = 0;
-            //     let success = false;
-            //     let allSnapshotted = false;
-            //     while (timeDelayed < TIME_DELAY_MAX) {
-            //         allSnapshotted = await primaryVault.allVaultsSnapshotted();
-            //         if (!allSnapshotted) {
-            //             console.log("Waiting for LayerZero delay...");
-            //             await setTimeout(timeInterval);
-            //             timeDelayed += timeInterval;
-            //         } else {
-            //             success = true;
-            //             console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
-            //             console.log("All vaults snapshotted");
-            //             expect(allSnapshotted).to.eq(true);
-            //             break;
-            //         }
-            //     }
-            //     if (!success) {
-            //         console.log("Timeout LayerZero in reportSnapshot");
-            //     }
-                
-            //     // Alice deposits again, but it goes to pending buffer, so cannot affect minted mLP amount.
-            //     console.log("Alice deposits again");
-            //     hre.changeNetwork('bsctest');
-            //     [owner, alice, ben] = await ethers.getSigners();
-            //     let pendingDepositAmountBefore = await primaryVault.getTotalDepositAmount(false);
-            //     let stagedDepositAmountBefore = await primaryVault.getTotalDepositAmount(true);
-            //     tx = await tokenA.connect(alice).approve(primaryVault.address, aliceDeposit2LD_A);
-            //     await tx.wait();
-            //     tx = await primaryVault.connect(alice).addDepositRequest(aliceDeposit2LD_A, tokenA.address, primaryChainId);
-            //     await tx.wait();
-            //     let pendingDepositAmount = await primaryVault.getTotalDepositAmount(false);
-            //     let stagedDepositAmount = await primaryVault.getTotalDepositAmount(true);
-            //     expect(pendingDepositAmount.sub(pendingDepositAmountBefore)).to.eq(aliceDeposit2LD_A);
-            //     expect(stagedDepositAmount).to.eq(stagedDepositAmountBefore);
-
-            //     // Algostory: #### 3-3. Determine MLP per Stablecoin Rate
-            //     console.log("Determine MLP per stablecoin rate");
-            //     // Initial rate is 1 mLP per USD
-            //     const mozaicLpPerStablecoin = await primaryVault.mozaicLpPerStablecoinMil();
-            //     expect(mozaicLpPerStablecoin).to.eq(1000000);
-            // })
             it ('3. Start optimizing', async () => {
                 // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
                 hre.changeNetwork('bsctest');
@@ -673,7 +596,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX) {
+                while (timeDelayed < TIME_DELAY_MAX * 5) {
                     let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                     if (mlpPerStablecoinMil.eq(0)) {
                         console.log("Waiting for initOptimization...");
@@ -862,84 +785,6 @@ describe('SecondaryVault.executeActions', () => {
                 }
             })
             // Algostory: #### 5. Settle Requests
-            // it ('5. Settle Requests', async () => {
-            //     // Alice, Ben receive mLP, Vaults receive coin
-            //     hre.changeNetwork('bsctest');
-            //     const alicePrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
-            //     const benPrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
-            //     hre.changeNetwork('fantom');
-            //     const benSecondaryMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-            //     console.log("alicePrimaryMLPBefore %d, benPrimaryMLPBefore %d, benSecondaryMLPBefore %d", alicePrimaryMLPBefore.toString(), benPrimaryMLPBefore.toString(), benSecondaryMLPBefore.toString());
-
-            //     hre.changeNetwork('bsctest');
-            //     [owner, alice, ben] = await ethers.getSigners();
-            //     const PT_SETTLE_REQUESTS = 10002;
-            //     let [nativeFee, zroFee] = await primaryVault.connect(owner).quoteLayerZeroFee(primaryChainId, PT_SETTLE_REQUESTS);
-            //     console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
-            //     tx = await primaryVault.connect(owner).settleRequestsAllVaults({value: nativeFee});
-            //     await tx.wait();
-            //     const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
-            //     const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
-            //     console.log("After settle, alicePrimaryMLP %d, benPrimaryMLP %d", alicePrimaryMLP, benPrimaryMLP);
-            //     expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit1LD_A.mul(10**(MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
-            //     expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B.mul(10**(MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
-                
-            //     hre.changeNetwork('fantom');
-            //     let benSecondaryMLP: BigNumber;
-            //     let timeDelayed = 0;
-            //     let success = false;
-            //     while (timeDelayed < TIME_DELAY_MAX) {
-            //         benSecondaryMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-            //         if (benSecondaryMLP.eq(benSecondaryMLPBefore)) {
-            //             console.log("Waiting for LayerZero delay...");
-            //             await setTimeout(timeInterval);
-            //             timeDelayed += timeInterval;
-            //         } else {
-            //             success = true;
-            //             console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
-            //             console.log("All vaults settled");
-            //             expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C.mul(10**(MOZAIC_DECIMALS - decimalsC)));
-            //             break;
-            //         }
-            //     }
-            //     if (!success) {
-            //         console.log("Timeout LayerZero in settleRequestsAllVaults");
-            //     }
-
-            //     console.log("reportSettled");
-            //     hre.changeNetwork('fantom');
-            //     [owner, alice, ben] = await ethers.getSigners();
-            //     const PT_SETTLED_REQUESTS = 10003;
-            //     [nativeFee, zroFee] = await secondaryVault.connect(owner).quoteLayerZeroFee(primaryChainId, PT_SETTLED_REQUESTS);
-            //     console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
-            //     tx = await secondaryVault.connect(owner).reportSettled({value: nativeFee});
-            //     await tx.wait();
-            // })
-            // // Algostory: #### 6. Session Closes
-            // it ('6. Session Closes', async () => {
-            //     hre.changeNetwork('bsctest');
-            //     [owner, alice, ben] = await ethers.getSigners();
-            //     let protocolStatus: number;
-            //     let timeDelayed = 0;
-            //     let success = false;
-            //     while (timeDelayed < TIME_DELAY_MAX) {
-            //         protocolStatus = await primaryVault.protocolStatus();
-            //         if (protocolStatus != ProtocolStatus.IDLE) {
-            //             console.log("Waiting for LayerZero delay...");
-            //             await setTimeout(timeInterval);
-            //             timeDelayed += timeInterval;
-            //         } else {
-            //             success = true;
-            //             console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
-            //             console.log("All vaults reported settled_requests");
-            //             expect(protocolStatus).to.eq(ProtocolStatus.IDLE);
-            //             break;
-            //         }
-            //     }
-            //     if (!success) {
-            //         console.log("Timeout LayerZero in reportSettled");
-            //     }
-            // })
             it ('5. Settle Requests', async () => {
                 // Alice, Ben receive mLP, Vaults receive coin
                 hre.changeNetwork('bsctest');
@@ -956,7 +801,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX) {
+                while (timeDelayed < TIME_DELAY_MAX * 5) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.IDLE) {
                         console.log("Waiting for settling...");
@@ -1010,7 +855,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX) {
+                while (timeDelayed < TIME_DELAY_MAX * 5) {
                     let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                     if (mlpPerStablecoinMil.eq(0)) {
                         console.log("Waiting for initOptimization...");
@@ -1041,7 +886,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX) {
+                while (timeDelayed < TIME_DELAY_MAX * 5) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.IDLE) {
                         console.log("Waiting for settling...");
