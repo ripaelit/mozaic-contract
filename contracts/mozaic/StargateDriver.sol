@@ -190,7 +190,7 @@ contract StargateDriver is ProtocolDriver{
         IStargateRouter(_router).swap{value:_nativeFee}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
     }
 
-    function _getStakedAmountLDPerToken(bytes calldata _payload) private returns (bytes memory) {
+    function _getStakedAmountLDPerToken(bytes calldata _payload) private returns (bytes memory result) {
         (address _token) = abi.decode(_payload, (address));
 
         // Get pool and poolId
@@ -231,7 +231,7 @@ contract StargateDriver is ProtocolDriver{
             _amountStakedLD = _amountStakedLD.add(_totalLiquidityLD.mul(_amountLPToken).div(_totalSupply));
         }
 
-        response = abi.encode(_amountStakedLD);
+        result = abi.encode(_amountStakedLD);
     }
 
     function getStargatePoolFromToken(address _token) public returns (address) {
