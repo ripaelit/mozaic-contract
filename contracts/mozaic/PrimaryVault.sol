@@ -126,6 +126,7 @@ contract PrimaryVault is SecondaryVault {
     function quoteLayerZeroFee(
         uint16 _chainId,
         uint16 _packetType
+        // SecondaryVault.lzTxObj memory _lzTxParams
     ) public view virtual override returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
         if (_packetType == PT_SETTLE_REQUESTS) {
@@ -136,9 +137,8 @@ contract PrimaryVault is SecondaryVault {
             revert("Vault: unsupported packet type");
         }
 
-        bytes memory lzTxParamBuilt = "";
-        bool useLayerZeroToken = false;
-        return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
+        // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, defaultAdapterParams());
     }
 
     function initOptimizationSession() public onlyOwner {
@@ -153,7 +153,8 @@ contract PrimaryVault is SecondaryVault {
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
                 (uint256 _nativeFee, ) = quoteLayerZeroFee(vaults[i].chainId, PT_TAKE_SNAPSHOT);
-                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
+                // bytes memory _adapterParams = _txParamBuilder(vaults[i].chainId, PT_TAKE_SNAPSHOT, lzTxObj(0, 0, "0x"));
+                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), defaultAdapterParams(), _nativeFee);
             }
         }
     }
@@ -170,7 +171,8 @@ contract PrimaryVault is SecondaryVault {
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
                 (uint256 _nativeFee, ) = quoteLayerZeroFee(vaults[i].chainId, PT_SETTLE_REQUESTS);
-                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
+                // bytes memory _adapterParams = _txParamBuilder(vaults[i].chainId, PT_SETTLE_REQUESTS, lzTxObj(0, 0, "0x"));
+                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), defaultAdapterParams(), _nativeFee);
             }
         }
     }

@@ -109,6 +109,11 @@ contract SecondaryVault is NonblockingLzApp {
         uint256 totalWithdrawAmount;
     }
 
+    struct LzTxObj {
+        uint256 dstGasForCall;
+        uint256 dstNativeAmount;
+        bytes dstNativeAddr;
+    }
 
     //---------------------------------------------------------------------------
     // VARIABLES
@@ -125,6 +130,7 @@ contract SecondaryVault is NonblockingLzApp {
     bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
+    // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
 
 
     struct VaultDescriptor {
@@ -250,7 +256,7 @@ contract SecondaryVault is NonblockingLzApp {
         if (amount == 0) {
             return;
         }
-        (bool success, bytes memory response) = msg.sender.call{value: amount}("");
+        (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Return balance failed");
     }
 
@@ -275,7 +281,7 @@ contract SecondaryVault is NonblockingLzApp {
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
-        (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(success, "set driver failed");
     }
 
@@ -317,7 +323,7 @@ contract SecondaryVault is NonblockingLzApp {
         for (uint i = 0; i < _actions.length ; ++i) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
-            (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
+            (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
             require(success, "delegatecall failed");
         }
     }
@@ -371,7 +377,7 @@ contract SecondaryVault is NonblockingLzApp {
         RequestBuffer storage stagedBuffer = _stagedReqs();
         // check if the user has enough balance
         pendingBuffer.withdrawAmountPerUser[_withdrawer] = pendingBuffer.withdrawAmountPerUser[_withdrawer].add(_amountMLP);
-        require (pendingBuffer.withdrawAmountPerUser[_withdrawer].add(stagedBuffer.withdrawAmountPerUser[_withdrawer]) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
+        require (pendingBuffer.withdrawAmountPerUser[_withdrawer].add(stagedBuffer.withdrawAmountPerUser[_withdrawer]) <= IERC20(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
 
         // add withdraw request to pending buffer
         bool _exists = false;
@@ -435,7 +441,7 @@ contract SecondaryVault is NonblockingLzApp {
             result.totalStablecoin = _totalStablecoinMD.sub(buffer.totalDepositAmount);
             result.depositRequestAmount = buffer.totalDepositAmount;
             result.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
-            result.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
+            result.totalMozaicLp = IERC20(mozaicLp).totalSupply();
             snapshot = result;
             status = VaultStatus.SNAPSHOTTED;
         } else if (status == VaultStatus.SNAPSHOTTED) {
@@ -450,7 +456,8 @@ contract SecondaryVault is NonblockingLzApp {
 
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT);
-        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
+        // bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, lzTxObj(0, 0, "0x"));
+        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), defaultAdapterParams(), _nativeFee);
     }
 
     function _settleRequests(uint256 _mlpPerStablecoinMil) internal {
@@ -509,7 +516,8 @@ contract SecondaryVault is NonblockingLzApp {
         
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT);
-        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), "", _nativeFee);
+        // bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, lzTxObj(0, 0, "0x"));
+        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), defaultAdapterParams(), _nativeFee);
     }
 
     //---------------------------------------------------------------------------
@@ -571,7 +579,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
         require(success, "register vault failed");
 
     }
@@ -580,9 +588,63 @@ contract SecondaryVault is NonblockingLzApp {
         return vaults.length;
     }
 
+    // function setGasAmount(
+    //     uint16 _chainId,
+    //     uint16 _packetType,
+    //     uint256 _gasAmount
+    // ) external onlyOwner {
+    //     // TODO: require invalid packetType
+    //     gasLookup[_chainId][_packetType] = _gasAmount;
+    // }
+
+    // function txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
+    //     uint16 txType = 1;
+    //     return abi.encodePacked(txType, _gasAmount);
+    // }
+
+    // function txParamBuilderType2(
+    //     uint256 _gasAmount,
+    //     uint256 _dstNativeAmount,
+    //     bytes memory _dstNativeAddr
+    // ) internal pure returns (bytes memory) {
+    //     uint16 txType = 2;
+    //     return abi.encodePacked(txType, _gasAmount, _dstNativeAmount, _dstNativeAddr);
+    // }
+
+    // function _txParamBuilder(
+    //     uint16 _chainId,
+    //     uint16 _packetType,
+    //     lzTxObj memory _lzTxParams
+    // ) internal view returns (bytes memory) {
+    //     bytes memory lzTxParam;
+    //     address dstNativeAddr;
+    //     {
+    //         bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
+    //         assembly {
+    //             dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
+    //         }
+    //     }
+
+    //     uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
+    //     if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
+    //         lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
+    //     } else {
+    //         lzTxParam = txParamBuilderType1(totalGas);
+    //     }
+
+    //     return lzTxParam;
+    // }
+
+    
+
+    function defaultAdapterParams() internal pure returns (bytes memory) {
+        return abi.encodePacked(uint16(2), uint256(0));
+    }
+
     function quoteLayerZeroFee(
         uint16 _chainId,
         uint16 _packetType
+        // lzTxObj memory _lzTxParams
     ) public view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
         if (_packetType == PT_REPORTSNAPSHOT) {
@@ -593,9 +655,8 @@ contract SecondaryVault is NonblockingLzApp {
             revert("Vault: unsupported packet type");
         }
 
-        bytes memory lzTxParamBuilt = "";
-        bool useLayerZeroToken = false;
-        return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
+        // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, defaultAdapterParams());
     }
 
     function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
