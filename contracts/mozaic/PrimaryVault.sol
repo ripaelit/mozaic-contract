@@ -141,7 +141,7 @@ contract PrimaryVault is SecondaryVault {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, useLayerZeroToken, lzTxParamBuilt);
     }
 
-    function determineMlpPerStablecoinMil() public onlyOwner {
+    function initOptimizationSession() public onlyOwner {
         require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
         protocolStatus = ProtocolStatus.OPTIMIZING;
         mlpPerStablecoinMil = 0;
