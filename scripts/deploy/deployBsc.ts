@@ -25,6 +25,8 @@ async function main() {
     const lpStaking = await mozaicDeployment.mozaicVault.stargateLpStaking();
     const stgToken = await mozaicDeployment.mozaicVault.stargateToken();
     const mozaicLP = mozaicDeployment.mozaicLp.address;
+    const stargateDriver = await mozaicDeployment.mozaicVault.protocolDrivers(1);
+    const pancakeSwapDriver = await mozaicDeployment.mozaicVault.protocolDrivers(2);
     await run(`verify:verify`, {
         address: mozaicVault,
         constructorArguments: [lzEndpoint, chainId, primaryChainId, lpStaking, stgToken, mozaicLP],
@@ -50,6 +52,8 @@ async function main() {
         lpStaking: lpStaking,
         stgToken: stgToken,
         mozaicLP: mozaicLP,
+        stargateDriver: stargateDriver,
+        pancakeSwapDriver: pancakeSwapDriver,
     });
     fs.writeFileSync("deployBscResult.json", res);
 }
