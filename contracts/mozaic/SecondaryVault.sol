@@ -376,11 +376,6 @@ contract SecondaryVault is NonblockingLzApp {
         snapshot.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
         snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
         status = VaultStatus.SNAPSHOTTED;
-        } else if (status == VaultStatus.SNAPSHOTTED) {
-            return;
-        } else {
-            revert("snapshot: Unexpected Status");
-        }
     }
 
     function _reportSnapshot() internal {
