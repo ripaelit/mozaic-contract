@@ -437,8 +437,8 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _reportSettled() internal {
         require(status == VaultStatus.IDLE, "Not settled yet");
-        require(_requests(true).totalDepositAmount == 0, "Has unsettled deposit amount.");
-        require(_requests(true).totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
+        // require(_requests(true).totalDepositAmount == 0, "Has unsettled deposit amount.");
+        // require(_requests(true).totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**6), 0, "0x"));
@@ -480,9 +480,9 @@ contract SecondaryVault is NonblockingLzApp {
 
     }
 
-    function getVaultsCount() public view returns (uint256) {
-        return chainIds.length;
-    }
+    // function getVaultsCount() public view returns (uint256) {
+    //     return chainIds.length;
+    // }
 
     // function setGasAmount(
     //     uint16 _chainId,
@@ -498,21 +498,21 @@ contract SecondaryVault is NonblockingLzApp {
         return abi.encodePacked(txType, _gasAmount);
     }
 
-    function txParamBuilderType2(
-        uint256 _gasAmount,
-        uint256 _dstNativeAmount,
-        bytes memory _dstNativeAddr
-    ) internal pure returns (bytes memory) {
-        uint16 txType = 2;
-        return abi.encodePacked(txType, _gasAmount, _dstNativeAmount, _dstNativeAddr);
-    }
+    // function txParamBuilderType2(
+    //     uint256 _gasAmount,
+    //     uint256 _dstNativeAmount,
+    //     bytes memory _dstNativeAddr
+    // ) internal pure returns (bytes memory) {
+    //     uint16 txType = 2;
+    //     return abi.encodePacked(txType, _gasAmount, _dstNativeAmount, _dstNativeAddr);
+    // }
 
     function _txParamBuilder(
         uint16 _chainId,
         uint16 _packetType,
         LzTxObj memory _lzTxParams
     ) internal view returns (bytes memory) {
-        // bytes memory lzTxParam;
+        bytes memory lzTxParam;
         // address dstNativeAddr;
         // {
         //     bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
@@ -523,17 +523,14 @@ contract SecondaryVault is NonblockingLzApp {
 
         // // TODO: CHECKLATER
         // // uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
-        // uint256 totalGas = _lzTxParams.dstGasForCall.add(200000);
+        uint256 totalGas = _lzTxParams.dstGasForCall.add(200000);
         // if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
-        //     lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
+            // lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
         // } else {
-        //     lzTxParam = txParamBuilderType1(totalGas);
+            lzTxParam = txParamBuilderType1(totalGas);
         // }
 
-        // return lzTxParam;
-
-        // TODO: CHECKLATER
-        return "";
+        return lzTxParam;
     }
 
     function quoteLayerZeroFee(
