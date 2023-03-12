@@ -19,10 +19,9 @@ contract PrimaryVault is SecondaryVault {
     //---------------------------------------------------------------------------
     // VARIABLES
     ProtocolStatus public protocolStatus;
-    mapping(uint16 => SecondaryVault.VaultStatus) public vaultStatus;
+    // mapping(uint16 => SecondaryVault.VaultStatus) public vaultStatus;
     mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
-    uint256 public mlpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
-    uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
+    
     
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
