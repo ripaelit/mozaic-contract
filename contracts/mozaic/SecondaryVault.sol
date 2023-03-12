@@ -110,6 +110,11 @@ contract SecondaryVault is NonblockingLzApp {
         bytes dstNativeAddr;
     }
 
+    struct VaultDescriptor {
+        address addr;
+        VaultStatus status;
+    }
+
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
