@@ -343,39 +343,39 @@ contract SecondaryVault is NonblockingLzApp {
         require(buffer.totalDepositAmount==0, "Still processing requests");
         require(buffer.totalWithdrawAmount==0, "Still processing requests");
 
-            // Stage Requests: Pending --> Processing
-            bufferFlag = !bufferFlag;
+        // Stage Requests: Pending --> Processing
+        bufferFlag = !bufferFlag;
 
-            // Make Report
-            // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
-            uint256 _totalStablecoinMD = 0;
+        // Make Report
+        // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
+        uint256 _totalStablecoinMD = 0;
 
-            // Add stablecoins remaining in this vault
-            for (uint i = 0; i < acceptingTokens.length; ++i) {
-                uint256 _balanceLD = IERC20(acceptingTokens[i]).balanceOf(address(this));
-                uint256 _decimals = IERC20Metadata(acceptingTokens[i]).decimals();
-                _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_balanceLD, _decimals));
-                // Add stablecoins staked in stargate using stargateDriver
-                // TODO: Do not specify driver type
-                ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-                ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
-                bytes memory _payload = abi.encode(acceptingTokens[i]);
-                (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
-                require(success, "staked amount failed");
-                (uint256 _amountStakedLD) = abi.decode(abi.decode(response, (bytes)), (uint256));
-                _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
-            }
+        // Add stablecoins remaining in this vault
+        for (uint i = 0; i < acceptingTokens.length; ++i) {
+            uint256 _balanceLD = IERC20(acceptingTokens[i]).balanceOf(address(this));
+            uint256 _decimals = IERC20Metadata(acceptingTokens[i]).decimals();
+            _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_balanceLD, _decimals));
+            // Add stablecoins staked in stargate using stargateDriver
+            // TODO: Do not specify driver type
+            ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+            ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
+            bytes memory _payload = abi.encode(acceptingTokens[i]);
+            (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
+            require(success, "staked amount failed");
+            (uint256 _amountStakedLD) = abi.decode(abi.decode(response, (bytes)), (uint256));
+            _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
+        }
 
-            // TODO: Protocol-Specific Logic. Move to StargateDriver
-            
-            snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
+        // TODO: Protocol-Specific Logic. Move to StargateDriver
+        
+        snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
-            // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-            snapshot.totalStablecoin = _totalStablecoinMD.sub(buffer.totalDepositAmount);
-            snapshot.depositRequestAmount = buffer.totalDepositAmount;
-            snapshot.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
-            snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-            status = VaultStatus.SNAPSHOTTED;
+        // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
+        snapshot.totalStablecoin = _totalStablecoinMD.sub(buffer.totalDepositAmount);
+        snapshot.depositRequestAmount = buffer.totalDepositAmount;
+        snapshot.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
+        snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
+        status = VaultStatus.SNAPSHOTTED;
         } else if (status == VaultStatus.SNAPSHOTTED) {
             return;
         } else {
