@@ -512,25 +512,28 @@ contract SecondaryVault is NonblockingLzApp {
         uint16 _packetType,
         LzTxObj memory _lzTxParams
     ) internal view returns (bytes memory) {
-        bytes memory lzTxParam;
-        address dstNativeAddr;
-        {
-            bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
-            assembly {
-                dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
-            }
-        }
+        // bytes memory lzTxParam;
+        // address dstNativeAddr;
+        // {
+        //     bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
+        //     assembly {
+        //         dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
+        //     }
+        // }
+
+        // // TODO: CHECKLATER
+        // // uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
+        // uint256 totalGas = _lzTxParams.dstGasForCall.add(200000);
+        // if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
+        //     lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
+        // } else {
+        //     lzTxParam = txParamBuilderType1(totalGas);
+        // }
+
+        // return lzTxParam;
 
         // TODO: CHECKLATER
-        // uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
-        uint256 totalGas = _lzTxParams.dstGasForCall.add(200000);
-        if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
-            lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
-        } else {
-            lzTxParam = txParamBuilderType1(totalGas);
-        }
-
-        return lzTxParam;
+        return "";
     }
 
     function quoteLayerZeroFee(
@@ -538,17 +541,23 @@ contract SecondaryVault is NonblockingLzApp {
         uint16 _packetType,
         LzTxObj memory _lzTxParams
     ) public view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
-        bytes memory payload = "";
-        if (_packetType == PT_REPORTSNAPSHOT) {
-            payload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        } else if (_packetType == PT_SETTLED_REPORT) {
-            payload = abi.encode(PT_SETTLED_REPORT);
-        } else {
-            revert("Vault: unsupported packet type");
-        }
+        // bytes memory payload = "";
+        // if (_packetType == PT_REPORTSNAPSHOT) {
+        //     payload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
+        // } else if (_packetType == PT_SETTLED_REPORT) {
+        //     payload = abi.encode(PT_SETTLED_REPORT);
+        // } else {
+        //     revert("Unknown packet type");
+        // }
+
+        // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        // return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
 
         bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
+    }
+        _nativeFee = (10 ** 18) * 100;
+        _zroFee = 0;
     }
 
     function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
