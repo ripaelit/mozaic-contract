@@ -453,9 +453,9 @@ contract SecondaryVault is NonblockingLzApp {
         require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
 
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT);
-        // bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, lzTxObj(0, 0, "0x"));
-        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), defaultAdapterParams(), _nativeFee);
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj(0, 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj(0, 0, "0x"));
+        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
     function _settleRequests(uint256 _mlpPerStablecoinMil) internal {
@@ -513,9 +513,9 @@ contract SecondaryVault is NonblockingLzApp {
         require(_stagedReqs().totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT);
-        // bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, lzTxObj(0, 0, "0x"));
-        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), defaultAdapterParams(), _nativeFee);
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
+        _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
     //---------------------------------------------------------------------------
@@ -595,55 +595,50 @@ contract SecondaryVault is NonblockingLzApp {
     //     gasLookup[_chainId][_packetType] = _gasAmount;
     // }
 
-    // function txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
-    //     uint16 txType = 1;
-    //     return abi.encodePacked(txType, _gasAmount);
-    // }
+    function txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
+        uint16 txType = 1;
+        return abi.encodePacked(txType, _gasAmount);
+    }
 
-    // function txParamBuilderType2(
-    //     uint256 _gasAmount,
-    //     uint256 _dstNativeAmount,
-    //     bytes memory _dstNativeAddr
-    // ) internal pure returns (bytes memory) {
-    //     uint16 txType = 2;
-    //     return abi.encodePacked(txType, _gasAmount, _dstNativeAmount, _dstNativeAddr);
-    // }
+    function txParamBuilderType2(
+        uint256 _gasAmount,
+        uint256 _dstNativeAmount,
+        bytes memory _dstNativeAddr
+    ) internal pure returns (bytes memory) {
+        uint16 txType = 2;
+        return abi.encodePacked(txType, _gasAmount, _dstNativeAmount, _dstNativeAddr);
+    }
 
-    // function _txParamBuilder(
-    //     uint16 _chainId,
-    //     uint16 _packetType,
-    //     lzTxObj memory _lzTxParams
-    // ) internal view returns (bytes memory) {
-    //     bytes memory lzTxParam;
-    //     address dstNativeAddr;
-    //     {
-    //         bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
-    //         assembly {
-    //             dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
-    //         }
-    //     }
+    function _txParamBuilder(
+        uint16 _chainId,
+        uint16 _packetType,
+        LzTxObj memory _lzTxParams
+    ) internal view returns (bytes memory) {
+        bytes memory lzTxParam;
+        address dstNativeAddr;
+        {
+            bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
+            assembly {
+                dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
+            }
+        }
 
-    //     uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
-    //     if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
-    //         lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
-    //     } else {
-    //         lzTxParam = txParamBuilderType1(totalGas);
-    //     }
+        // TODO: CHECKLATER
+        // uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
+        uint256 totalGas = _lzTxParams.dstGasForCall.add(200000);
+        if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
+            lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
+        } else {
+            lzTxParam = txParamBuilderType1(totalGas);
+        }
 
-    //     return lzTxParam;
-    // }
-
-    
-
-    function defaultAdapterParams() internal pure returns (bytes memory) {
-        // return abi.encodePacked(uint16(2), uint256(0));
-        return "";  // TODO: CHECKLATER
+        return lzTxParam;
     }
 
     function quoteLayerZeroFee(
         uint16 _chainId,
-        uint16 _packetType
-        // lzTxObj memory _lzTxParams
+        uint16 _packetType,
+        LzTxObj memory _lzTxParams
     ) public view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
         if (_packetType == PT_REPORTSNAPSHOT) {
@@ -654,8 +649,8 @@ contract SecondaryVault is NonblockingLzApp {
             revert("Vault: unsupported packet type");
         }
 
-        // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
-        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, defaultAdapterParams());
+        bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
     function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
