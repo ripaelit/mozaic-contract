@@ -11,7 +11,9 @@ contract PrimaryVault is SecondaryVault {
     // ENUMS
     enum ProtocolStatus {
         IDLE,
-        OPTIMIZING
+        SNAPSHOTTING,
+        OPTIMIZING,
+        SETTLING
     }
 
     //---------------------------------------------------------------------------
