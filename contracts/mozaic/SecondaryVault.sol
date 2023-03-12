@@ -386,8 +386,8 @@ contract SecondaryVault is NonblockingLzApp {
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
-    function _settleRequests(uint256 _mlpPerStablecoinMil) internal {
-        require(status == VaultStatus.SNAPSHOTTED, "Unexpected status.");
+    function _settleRequests() internal {
+        // require(status == VaultStatus.SETTLING, "Unexpected status.");
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
@@ -459,53 +459,23 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
         IERC20(_token).transfer(_user, _amountLD);
-    }
+    } 
 
-    function _nonblockingLzReceive(
-        uint16 _srcChainId, 
-        bytes memory _srcAddress, 
-        uint64 _nonce, 
-        bytes memory _payload
-    ) internal virtual override {
-        uint16 packetType;
-        assembly {
-            packetType := mload(add(_payload, 32))
-        }
-
-        if (packetType == PT_SETTLE_REQUESTS) {
-            (, uint256 _mlpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
-            _settleRequests(_mlpPerStablecoinMil);
-            _reportSettled();
-        } else if (packetType == PT_TAKE_SNAPSHOT) {
-            _takeSnapshot();
-            _reportSnapshot();
-        } else {
-            emit UnexpectedLzMessage(packetType, _payload);
-        }
-    }
-
-    
-
-    function registerVault(uint16 _chainId, address _vaultAddress) public onlyOwner {
-        bool flagExist = false;
-        // if it already exists, update vault address 
-        for (uint256 i = 0; i < vaults.length; ++i) {
-            if (vaults[i].chainId == _chainId) {
-                vaults[i].vaultAddress = _vaultAddress;
-                flagExist = true;
+    function registerVault(uint16 _chainId, address _addr) public onlyOwner {
+        bool isNew = true;
+        for (uint i = 0; i < chainIds.length; ++i) {
+            if (chainIds[i] == _chainId) {
+                isNew = false;
                 break;
             }
         }
-        
-        if (!flagExist) {   // if new vault, add it.
-            VaultDescriptor memory _newVault;
-            _newVault.chainId = _chainId;
-            _newVault.vaultAddress = _vaultAddress;
-            vaults.push(_newVault);
+        if (isNew) {
+            chainIds.push(_chainId);
         }
+        vaults[_chainId] = VaultDescriptor(_addr, VaultStatus.IDLE);
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _vaultAddress));
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _addr));
         require(success, "register vault failed");
 
     }
