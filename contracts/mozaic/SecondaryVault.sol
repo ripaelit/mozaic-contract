@@ -481,7 +481,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function getVaultsCount() public view returns (uint256) {
-        return vaults.length;
+        return chainIds.length;
     }
 
     // function setGasAmount(
