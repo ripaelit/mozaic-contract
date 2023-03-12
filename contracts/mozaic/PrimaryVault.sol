@@ -59,8 +59,8 @@ contract PrimaryVault is SecondaryVault {
         uint256 _totalStablecoinMD = 0;
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
-        for (uint i = 0; i < vaults.length ; ++i) {
-            Snapshot memory report = snapshotReported[vaults[i].chainId];
+        for (uint i = 0; i < chainIds.length ; ++i) {
+            Snapshot memory report = snapshotReported[chainIds[i]];
             _totalStablecoinMD = _totalStablecoinMD.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
@@ -90,17 +90,21 @@ contract PrimaryVault is SecondaryVault {
         uint16 _packetType,
         SecondaryVault.LzTxObj memory _lzTxParams
     ) public view virtual override returns (uint256 _nativeFee, uint256 _zroFee) {
-        bytes memory payload = "";
-        if (_packetType == PT_SETTLE_REQUESTS) {
-            payload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
-        } else if (_packetType == PT_TAKE_SNAPSHOT) {
-            payload = abi.encode(PT_TAKE_SNAPSHOT);
-        } else {
-            revert("Vault: unsupported packet type");
-        }
+        // bytes memory payload = "";
+        // if (_packetType == PT_TAKE_SNAPSHOT) {
+        //     payload = abi.encode(PT_TAKE_SNAPSHOT);
+        // } else if (_packetType == PT_SETTLE_REQUESTS) {
+        //     payload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
+        // } else {
+        //     revert("Unknown packet type");
+        // }
 
-        bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
-        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
+        // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        // return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
+        
+        // TODO: CHECKLATER
+        _nativeFee = (10 ** 18) * 1;
+        _zroFee = 0;
     }
 
     function initOptimizationSession() external onlyOwner {
@@ -115,8 +119,8 @@ contract PrimaryVault is SecondaryVault {
                 vaults[chainIds[i]].status = VaultStatus.SNAPSHOTTED;
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**17), 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**17), 0, "0x"));
                 _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
@@ -138,8 +142,8 @@ contract PrimaryVault is SecondaryVault {
                 vaults[chainIds[i]].status = VaultStatus.IDLE;
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**17), 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**17), 0, "0x"));
                 _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
