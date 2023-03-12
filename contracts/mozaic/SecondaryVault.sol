@@ -34,11 +34,6 @@ contract SecondaryVault is NonblockingLzApp {
         uint256 amountMLP
     );
 
-    event Received (
-        address indexed sender,
-        uint256 amount
-    );
-
     //--------------------------------------------------------------------------
     // CONSTANTS
     uint16 public constant PT_REPORTSNAPSHOT = 10001;
