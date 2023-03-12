@@ -377,7 +377,7 @@ contract SecondaryVault is NonblockingLzApp {
         RequestBuffer storage stagedBuffer = _stagedReqs();
         // check if the user has enough balance
         pendingBuffer.withdrawAmountPerUser[_withdrawer] = pendingBuffer.withdrawAmountPerUser[_withdrawer].add(_amountMLP);
-        require (pendingBuffer.withdrawAmountPerUser[_withdrawer].add(stagedBuffer.withdrawAmountPerUser[_withdrawer]) <= IERC20(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
+        require (pendingBuffer.withdrawAmountPerUser[_withdrawer].add(stagedBuffer.withdrawAmountPerUser[_withdrawer]) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
 
         // add withdraw request to pending buffer
         bool _exists = false;
@@ -434,15 +434,13 @@ contract SecondaryVault is NonblockingLzApp {
 
             // TODO: Protocol-Specific Logic. Move to StargateDriver
             
-            Snapshot memory result;
-            result.totalStargate = IERC20(stargateToken).balanceOf(address(this));
+            snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
             // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-            result.totalStablecoin = _totalStablecoinMD.sub(buffer.totalDepositAmount);
-            result.depositRequestAmount = buffer.totalDepositAmount;
-            result.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
-            result.totalMozaicLp = IERC20(mozaicLp).totalSupply();
-            snapshot = result;
+            snapshot.totalStablecoin = _totalStablecoinMD.sub(buffer.totalDepositAmount);
+            snapshot.depositRequestAmount = buffer.totalDepositAmount;
+            snapshot.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
+            snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
             status = VaultStatus.SNAPSHOTTED;
         } else if (status == VaultStatus.SNAPSHOTTED) {
             return;
@@ -638,7 +636,8 @@ contract SecondaryVault is NonblockingLzApp {
     
 
     function defaultAdapterParams() internal pure returns (bytes memory) {
-        return abi.encodePacked(uint16(2), uint256(0));
+        // return abi.encodePacked(uint16(2), uint256(0));
+        return "";  // TODO: CHECKLATER
     }
 
     function quoteLayerZeroFee(
