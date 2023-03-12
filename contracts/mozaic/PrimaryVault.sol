@@ -19,7 +19,6 @@ contract PrimaryVault is SecondaryVault {
     //---------------------------------------------------------------------------
     // VARIABLES
     ProtocolStatus public protocolStatus;
-    // mapping(uint16 => SecondaryVault.VaultStatus) public vaultStatus;
     mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
     
     
@@ -90,21 +89,17 @@ contract PrimaryVault is SecondaryVault {
         uint16 _packetType,
         SecondaryVault.LzTxObj memory _lzTxParams
     ) public view virtual override returns (uint256 _nativeFee, uint256 _zroFee) {
-        // bytes memory payload = "";
-        // if (_packetType == PT_TAKE_SNAPSHOT) {
-        //     payload = abi.encode(PT_TAKE_SNAPSHOT);
-        // } else if (_packetType == PT_SETTLE_REQUESTS) {
-        //     payload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
-        // } else {
-        //     revert("Unknown packet type");
-        // }
+        bytes memory payload = "";
+        if (_packetType == PT_TAKE_SNAPSHOT) {
+            payload = abi.encode(PT_TAKE_SNAPSHOT);
+        } else if (_packetType == PT_SETTLE_REQUESTS) {
+            payload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
+        } else {
+            // revert("Unknown packet type");
+        }
 
-        // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
-        // return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
-        
-        // TODO: CHECKLATER
-        _nativeFee = (10 ** 18) * 1;
-        _zroFee = 0;
+        bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
     function initOptimizationSession() external onlyOwner {
