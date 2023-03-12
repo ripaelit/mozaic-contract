@@ -34,59 +34,20 @@ contract PrimaryVault is SecondaryVault {
         address _mozaicLp
     ) SecondaryVault(_lzEndpoint, _chainId, _primaryChainId, _stargateLpStaking, _stargateToken, _mozaicLp) {
         protocolStatus = ProtocolStatus.IDLE;
-        mlpPerStablecoinMil = 0;
     }
 
-    function _nonblockingLzReceive(
-        uint16 _srcChainId, 
-        bytes memory _srcAddress, 
-        uint64 _nonce, 
-        bytes memory _payload
-    ) internal virtual override {
-        uint16 packetType;
-        assembly {
-            packetType := mload(add(_payload, 32))
-        }
-
-        if (packetType == PT_REPORTSNAPSHOT) {
-            (, Snapshot memory _newSnapshot) = abi.decode(_payload, (uint16, Snapshot));
-            _acceptSnapshotReport(_srcChainId, _newSnapshot);
-        } 
-        else if (packetType == PT_SETTLED_REPORT) {
-            _acceptSettledReport(_srcChainId);
-        }
-        else {
-            emit UnexpectedLzMessage(packetType, _payload);
-        }
-    }
-
-    function _acceptSnapshotReport(uint16 _srcChainId, Snapshot memory _newSnapshot) internal {
-        vaultStatus[_srcChainId] = VaultStatus.SNAPSHOTTED;
-        snapshotReported[_srcChainId] = _newSnapshot;
-        if (allVaultsSnapshotted()) {
-            calculateMozLpPerStablecoinMil();
-        }
-    }
-
-    function _acceptSettledReport(uint16 _srcChainId) internal {
-        vaultStatus[_srcChainId] = VaultStatus.IDLE;
-        if (allVaultsSettled()) {
-            protocolStatus = ProtocolStatus.IDLE;
-        }
-    }
-
-    function allVaultsSnapshotted() public view returns (bool) {
-        for (uint i = 0; i < vaults.length ; ++i) {
-            if (vaultStatus[vaults[i].chainId] != VaultStatus.SNAPSHOTTED) {
+    function _allVaultsSnapshotted() internal view returns (bool) {
+        for (uint i = 0; i < chainIds.length ; ++i) {
+            if (vaults[chainIds[i]].status != VaultStatus.SNAPSHOTTED) {
                 return false;
             }
         }
         return true;
     }
 
-    function allVaultsSettled() public view returns (bool) {
-        for (uint i = 0; i < vaults.length ; ++i) {
-            if (vaultStatus[vaults[i].chainId] != VaultStatus.IDLE) {
+    function _allVaultsSettled() internal view returns (bool) {
+        for (uint i = 0; i < chainIds.length ; ++i) {
+            if (vaults[chainIds[i]].status != VaultStatus.IDLE) {
                 return false;
             }
         }
