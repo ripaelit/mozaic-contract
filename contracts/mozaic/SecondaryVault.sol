@@ -127,124 +127,53 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public chainId = 0;
     address[] public acceptingTokens;
 
-    bool public bufferFlag = false; // false ==> Left=pending Right=processing; true ==> Left=processing Right=pending
+    bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
     // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
 
-
-    struct VaultDescriptor {
-        uint16 chainId;
-        address vaultAddress;
-    }
-    VaultDescriptor[] public vaults;
-
-    function _pendingReqs() internal view returns (RequestBuffer storage) {
-        if (bufferFlag) {
-            return leftBuffer;
-        }
-        else {
-            return rightBuffer;
-        }
-    }
-
-    function _stagedReqs() internal view returns (RequestBuffer storage) {
-        if (bufferFlag) {
-            return rightBuffer;
-        }
-        else {
-            return leftBuffer;
-        }
+    function _requests(bool staged) internal view returns (RequestBuffer storage) {
+        return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
     }
 
     function getDepositAmount(bool _staged, address _user, address _token, uint16 _chainId) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().depositRequestLookup[_user][_token][_chainId];
-        }
-        else {
-            return _pendingReqs().depositRequestLookup[_user][_token][_chainId];
-        }
+        return _requests(_staged).depositRequestLookup[_user][_token][_chainId];
     }
 
     function getWithdrawAmount(bool _staged, address _user, uint16 _chainId, address _token) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().withdrawRequestLookup[_user][_chainId][_token];
-        }
-        else {
-            return _pendingReqs().withdrawRequestLookup[_user][_chainId][_token];
-        }
+        return _requests(_staged).withdrawRequestLookup[_user][_chainId][_token];
     }
 
     function getDepositRequest(bool _staged, uint256 _index) public view returns (DepositRequest memory) {
-        if (_staged) {
-            return _stagedReqs().depositRequestList[_index];
-        }
-        else {
-            return _pendingReqs().depositRequestList[_index];
-        }
+        return _requests(_staged).depositRequestList[_index];
     }
 
     function getWithdrawRequest(bool _staged, uint256 _index) public view returns (WithdrawRequest memory) {
-        if (_staged) {
-            return _stagedReqs().withdrawRequestList[_index];
-        }
-        else {
-            return _pendingReqs().withdrawRequestList[_index];
-        }
+        return _requests(_staged).withdrawRequestList[_index];
     }
 
     function getTotalDepositAmount(bool _staged) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().totalDepositAmount;
-        }
-        else {
-            return _pendingReqs().totalDepositAmount;
-        }
+        return _requests(_staged).totalDepositAmount;
     }
 
     function getTotalWithdrawAmount(bool _staged) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().totalWithdrawAmount;
-        }
-        else {
-            return _pendingReqs().totalWithdrawAmount;
-        }
+        return _requests(_staged).totalWithdrawAmount;
     }
 
     function getDepositRequestListLength(bool _staged) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().depositRequestList.length;
-        }
-        else {
-            return _pendingReqs().depositRequestList.length;
-        }
+        return _requests(_staged).depositRequestList.length;
     }
 
     function getWithdrawRequestListLength(bool _staged) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().withdrawRequestList.length;
-        }
-        else {
-            return _pendingReqs().withdrawRequestList.length;
-        }
+        return _requests(_staged).withdrawRequestList.length;
     }
 
     function getDepositAmountPerToken(bool _staged, address _token) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().depositAmountPerToken[_token];
-        }
-        else {
-            return _pendingReqs().depositAmountPerToken[_token];
-        }
+        return _requests(_staged).depositAmountPerToken[_token];
     }
 
     function getWithdrawAmountPerToken(bool _staged, address _token) public view returns (uint256) {
-        if (_staged) {
-            return _stagedReqs().withdrawAmountPerToken[_token];
-        }
-        else {
-            return _pendingReqs().withdrawAmountPerToken[_token];
-        }
+        return _requests(_staged).withdrawAmountPerToken[_token];
     }
 
     // Use this function to receive an amount of native token equals to msg.value from msg.sender
