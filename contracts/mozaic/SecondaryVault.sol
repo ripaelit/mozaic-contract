@@ -380,10 +380,9 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _reportSnapshot() internal {
         require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
-
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj(0, 0, "0x"));
-        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj(0, 0, "0x"));
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**19), 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**19), 0, "0x"));
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
