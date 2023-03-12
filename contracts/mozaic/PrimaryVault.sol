@@ -114,8 +114,8 @@ contract PrimaryVault is SecondaryVault {
                 vaults[chainIds[i]].status = VaultStatus.SNAPSHOTTED;
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**17), 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**17), 0, "0x"));
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
                 _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
@@ -137,8 +137,8 @@ contract PrimaryVault is SecondaryVault {
                 vaults[chainIds[i]].status = VaultStatus.IDLE;
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**17), 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**17), 0, "0x"));
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
                 _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }

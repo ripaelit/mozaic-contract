@@ -381,8 +381,8 @@ contract SecondaryVault is NonblockingLzApp {
     function _reportSnapshot() internal {
         require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
         bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**19), 0, "0x"));
-        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**19), 0, "0x"));
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**6), 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**6), 0, "0x"));
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
@@ -441,8 +441,8 @@ contract SecondaryVault is NonblockingLzApp {
         require(_requests(true).totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**19), 0, "0x"));
-        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**19), 0, "0x"));
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**6), 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**6), 0, "0x"));
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
