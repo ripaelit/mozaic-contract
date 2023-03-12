@@ -131,6 +131,10 @@ contract SecondaryVault is NonblockingLzApp {
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
     // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
+    uint256 public mlpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
+    uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
+    uint16[] public chainIds;
+    mapping (uint16 => VaultDescriptor) public vaults;
 
     function _requests(bool staged) internal view returns (RequestBuffer storage) {
         return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
@@ -205,6 +209,7 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
         status = VaultStatus.IDLE;
+        mlpPerStablecoinMil = 0;
     }
 
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
@@ -399,7 +404,7 @@ contract SecondaryVault is NonblockingLzApp {
             if (_depositAmount == 0) {
                 continue;
             }
-            uint256 _amountToMint = _depositAmount.mul(_mlpPerStablecoinMil).div(1000000);
+            uint256 _amountToMint = _depositAmount.mul(mlpPerStablecoinMil).div(1000000);
             mozaicLpContract.mint(request.user, _amountToMint);
             // Reduce Handled Amount from Buffer
             _reqs.totalDepositAmount = _reqs.totalDepositAmount.sub(_depositAmount);
@@ -414,7 +419,7 @@ contract SecondaryVault is NonblockingLzApp {
             if (_withdrawAmountMLP == 0) {
                 continue;
             }
-            uint256 _cointToGive = _withdrawAmountMLP.mul(1000000).div(_mlpPerStablecoinMil);
+            uint256 _cointToGive = _withdrawAmountMLP.mul(1000000).div(mlpPerStablecoinMil);
             uint256 _vaultBalance = IERC20(request.token).balanceOf(address(this));
             // Reduce Handled Amount from Buffer
             if (_vaultBalance <= _cointToGive) {
