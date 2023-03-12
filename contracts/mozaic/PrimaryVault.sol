@@ -54,7 +54,7 @@ contract PrimaryVault is SecondaryVault {
         return true;
     }
 
-    function calculateMozLpPerStablecoinMil() public {
+    function _calculateMozLpPerStablecoinMil() internal {
         uint256 _stargatePriceMil = _getStargatePriceMil();
         uint256 _totalStablecoinMD = 0;
         uint256 _mintedMozLp = 0;
@@ -78,7 +78,7 @@ contract PrimaryVault is SecondaryVault {
     /**
     * NOTE: PoC: need to move to StargateDriver in next phase of development.
      */
-    function _getStargatePriceMil() internal returns (uint256) {
+    function _getStargatePriceMil() internal pure returns (uint256) {
         // PoC: right now deploy to TestNet only. We work with MockSTG token and Mocked Stablecoins.
         // And thus we don't have real DEX market.
         // KEVIN-TODO:
