@@ -121,15 +121,17 @@ contract PrimaryVault is SecondaryVault {
         }
     }
 
-    function settleRequestsAllVaults() public onlyOwner {
+    function settleRequestsAllVaults() external onlyOwner {
         require(protocolStatus == ProtocolStatus.OPTIMIZING, "optimizing before settle");
-        require(allVaultsSnapshotted(), "Settle-All: Requires all reports");
+        require(_allVaultsSnapshotted(), "Requires all reports");
         require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
-        for (uint i = 0; i < vaults.length; ++i) {
-            vaultStatus[chainId] = VaultStatus.SETTLING;
-            if (vaults[i].chainId == primaryChainId) {
-                _settleRequests(mlpPerStablecoinMil);
-                _acceptSettledReport(vaults[i].chainId);
+
+        // Start settling
+        for (uint i = 0; i < chainIds.length; ++i) {
+            vaults[chainIds[i]].status = VaultStatus.SETTLING;
+            if (chainIds[i] == primaryChainId) {
+                _settleRequests();
+                vaults[chainIds[i]].status = VaultStatus.IDLE;
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
                 (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
@@ -170,6 +172,8 @@ contract PrimaryVault is SecondaryVault {
             }
 
         }
+        else {
+            emit UnexpectedLzMessage(packetType, _payload);
         }
     }
 }
