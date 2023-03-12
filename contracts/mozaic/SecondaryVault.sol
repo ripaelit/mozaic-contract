@@ -276,7 +276,7 @@ contract SecondaryVault is NonblockingLzApp {
         _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
 
         // add deposit request to pending buffer
-        RequestBuffer storage buffer = _pendingReqs();
+        RequestBuffer storage buffer = _requests(false);
         bool exists = false;
         for (uint i = 0; i < buffer.depositRequestList.length; ++i) {
             DepositRequest memory req = buffer.depositRequestList[i];
@@ -307,8 +307,8 @@ contract SecondaryVault is NonblockingLzApp {
         require(isAcceptingToken(_token), "should be accepting token");
 
         address _withdrawer = msg.sender;
-        RequestBuffer storage pendingBuffer = _pendingReqs();
-        RequestBuffer storage stagedBuffer = _stagedReqs();
+        RequestBuffer storage pendingBuffer = _requests(false);
+        RequestBuffer storage stagedBuffer = _requests(true);
         // check if the user has enough balance
         pendingBuffer.withdrawAmountPerUser[_withdrawer] = pendingBuffer.withdrawAmountPerUser[_withdrawer].add(_amountMLP);
         require (pendingBuffer.withdrawAmountPerUser[_withdrawer].add(stagedBuffer.withdrawAmountPerUser[_withdrawer]) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
@@ -338,10 +338,10 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _takeSnapshot() internal {
-        if (status == VaultStatus.IDLE) {
-            RequestBuffer storage buffer = _stagedReqs();
-            require(buffer.totalDepositAmount==0, "Still processing requests");
-            require(buffer.totalWithdrawAmount==0, "Still processing requests");
+        // require(status == VaultStatus.SNAPSHOTTING, "Unexpected status.");
+        RequestBuffer storage buffer = _requests(true);
+        require(buffer.totalDepositAmount==0, "Still processing requests");
+        require(buffer.totalWithdrawAmount==0, "Still processing requests");
 
             // Stage Requests: Pending --> Processing
             bufferFlag = !bufferFlag;
@@ -397,7 +397,7 @@ contract SecondaryVault is NonblockingLzApp {
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
-        RequestBuffer storage _reqs = _stagedReqs();
+        RequestBuffer storage _reqs = _requests(true);
         for (uint i = 0; i < _reqs.depositRequestList.length; ++i) {
             DepositRequest memory request = _reqs.depositRequestList[i];
             uint256 _depositAmount = _reqs.depositRequestLookup[request.user][request.token][request.chainId];
@@ -443,8 +443,8 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _reportSettled() internal {
         require(status == VaultStatus.IDLE, "Not settled yet");
-        require(_stagedReqs().totalDepositAmount == 0, "Has unsettled deposit amount.");
-        require(_stagedReqs().totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
+        require(_requests(true).totalDepositAmount == 0, "Has unsettled deposit amount.");
+        require(_requests(true).totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
