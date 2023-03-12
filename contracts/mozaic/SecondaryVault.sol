@@ -339,7 +339,6 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _takeSnapshot() internal {
         // require(status == VaultStatus.SNAPSHOTTING, "Unexpected status.");
-        // RequestBuffer storage buffer = _requests(true);
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
@@ -538,20 +537,17 @@ contract SecondaryVault is NonblockingLzApp {
         uint16 _packetType,
         LzTxObj memory _lzTxParams
     ) public view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
-        // bytes memory payload = "";
-        // if (_packetType == PT_REPORTSNAPSHOT) {
-        //     payload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        // } else if (_packetType == PT_SETTLED_REPORT) {
-        //     payload = abi.encode(PT_SETTLED_REPORT);
-        // } else {
-        //     revert("Unknown packet type");
-        // }
+        bytes memory payload = "";
+        if (_packetType == PT_REPORTSNAPSHOT) {
+            payload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
+        } else if (_packetType == PT_SETTLED_REPORT) {
+            payload = abi.encode(PT_SETTLED_REPORT);
+        } else {
+            revert("Unknown packet type");
+        }
 
-        // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
-        // return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
-
-        _nativeFee = (10 ** 18) * 100;
-        _zroFee = 0;
+        bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
     function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
@@ -585,21 +581,5 @@ contract SecondaryVault is NonblockingLzApp {
         } else {
             emit UnexpectedLzMessage(packetType, _payload);
         }
-
-        
     }
-
-    // function pulse() external virtual onlyOwner {
-    //     if (status == VaultStatus.IDLE) {
-
-    //     } else if (status == VaultStatus.SNAPSHOTTING) {
-    //         _takeSnapshot();
-    //         _reportSnapshot();
-    //     } else if (status == VaultStatus.SNAPSHOTTED) {
-    //         // Wait for optimizing in control center
-    //     } else if (status == VaultStatus.SETTLING) {
-    //         _settleRequests();
-    //         _reportSettled();
-    //     }
-    // }
 }
