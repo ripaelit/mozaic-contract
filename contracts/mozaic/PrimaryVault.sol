@@ -103,22 +103,26 @@ contract PrimaryVault is SecondaryVault {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
-    function initOptimizationSession() public onlyOwner {
+    function initOptimizationSession() external onlyOwner {
         require(protocolStatus == ProtocolStatus.IDLE, "idle before optimizing");
-        protocolStatus = ProtocolStatus.OPTIMIZING;
-        mlpPerStablecoinMil = 0;
-        for (uint i = 0; i < vaults.length; ++i) {
-            vaultStatus[vaults[i].chainId] = VaultStatus.SNAPSHOTTING;
-            if (vaults[i].chainId == primaryChainId) {
+        
+        // Start snapshotting
+        for (uint i = 0; i < chainIds.length; ++i) {
+            vaults[chainIds[i]].status = VaultStatus.SNAPSHOTTING;
+            if (chainIds[i] == primaryChainId) {
                 _takeSnapshot();
-                _acceptSnapshotReport(primaryChainId, snapshot);
+                snapshotReported[chainIds[i]] = snapshot;
+                vaults[chainIds[i]].status = VaultStatus.SNAPSHOTTED;
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(vaults[i].chainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(vaults[i].chainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
-                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
+                _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
+
+        mlpPerStablecoinMil = 0;
+        protocolStatus = ProtocolStatus.SNAPSHOTTING;
     }
 
     function settleRequestsAllVaults() external onlyOwner {
