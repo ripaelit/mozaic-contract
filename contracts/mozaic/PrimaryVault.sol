@@ -132,10 +132,44 @@ contract PrimaryVault is SecondaryVault {
                 _acceptSettledReport(vaults[i].chainId);
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(vaults[i].chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(vaults[i].chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
-                _lzSend(vaults[i].chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
+                _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
+        }
+
+        protocolStatus == ProtocolStatus.SETTLING;
+    }
+
+    function _nonblockingLzReceive(
+        uint16 _srcChainId, 
+        bytes memory _srcAddress, 
+        uint64 _nonce, 
+        bytes memory _payload
+    ) internal virtual override {
+        uint16 packetType;
+        assembly {
+            packetType := mload(add(_payload, 32))
+        }
+
+        if (packetType == PT_REPORTSNAPSHOT) {
+            (, snapshotReported[_srcChainId]) = abi.decode(_payload, (uint16, Snapshot));
+            vaults[_srcChainId].status = VaultStatus.SNAPSHOTTED;
+
+            if (_allVaultsSnapshotted()) {
+                _calculateMozLpPerStablecoinMil();
+                protocolStatus = ProtocolStatus.OPTIMIZING;
+            }
+
+        } 
+        else if (packetType == PT_SETTLED_REPORT) {
+            vaults[_srcChainId].status = VaultStatus.IDLE;
+
+            if (_allVaultsSettled()) {
+                protocolStatus = ProtocolStatus.IDLE;
+            }
+
+        }
         }
     }
 }
