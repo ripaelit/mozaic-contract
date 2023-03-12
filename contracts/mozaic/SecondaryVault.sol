@@ -339,9 +339,9 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _takeSnapshot() internal {
         // require(status == VaultStatus.SNAPSHOTTING, "Unexpected status.");
-        RequestBuffer storage buffer = _requests(true);
-        require(buffer.totalDepositAmount==0, "Still processing requests");
-        require(buffer.totalWithdrawAmount==0, "Still processing requests");
+        // RequestBuffer storage buffer = _requests(true);
+        require(_requests(true).totalDepositAmount==0, "Still processing requests");
+        require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
         // Stage Requests: Pending --> Processing
         bufferFlag = !bufferFlag;
@@ -371,9 +371,9 @@ contract SecondaryVault is NonblockingLzApp {
         snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-        snapshot.totalStablecoin = _totalStablecoinMD.sub(buffer.totalDepositAmount);
-        snapshot.depositRequestAmount = buffer.totalDepositAmount;
-        snapshot.withdrawRequestAmountMLP = buffer.totalWithdrawAmount;
+        snapshot.totalStablecoin = _totalStablecoinMD.sub(_requests(true).totalDepositAmount);
+        snapshot.depositRequestAmount = _requests(true).totalDepositAmount;
+        snapshot.withdrawRequestAmountMLP = _requests(true).totalWithdrawAmount;
         snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
         status = VaultStatus.SNAPSHOTTED;
     }
