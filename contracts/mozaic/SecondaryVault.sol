@@ -441,8 +441,8 @@ contract SecondaryVault is NonblockingLzApp {
         require(_requests(true).totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
-        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**19), 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**19), 0, "0x"));
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
@@ -553,9 +553,6 @@ contract SecondaryVault is NonblockingLzApp {
         // bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
         // return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
 
-        bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
-        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
-    }
         _nativeFee = (10 ** 18) * 100;
         _zroFee = 0;
     }
@@ -563,4 +560,49 @@ contract SecondaryVault is NonblockingLzApp {
     function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
         return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
     }
+
+    function _nonblockingLzReceive(
+        uint16 _srcChainId, 
+        bytes memory _srcAddress, 
+        uint64 _nonce, 
+        bytes memory _payload
+    ) internal virtual override {
+        uint16 packetType;
+        assembly {
+            packetType := mload(add(_payload, 32))
+        }
+
+        if (packetType == PT_TAKE_SNAPSHOT) {
+            status = VaultStatus.SNAPSHOTTING;
+
+            _takeSnapshot();
+            _reportSnapshot();
+
+        } else if (packetType == PT_SETTLE_REQUESTS) {
+            (, mlpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
+            status = VaultStatus.SETTLING;
+
+            _settleRequests();
+            _reportSettled();
+
+        } else {
+            emit UnexpectedLzMessage(packetType, _payload);
+        }
+
+        
+    }
+
+    // function pulse() external virtual onlyOwner {
+    //     if (status == VaultStatus.IDLE) {
+
+    //     } else if (status == VaultStatus.SNAPSHOTTING) {
+    //         _takeSnapshot();
+    //         _reportSnapshot();
+    //     } else if (status == VaultStatus.SNAPSHOTTED) {
+    //         // Wait for optimizing in control center
+    //     } else if (status == VaultStatus.SETTLING) {
+    //         _settleRequests();
+    //         _reportSettled();
+    //     }
+    // }
 }
