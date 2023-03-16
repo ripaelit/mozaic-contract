@@ -24,7 +24,9 @@ contract StargateDriver is ProtocolDriver{
         VaultDescriptor[] vaults;
     }
 
+    uint8 internal constant TYPE_SWAP_REMOTE = 1;
     bytes32 public constant CONFIG_SLOT = keccak256("StargateDriver.config");
+    
     function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory) {
         // Unpack into _getConfig().stgRouter, stgLPStaking
         (address _stgRouter, address _stgLPStaking) = abi.decode(params, (address, address));
@@ -159,12 +161,11 @@ contract StargateDriver is ProtocolDriver{
         uint16 _dstChainId;
         uint256 _dstPoolId;
         uint256 _srcPoolId;
-        uint256 _nativeFee;
         address _router;
         // To avoid stack deep error
         {
             address _srcToken;
-            (_amountLD, _srcToken, _dstChainId, _dstPoolId, _nativeFee) = abi.decode(_payload, (uint256, address, uint16, uint256, uint256));
+            (_amountLD, _srcToken, _dstChainId, _dstPoolId) = abi.decode(_payload, (uint256, address, uint16, uint256));
             require (_amountLD > 0, "Cannot stake zero amount");
 
             address _srcPool = _getStargatePoolFromToken(_srcToken);
@@ -186,6 +187,8 @@ contract StargateDriver is ProtocolDriver{
             require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
         }
 
+        // Get native fee
+        (uint256 _nativeFee, ) = IStargateRouter(_router).quoteLayerZeroFee(_dstChainId, TYPE_SWAP_REMOTE, abi.encodePacked(_to), bytes(""), IStargateRouter.lzTxObj(0, 0, "0x"));
         // Swap
         IStargateRouter(_router).swap{value:_nativeFee}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
     }
