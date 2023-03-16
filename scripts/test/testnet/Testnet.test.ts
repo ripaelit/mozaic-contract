@@ -1,12 +1,14 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, Bridge__factory, StargateToken__factory, MockToken__factory, PrimaryVault, SecondaryVault, LPStaking__factory, MozaicLP, Router__factory, MockToken, LPStaking } from '../../../types/typechain';
+import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, StargateToken__factory, MockToken__factory, PrimaryVault, SecondaryVault, LPStaking__factory, Router__factory, MockToken, LPStaking } from '../../../types/typechain';
 import { ActionTypeEnum, ProtocolStatus, MozaicDeployment } from '../../constants/types';
 import exportData from '../../constants/index';
 import { BigNumber, ContractTransaction } from 'ethers';
 import { setTimeout } from 'timers/promises';
 import { describe } from 'mocha';
+import { returnBalance, sendBalance } from '../../util/testUtils';
+
 const fs = require('fs');
 const hre = require('hardhat');
 
@@ -30,7 +32,8 @@ describe('SecondaryVault.executeActions', () => {
         let mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
         let mozLp = mozaicLpFactory.attach(json.mozaicLP);
         let primaryvaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
-        let primaryVault = primaryvaultFactory.attach(json.mozaicVault);  // Because primaryChain is goerli now.
+        let primaryVaultAddr = json.mozaicVault;
+        let primaryVault = primaryvaultFactory.attach(primaryVaultAddr);
         mozaicDeployment = {
             mozaicLp: mozLp,
             mozaicVault: primaryVault
@@ -44,60 +47,22 @@ describe('SecondaryVault.executeActions', () => {
         mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
         mozLp = mozaicLpFactory.attach(json.mozaicLP);
         let secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
-        let secondaryVault = secondaryVaultFactory.attach(json.mozaicVault);
+        let secondaryVaultAddr = json.mozaicVault;
+        let secondaryVault = secondaryVaultFactory.attach(secondaryVaultAddr);
         mozaicDeployment = {
             mozaicLp: mozLp,
             mozaicVault: secondaryVault
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
 
-        hre.changeNetwork('bsctest');
-        [owner] = await ethers.getSigners();
-        // return balance
-        let tx = await primaryVault.connect(owner).returnBalance();
-        await tx.wait();
-        console.log("primaryVault returned balance");
-        // send BNB to primaryVault
-        const amountBNB = ethers.utils.parseEther("10");
-        tx = await owner.sendTransaction({
-            to: primaryVault.address,
-            value: amountBNB
-        });
-        await tx.wait();
-        console.log("sent BNB to primaryVault", amountBNB.toString());
-
-        hre.changeNetwork('fantom');
-        [owner] = await ethers.getSigners();
-        //return balance
-        tx = await secondaryVault.connect(owner).returnBalance();
-        await tx.wait();
-        console.log("secondaryVault returned balance");
-        // send FTM to secondaryVault
-        const amountFTM = ethers.utils.parseEther("1000");
-        tx = await owner.sendTransaction({
-            to: secondaryVault.address,
-            value: amountFTM
-        });
-        await tx.wait();
-        console.log("sent native token to secondaryVault", amountFTM.toString());
+        returnBalance()
+        sendBalance([
+            ethers.utils.parseEther("10"),
+            ethers.utils.parseEther("1000")
+        ])
     })
     after (async () => {
-        // return balance from vaults to owner
-        hre.changeNetwork('bsctest');
-        [owner] = await ethers.getSigners();
-        const primaryChainId = exportData.testnetTestConstants.chainIds[1];
-        const primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault;
-        let tx = await primaryVault.connect(owner).returnBalance();
-        await tx.wait();
-        console.log("primaryVault returned balance");
-
-        hre.changeNetwork('fantom');
-        [owner] = await ethers.getSigners();
-        const secondaryChainId = exportData.testnetTestConstants.chainIds[2];
-        const secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault;
-        tx = await secondaryVault.connect(owner).returnBalance();
-        await tx.wait();
-        console.log("secondaryVault returned balance");
+        returnBalance()
     })
     describe.skip ('StargateDriver.execute', () => {
         it ("can stake token", async () => {
