@@ -2,12 +2,12 @@ import { ethers } from 'hardhat';
 import { returnBalance, sendBalance } from '../util/testUtils';
 
 async function main() {
-    returnBalance();
-    sendBalance([
+    await returnBalance();
+    await sendBalance([
         ethers.utils.parseEther("1"),
         ethers.utils.parseEther("1"),
     ]);
-    returnBalance();
+    await returnBalance();
 }
   
 main()

@@ -55,14 +55,14 @@ describe('SecondaryVault.executeActions', () => {
         }
         mozaicDeployments.set(json.chainId, mozaicDeployment);
 
-        returnBalance()
-        sendBalance([
+        await returnBalance()
+        await sendBalance([
             ethers.utils.parseEther("10"),
             ethers.utils.parseEther("1000")
         ])
     })
     after (async () => {
-        returnBalance()
+        await returnBalance()
     })
     describe.skip ('StargateDriver.execute', () => {
         it ("can stake token", async () => {
