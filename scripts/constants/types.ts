@@ -43,7 +43,9 @@ export enum ActionTypeEnum {
 
 export enum ProtocolStatus {
   IDLE = 0,
-  OPTIMIZING = 1,
+  SNAPSHOTTING = 1,
+  OPTIMIZING = 2,
+  SETTLING = 3
 }
 
 export enum VaultStatus {

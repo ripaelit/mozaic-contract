@@ -58,7 +58,7 @@ describe('SecondaryVault.executeActions', () => {
         await tx.wait();
         console.log("primaryVault returned balance");
         // send BNB to primaryVault
-        const amountBNB = ethers.utils.parseEther("5");
+        const amountBNB = ethers.utils.parseEther("10");
         tx = await owner.sendTransaction({
             to: primaryVault.address,
             value: amountBNB
@@ -73,7 +73,7 @@ describe('SecondaryVault.executeActions', () => {
         await tx.wait();
         console.log("secondaryVault returned balance");
         // send FTM to secondaryVault
-        const amountFTM = ethers.utils.parseEther("100");
+        const amountFTM = ethers.utils.parseEther("1000");
         tx = await owner.sendTransaction({
             to: secondaryVault.address,
             value: amountFTM
@@ -596,7 +596,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 5) {
+                while (timeDelayed < TIME_DELAY_MAX * 20) {
                     let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                     if (mlpPerStablecoinMil.eq(0)) {
                         console.log("Waiting for initOptimization...");
@@ -605,7 +605,7 @@ describe('SecondaryVault.executeActions', () => {
                     } else {
                         success = true;
                         console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
-                        expect(mlpPerStablecoinMil).to.gt(0);
+                        expect(mlpPerStablecoinMil).to.eq(1000000);
                         break;
                     }
                 }
@@ -801,7 +801,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 5) {
+                while (timeDelayed < TIME_DELAY_MAX * 20) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.IDLE) {
                         console.log("Waiting for settling...");
@@ -855,7 +855,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 5) {
+                while (timeDelayed < TIME_DELAY_MAX * 20) {
                     let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                     if (mlpPerStablecoinMil.eq(0)) {
                         console.log("Waiting for initOptimization...");
@@ -886,7 +886,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 5) {
+                while (timeDelayed < TIME_DELAY_MAX * 20) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.IDLE) {
                         console.log("Waiting for settling...");
