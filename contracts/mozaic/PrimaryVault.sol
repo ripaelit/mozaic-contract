@@ -102,6 +102,9 @@ contract PrimaryVault is SecondaryVault {
 
     function initOptimizationSession() external onlyOwner {
         // require(protocolStatus == ProtocolStatus.IDLE, "idle");
+        if (protocolStatus == ProtocolStatus.OPTIMIZING) {
+            return;
+        }
         
         // Start snapshotting
         for (uint i = 0; i < chainIds.length; ++i) {
@@ -124,8 +127,11 @@ contract PrimaryVault is SecondaryVault {
         // require(protocolStatus == ProtocolStatus.OPTIMIZING, "optimizing");
         // require(_allVaultsSnapshotted(), "Requires all reports");
         // require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
+        if (protocolStatus == ProtocolStatus.IDLE) {
+            return;
+        }
 
-        // Start settling_txParamBuilder
+        // Start settling
         for (uint i = 0; i < chainIds.length; ++i) {
             if (chainIds[i] == primaryChainId) {
                 _settleRequests();
