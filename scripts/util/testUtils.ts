@@ -5,6 +5,30 @@ import { BigNumber } from 'ethers';
 const fs = require('fs');
 const hre = require('hardhat');
 
+export const returnBalanceFrom = async (vaults: string[]) => {
+    const primaryVaultAddr = vaults[0];
+    const secondaryVaultAddr = vaults[1];
+
+    let owner: SignerWithAddress;
+    hre.changeNetwork('bsctest');
+    [owner] = await ethers.getSigners();
+    const primaryvaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
+    const primaryVault = primaryvaultFactory.attach(primaryVaultAddr);
+    console.log("bsc vault balance", (await ethers.provider.getBalance(primaryVaultAddr)).toString());
+    let tx = await primaryVault.connect(owner).returnBalance();
+    await tx.wait();
+    console.log("bsc vault returned balance", (await ethers.provider.getBalance(primaryVaultAddr)).toString());
+
+    hre.changeNetwork('fantom');
+    [owner] = await ethers.getSigners();
+    const secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
+    const secondaryVault = secondaryVaultFactory.attach(secondaryVaultAddr);
+    console.log("fantom vault balance", (await ethers.provider.getBalance(secondaryVaultAddr)).toString().toString());
+    tx = await secondaryVault.connect(owner).returnBalance();
+    await tx.wait();
+    console.log("fantom vault returned balance", (await ethers.provider.getBalance(secondaryVaultAddr)).toString().toString());
+}
+
 export const returnBalance = async () => {
     console.log("returnBalance");
 
@@ -14,24 +38,7 @@ export const returnBalance = async () => {
     json = JSON.parse(fs.readFileSync('deployFantomResult.json', 'utf-8'));
     let secondaryVaultAddr = json.mozaicVault;
 
-    let owner: SignerWithAddress;
-    hre.changeNetwork('bsctest');
-    [owner] = await ethers.getSigners();
-    let primaryvaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
-    let primaryVault = primaryvaultFactory.attach(primaryVaultAddr);
-    console.log("bsc vault balance", (await ethers.provider.getBalance(primaryVaultAddr)).toString());
-    let tx = await primaryVault.connect(owner).returnBalance();
-    await tx.wait();
-    console.log("bsc vault returned balance", (await ethers.provider.getBalance(primaryVaultAddr)).toString());
-
-    hre.changeNetwork('fantom');
-    [owner] = await ethers.getSigners();
-    let secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
-    let secondaryVault = secondaryVaultFactory.attach(secondaryVaultAddr);
-    console.log("fantom vault balance", (await ethers.provider.getBalance(secondaryVaultAddr)).toString().toString());
-    tx = await secondaryVault.connect(owner).returnBalance();
-    await tx.wait();
-    console.log("fantom vault returned balance", (await ethers.provider.getBalance(secondaryVaultAddr)).toString().toString());
+    await returnBalanceFrom([primaryVaultAddr, secondaryVaultAddr]);
 }
 
 export const sendBalance = async (amounts: BigNumber[]) => {
