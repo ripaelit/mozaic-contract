@@ -338,6 +338,9 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _takeSnapshot() internal {
+        if (status == VaultStatus.SNAPSHOTTED) {
+            return;
+        }
         // require(status == VaultStatus.SNAPSHOTTING, "Unexpected status.");
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
