@@ -52,14 +52,14 @@ contract SecondaryVault is NonblockingLzApp {
         IDLE,
 
         // (Primary Vault vision) Primary Vault thinks Secondary Vault is snapshotting. But haven't got report yet.
-        SNAPSHOTTING,
+        // SNAPSHOTTING,
 
         // (Secondary Vault vision) Secondary Vault knows it staged requests and made snapshot. It sent snapshot report, but doesn't care the rest.
         // (Primary Vault vision) Primary Vault got snapshot report from the Secondary Vault.
-        SNAPSHOTTED,
+        SNAPSHOTTED
 
         // (Primary Vault vision) Primary Vault sent "settle" message to Secondary Vault. Thinks it is settling requests now.
-        SETTLING
+        // SETTLING
     }
 
     //---------------------------------------------------------------------------
@@ -341,7 +341,6 @@ contract SecondaryVault is NonblockingLzApp {
         if (status == VaultStatus.SNAPSHOTTED) {
             return;
         }
-        // require(status == VaultStatus.SNAPSHOTTING, "Unexpected status.");
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
@@ -389,7 +388,9 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _settleRequests() internal {
-        // require(status == VaultStatus.SETTLING, "Unexpected status.");
+        if (status == VaultStatus.IDLE) {
+            return;
+        }
         // for all dpeposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
@@ -569,15 +570,11 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         if (packetType == PT_TAKE_SNAPSHOT) {
-            status = VaultStatus.SNAPSHOTTING;
-
             _takeSnapshot();
             _reportSnapshot();
 
         } else if (packetType == PT_SETTLE_REQUESTS) {
             (, mlpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
-            status = VaultStatus.SETTLING;
-
             _settleRequests();
             _reportSettled();
 

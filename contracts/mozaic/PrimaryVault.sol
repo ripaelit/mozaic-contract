@@ -105,7 +105,6 @@ contract PrimaryVault is SecondaryVault {
         
         // Start snapshotting
         for (uint i = 0; i < chainIds.length; ++i) {
-            vaults[chainIds[i]].status = VaultStatus.SNAPSHOTTING;
             if (chainIds[i] == primaryChainId) {
                 _takeSnapshot();
                 snapshotReported[chainIds[i]] = snapshot;
@@ -128,7 +127,6 @@ contract PrimaryVault is SecondaryVault {
 
         // Start settling_txParamBuilder
         for (uint i = 0; i < chainIds.length; ++i) {
-            vaults[chainIds[i]].status = VaultStatus.SETTLING;
             if (chainIds[i] == primaryChainId) {
                 _settleRequests();
                 vaults[chainIds[i]].status = VaultStatus.IDLE;
