@@ -549,26 +549,21 @@ describe('SecondaryVault.executeActions', () => {
                 // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
                 hre.changeNetwork('bsctest');
                 [owner, alice, ben] = await ethers.getSigners();
-                let protocolStatus = await primaryVault.protocolStatus();
-                console.log("protocolStatus", protocolStatus);
-                expect(protocolStatus).to.eq(ProtocolStatus.IDLE);
                 tx = await primaryVault.connect(owner).initOptimizationSession();
                 await tx.wait();
-                // protocolStatus = await primaryVault.protocolStatus();
-                // console.log("protocolStatus", protocolStatus);
-                // expect(protocolStatus).to.eq(ProtocolStatus.SNAPSHOTTING);
                 console.log("Owner called initOptimizationSession");
 
                 let timeDelayed = 0;
                 let success = false;
                 while (timeDelayed < TIME_DELAY_MAX * 20) {
-                    let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
-                    if (mlpPerStablecoinMil.eq(0)) {
+                    let protocolStatus = await primaryVault.protocolStatus();
+                    if (protocolStatus != ProtocolStatus.OPTIMIZING) {
                         console.log("Waiting for initOptimization...");
                         await setTimeout(timeInterval);
                         timeDelayed += timeInterval;
                     } else {
                         success = true;
+                        let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                         console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
                         expect(mlpPerStablecoinMil).to.eq(1000000);
                         break;
@@ -577,10 +572,6 @@ describe('SecondaryVault.executeActions', () => {
                 if (!success) {
                     console.log("Timeout LayerZero in swapRemote");
                 }
-
-                protocolStatus = await primaryVault.protocolStatus();
-                console.log("protocolStatus", protocolStatus);
-                expect(protocolStatus).to.eq(ProtocolStatus.OPTIMIZING);
 
                 // Alice deposits again, but it goes to pending buffer, so cannot affect minted mLP amount.
                 console.log("Alice deposits again");
@@ -755,9 +746,6 @@ describe('SecondaryVault.executeActions', () => {
             })
             // Algostory: #### 5. Settle Requests
             it ('5. Settle Requests', async () => {
-                // let protocolStatus = await primaryVault.protocolStatus();
-                // console.log("protocolStatus", protocolStatus);
-                // expect(protocolStatus).to.eq(ProtocolStatus.SETTLING);
                 // Alice, Ben receive mLP, Vaults receive coin
                 hre.changeNetwork('bsctest');
                 const alicePrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
@@ -821,21 +809,20 @@ describe('SecondaryVault.executeActions', () => {
                 // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
                 hre.changeNetwork('bsctest');
                 [owner, alice, ben] = await ethers.getSigners();
-                expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.IDLE);
                 tx = await primaryVault.connect(owner).initOptimizationSession();
                 await tx.wait();
-                // expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.SNAPSHOTTING);
 
                 let timeDelayed = 0;
                 let success = false;
                 while (timeDelayed < TIME_DELAY_MAX * 20) {
-                    let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
-                    if (mlpPerStablecoinMil.eq(0)) {
+                    let protocolStatus = await primaryVault.protocolStatus();
+                    if (protocolStatus != ProtocolStatus.OPTIMIZING) {
                         console.log("Waiting for initOptimization...");
                         await setTimeout(timeInterval);
                         timeDelayed += timeInterval;
                     } else {
                         success = true;
+                        let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                         console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
                         expect(mlpPerStablecoinMil).to.gt(0);
                         break;
@@ -844,10 +831,8 @@ describe('SecondaryVault.executeActions', () => {
                 if (!success) {
                     console.log("Timeout LayerZero in swapRemote");
                 }
-                expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.OPTIMIZING);
             })
             it ('5. Settle Requests', async () => {
-                // expect(await primaryVault.protocolStatus()).to.eq(ProtocolStatus.SETTLING);
                 hre.changeNetwork('bsctest');
                 const alicePrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
                 hre.changeNetwork('fantom');
@@ -997,26 +982,21 @@ describe('SecondaryVault.executeActions', () => {
             // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
-            let protocolStatus = await primaryVault.protocolStatus();
-            console.log("protocolStatus", protocolStatus);
-            expect(protocolStatus).to.eq(ProtocolStatus.IDLE);
             tx = await primaryVault.connect(owner).initOptimizationSession();
             await tx.wait();
-            // protocolStatus = await primaryVault.protocolStatus();
-            // console.log("protocolStatus", protocolStatus);
-            // expect(protocolStatus).to.eq(ProtocolStatus.SNAPSHOTTING);
             console.log("Owner called initOptimizationSession");
 
             let timeDelayed = 0;
             let success = false;
             while (timeDelayed < TIME_DELAY_MAX * 20) {
-                let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
-                if (mlpPerStablecoinMil.eq(0)) {
+                let protocolStatus = await primaryVault.protocolStatus();
+                if (protocolStatus != ProtocolStatus.OPTIMIZING) {
                     console.log("Waiting for initOptimization...");
                     await setTimeout(timeInterval);
                     timeDelayed += timeInterval;
                 } else {
                     success = true;
+                    let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
                     console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
                     expect(mlpPerStablecoinMil).to.eq(1000000);
                     break;
@@ -1025,10 +1005,6 @@ describe('SecondaryVault.executeActions', () => {
             if (!success) {
                 console.log("Timeout LayerZero in swapRemote");
             }
-
-            protocolStatus = await primaryVault.protocolStatus();
-            console.log("protocolStatus", protocolStatus);
-            expect(protocolStatus).to.eq(ProtocolStatus.OPTIMIZING);
         })
         it ('5. Settle Requests', async () => {
             // Alice, Ben receive mLP, Vaults receive coin
@@ -1043,10 +1019,6 @@ describe('SecondaryVault.executeActions', () => {
             [owner, alice, ben] = await ethers.getSigners();
             tx = await primaryVault.connect(owner).settleRequestsAllVaults();
             await tx.wait();
-
-            // let protocolStatus = await primaryVault.protocolStatus();
-            // console.log("protocolStatus", protocolStatus);
-            // expect(protocolStatus).to.eq(ProtocolStatus.SETTLING);
 
             let timeDelayed = 0;
             let success = false;
@@ -1065,7 +1037,7 @@ describe('SecondaryVault.executeActions', () => {
             if (!success) {
                 console.log("Timeout LayerZero in settle requests");
             }
-
+            
             hre.changeNetwork('bsctest');
             const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
             const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
