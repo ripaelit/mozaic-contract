@@ -11,9 +11,7 @@ contract PrimaryVault is SecondaryVault {
     // ENUMS
     enum ProtocolStatus {
         IDLE,
-        SNAPSHOTTING,
-        OPTIMIZING,
-        SETTLING
+        OPTIMIZING
     }
 
     //---------------------------------------------------------------------------
@@ -121,7 +119,6 @@ contract PrimaryVault is SecondaryVault {
         }
 
         mlpPerStablecoinMil = 0;
-        protocolStatus = ProtocolStatus.SNAPSHOTTING;
     }
 
     function settleRequestsAllVaults() external onlyOwner {
@@ -142,8 +139,6 @@ contract PrimaryVault is SecondaryVault {
                 _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
-
-        protocolStatus == ProtocolStatus.SETTLING;
     }
 
     function _nonblockingLzReceive(
