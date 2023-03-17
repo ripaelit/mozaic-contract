@@ -34,8 +34,7 @@ contract PancakeSwapDriver is ProtocolDriver {
 
     function execute(ProtocolDriver.ActionType actionType, bytes calldata payload) virtual override public returns (bytes memory response) {
         if (actionType == ProtocolDriver.ActionType.Swap) {
-            (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));
-            response = _swap(_amountLD, _srcToken, _dstToken);
+            response = _swap(payload);
         }
         else if (actionType == ProtocolDriver.ActionType.GetPriceMil) {
             response = _getStargatePriceMil();
@@ -48,12 +47,13 @@ contract PancakeSwapDriver is ProtocolDriver {
     //---------------------------------------------------------------------------
     // INTERNAL
 
-    function _swap(uint256 _amount, address _srcToken, address _dstToken) private returns (bytes memory) {
+    function _swap(bytes calldata payload) private returns (bytes memory) {
+        (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));
         // Approve
-        IERC20(_srcToken).approve( _getConfig().pancakeSwapSmartRouter, _amount);
+        IERC20(_srcToken).approve( _getConfig().pancakeSwapSmartRouter, _amountLD);
 
         // Swap
-        (bool success, bytes memory response) = address(_getConfig().pancakeSwapSmartRouter).call(abi.encodeWithSignature("swap(address,address,uint256,uint256,uint8)", _srcToken, _dstToken, _amount, 0, 0));
+        (bool success, ) = address(_getConfig().pancakeSwapSmartRouter).call(abi.encodeWithSignature("swap(address,address,uint256,uint256,uint8)", _srcToken, _dstToken, _amountLD, 0, 0));
         require(success, "PancakeSwap failed");
     }
 
