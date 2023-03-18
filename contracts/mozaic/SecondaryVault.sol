@@ -180,6 +180,10 @@ contract SecondaryVault is NonblockingLzApp {
         return _requests(_staged).withdrawAmountPerToken[_token];
     }
 
+    function getBalanceMDPerToken(address _token) public view returns (uint256) {
+        return amountLDtoMD(IERC20(_token).balanceOf(address(this)), IERC20Metadata(_token).decimals());
+    }
+
     // Use this function to receive an amount of native token equals to msg.value from msg.sender
     receive () external payable {}
 
