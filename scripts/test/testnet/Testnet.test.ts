@@ -1030,7 +1030,7 @@ describe('SecondaryVault.executeActions', () => {
                     timeDelayed += timeInterval;
                 } else {
                     success = true;
-                    console.log("Session closed");
+                    console.log("Settling closed in %d seconds", timeDelayed / 1000);
                     break;
                 }
             }
