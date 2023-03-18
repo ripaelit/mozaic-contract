@@ -11,7 +11,9 @@ contract PrimaryVault is SecondaryVault {
     // ENUMS
     enum ProtocolStatus {
         IDLE,
-        OPTIMIZING
+        SNAPSHOTTING,
+        OPTIMIZING,
+        SETTLING
     }
 
     //---------------------------------------------------------------------------
@@ -101,8 +103,7 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function initOptimizationSession() external onlyOwner {
-        // require(protocolStatus == ProtocolStatus.IDLE, "idle");
-        if (protocolStatus == ProtocolStatus.OPTIMIZING) {
+        if (protocolStatus != ProtocolStatus.IDLE) {
             return;
         }
         
@@ -121,15 +122,15 @@ contract PrimaryVault is SecondaryVault {
         }
 
         mlpPerStablecoinMil = 0;
+        protocolStatus = ProtocolStatus.SNAPSHOTTING;
     }
 
     function settleRequestsAllVaults() external onlyOwner {
-        // require(protocolStatus == ProtocolStatus.OPTIMIZING, "optimizing");
-        // require(_allVaultsSnapshotted(), "Requires all reports");
-        // require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
-        if (protocolStatus == ProtocolStatus.IDLE) {
+        if (protocolStatus != ProtocolStatus.OPTIMIZING) {
             return;
         }
+        // require(_allVaultsSnapshotted(), "Requires all reports");
+        // require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
 
         // Start settling
         for (uint i = 0; i < chainIds.length; ++i) {
@@ -143,6 +144,7 @@ contract PrimaryVault is SecondaryVault {
                 _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
+        protocolStatus = ProtocolStatus.SETTLING;
     }
 
     function _nonblockingLzReceive(
