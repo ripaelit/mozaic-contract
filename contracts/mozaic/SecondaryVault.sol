@@ -555,6 +555,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
+        // TODO: CHECKLATER if (MOZAIC_DECIMALS < _localDecimals)
         return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
     }
 
