@@ -18,7 +18,7 @@ async function main() {
     const mozaicDeployment = await deployAllToTestNet(owner, chainId);
     console.log("Completed deploy");
 
-    // verify mozaicVault
+    // write deploy result
     const mozaicVault = mozaicDeployment.mozaicVault.address;
     const lzEndpoint = await mozaicDeployment.mozaicVault.lzEndpoint();
     const primaryChainId = await mozaicDeployment.mozaicVault.primaryChainId();
@@ -27,6 +27,20 @@ async function main() {
     const mozaicLP = mozaicDeployment.mozaicLp.address;
     const stargateDriver = await mozaicDeployment.mozaicVault.protocolDrivers(1);
     const pancakeSwapDriver = await mozaicDeployment.mozaicVault.protocolDrivers(2);
+    let res = JSON.stringify({
+        mozaicVault: mozaicVault,
+        lzEndpoint: lzEndpoint,
+        chainId: chainId,
+        primaryChainId: primaryChainId,
+        lpStaking: lpStaking,
+        stgToken: stgToken,
+        mozaicLP: mozaicLP,
+        stargateDriver: stargateDriver,
+        pancakeSwapDriver: pancakeSwapDriver,
+    });
+    fs.writeFileSync("deployFantomResult.json", res);
+
+    // verify mozaicVault
     await run(`verify:verify`, {
         address: mozaicVault,
         constructorArguments: [lzEndpoint, chainId, primaryChainId, lpStaking, stgToken, mozaicLP],
@@ -46,22 +60,9 @@ async function main() {
     // verify stargateDriver
     await run(`verify:verify`, {
         address: stargateDriver,
+        constructorArguments: [],
     });
     console.log("Completed verify stargateDriver");
-
-    // write deploy result
-    let res = JSON.stringify({
-        mozaicVault: mozaicVault,
-        lzEndpoint: lzEndpoint,
-        chainId: chainId,
-        primaryChainId: primaryChainId,
-        lpStaking: lpStaking,
-        stgToken: stgToken,
-        mozaicLP: mozaicLP,
-        stargateDriver: stargateDriver,
-        pancakeSwapDriver: pancakeSwapDriver,
-    });
-    fs.writeFileSync("deployBscResult.json", res);
 }
   
 main()
