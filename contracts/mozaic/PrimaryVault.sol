@@ -134,6 +134,11 @@ contract PrimaryVault is SecondaryVault {
 
         // Start settling
         for (uint i = 0; i < chainIds.length; ++i) {
+            Snapshot storage report = snapshotReported[chainIds[i]];
+            if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
+                continue;
+            }
+
             if (chainIds[i] == primaryChainId) {
                 _settleRequests();
                 vaults[chainIds[i]].status = VaultStatus.IDLE;
