@@ -158,7 +158,7 @@ contract PrimaryVault is SecondaryVault {
             packetType := mload(add(_payload, 32))
         }
 
-        if (packetType == PT_REPORTSNAPSHOT) {
+        if (packetType == PT_SNAPSHOT_REPORT) {
             (, snapshotReported[_srcChainId]) = abi.decode(_payload, (uint16, Snapshot));
             vaults[_srcChainId].status = VaultStatus.SNAPSHOTTED;
 
