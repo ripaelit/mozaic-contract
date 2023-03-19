@@ -134,10 +134,12 @@ contract PrimaryVault is SecondaryVault {
         // require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
 
         // Start settling
+        uint256 remainingSettle = chainIds.length;
         for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
             Snapshot storage report = snapshotReported[_chainId];
             if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
+                --remainingSettle;
                 continue;
             }
 
@@ -151,7 +153,12 @@ contract PrimaryVault is SecondaryVault {
                 _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
-        protocolStatus = ProtocolStatus.SETTLING;
+        if (remainingSettle > 0) {
+            protocolStatus = ProtocolStatus.SETTLING;
+        }
+        else {
+            protocolStatus = ProtocolStatus.IDLE;
+        }
     }
 
     function _nonblockingLzReceive(
