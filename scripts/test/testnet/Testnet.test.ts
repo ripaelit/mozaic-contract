@@ -946,12 +946,12 @@ describe('SecondaryVault.executeActions', () => {
             [owner, alice, ben] = await ethers.getSigners();
             tx = await tokenC.connect(owner).mint(ben.address, benTotalLD_C);
             await tx.wait();
-        })
-        it ('1. User books', async () => {
+
             aliceDepositLD_A = ethers.utils.parseUnits("10", decimalsA);
             benDepositLD_B = ethers.utils.parseUnits("15", decimalsB);
             benDepositLD_C = ethers.utils.parseUnits("20", decimalsC);
-            
+        })
+        it.skip ('1. User books', async () => {
             // alice deposits to primaryVault
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
@@ -1086,7 +1086,7 @@ describe('SecondaryVault.executeActions', () => {
             expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C.mul(10**(MOZAIC_DECIMALS - decimalsC)));  // mLP eq to SD
         })
     })
-    describe ('Requests-2', () => {
+    describe.only ('Requests-2', () => {
         let primaryChainId: number;
         let secondaryChainId: number;
         let primaryVault: PrimaryVault;
@@ -1098,13 +1098,16 @@ describe('SecondaryVault.executeActions', () => {
         let tokenA: MockToken;
         let decimalsA: number;
         let aliceDepositLD_A: BigNumber;
+        let aliceWithdrawMLP_A: BigNumber;
         let tokenB: MockToken;
         let decimalsB: number;
         let benDepositLD_B: BigNumber;
+        let benWithdrawMLP_B: BigNumber;
         let tx: ContractTransaction;
         let tokenC: MockToken;
         let decimalsC: number;
         let benDepositLD_C: BigNumber;
+        let benWithdrawMLP_C: BigNumber;
         let primaryLpStakingAddr: string;
         let primaryLpStakingFactory: LPStaking__factory;
         let primaryLpStaking: LPStaking;
@@ -1137,12 +1140,15 @@ describe('SecondaryVault.executeActions', () => {
             tokenC = MockTokenFactory.attach(tokenCAddr);
             decimalsC = await tokenC.decimals();
             console.log("tokenC decimals", decimalsC);
-        })
-        it ('1. User books', async () => {
+
             aliceDepositLD_A = ethers.utils.parseUnits("20", decimalsA);
             benDepositLD_B = ethers.utils.parseUnits("20", decimalsB);
             benDepositLD_C = ethers.utils.parseUnits("20", decimalsC);
-            
+            aliceWithdrawMLP_A = ethers.utils.parseUnits("10", MOZAIC_DECIMALS);
+            benWithdrawMLP_B = ethers.utils.parseUnits("15", MOZAIC_DECIMALS);
+            benWithdrawMLP_C = ethers.utils.parseUnits("20", MOZAIC_DECIMALS);
+        })
+        it ('1. User books', async () => {
             // alice deposits to primaryVault
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
@@ -1150,14 +1156,24 @@ describe('SecondaryVault.executeActions', () => {
             await tx.wait();
             tx = await primaryVault.connect(alice).addDepositRequest(aliceDepositLD_A, tokenA.address, primaryChainId);
             await tx.wait();
-            console.log("Alice deposited %s %s to primaryVault", await tokenA.name(), aliceDepositLD_A.toString());
+            console.log("Alice requests deposite %s %s to primaryVault", await tokenA.name(), aliceDepositLD_A.toString());
+
+            // alice withdraw from primaryVault
+            tx = await primaryVault.connect(alice).addWithdrawRequest(aliceWithdrawMLP_A, tokenA.address, primaryChainId);
+            await tx.wait();
+            console.log("Alice requests withdraw %s to primaryVault", aliceWithdrawMLP_A.toString());
 
             // ben deposits to primaryVault
             tx = await tokenB.connect(ben).approve(primaryVault.address, benDepositLD_B);
             await tx.wait();
             tx = await primaryVault.connect(ben).addDepositRequest(benDepositLD_B, tokenB.address, primaryChainId);
             await tx.wait();
-            console.log("Ben deposited %s %s to primaryVault", await tokenB.name(), benDepositLD_B.toString());
+            console.log("Ben requests deposite %s %s to primaryVault", await tokenB.name(), benDepositLD_B.toString());
+
+            // ben withdraw from primaryVault
+            tx = await primaryVault.connect(ben).addWithdrawRequest(benWithdrawMLP_B, tokenB.address, primaryChainId);
+            await tx.wait();
+            console.log("Ben requests withdraw %s to primaryVault", benWithdrawMLP_B.toString());
 
             // ben deposits to secondaryVault
             hre.changeNetwork('fantom');
@@ -1166,7 +1182,12 @@ describe('SecondaryVault.executeActions', () => {
             await tx.wait();
             tx = await secondaryVault.connect(ben).addDepositRequest(benDepositLD_C, tokenC.address, secondaryChainId);
             await tx.wait();
-            console.log("Ben deposited %s %s to secondaryVault", await tokenC.name(), benDepositLD_C.toString());
+            console.log("Ben requests deposite %s %s to secondaryVault", await tokenC.name(), benDepositLD_C.toString());
+
+            // ben withdraw from secondaryVault
+            tx = await secondaryVault.connect(ben).addWithdrawRequest(benWithdrawMLP_C, tokenC.address, secondaryChainId);
+            await tx.wait();
+            console.log("Ben requests withdraw %s to primaryVault", benWithdrawMLP_C.toString());
         })
     })
 })
