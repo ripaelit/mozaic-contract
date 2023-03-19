@@ -43,6 +43,12 @@ async function main() {
     });
     console.log("Completed verify mozaicLP");
 
+    // verify stargateDriver
+    await run(`verify:verify`, {
+        address: stargateDriver,
+    });
+    console.log("Completed verify stargateDriver");
+
     // write deploy result
     let res = JSON.stringify({
         mozaicVault: mozaicVault,
