@@ -36,7 +36,7 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function _allVaultsSnapshotted() internal view returns (bool) {
-        for (uint i = 0; i < chainIds.length ; ++i) {
+        for (uint i; i < chainIds.length ; ++i) {
             if (vaults[chainIds[i]].status != VaultStatus.SNAPSHOTTED) {
                 return false;
             }
@@ -45,7 +45,7 @@ contract PrimaryVault is SecondaryVault {
     }
 
     function _allVaultsSettled() internal view returns (bool) {
-        for (uint i = 0; i < chainIds.length ; ++i) {
+        for (uint i; i < chainIds.length ; ++i) {
             if (vaults[chainIds[i]].status != VaultStatus.IDLE) {
                 return false;
             }
@@ -58,7 +58,7 @@ contract PrimaryVault is SecondaryVault {
         uint256 _totalStablecoinMD = 0;
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
-        for (uint i = 0; i < chainIds.length ; ++i) {
+        for (uint i; i < chainIds.length ; ++i) {
             Snapshot storage report = snapshotReported[chainIds[i]];
             _totalStablecoinMD = _totalStablecoinMD.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
@@ -108,7 +108,7 @@ contract PrimaryVault is SecondaryVault {
         }
         
         // Start snapshotting
-        for (uint i = 0; i < chainIds.length; ++i) {
+        for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
             if (_chainId == primaryChainId) {
                 _takeSnapshot();
@@ -134,7 +134,7 @@ contract PrimaryVault is SecondaryVault {
         // require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
 
         // Start settling
-        for (uint i = 0; i < chainIds.length; ++i) {
+        for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
             Snapshot storage report = snapshotReported[_chainId];
             if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {

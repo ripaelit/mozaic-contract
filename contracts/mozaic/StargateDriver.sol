@@ -39,7 +39,7 @@ contract StargateDriver is ProtocolDriver{
         StargateDriverConfig storage _config = _getConfig();
         bool flagExist = false;
         // if it already exists, update vault address 
-        for (uint256 i = 0; i < _config.vaults.length; i++) {
+        for (uint i; i < _config.vaults.length; ++i) {
             if (_config.vaults[i].chainId == _chainId) {
                 _config.vaults[i].vaultAddress = _vaultAddress;
                 flagExist = true;
@@ -179,7 +179,7 @@ contract StargateDriver is ProtocolDriver{
 
         address _to = address(0x0);
         {
-            for (uint256 i = 0; i < _getConfig().vaults.length; i++) {
+            for (uint i; i < _getConfig().vaults.length; ++i) {
                 if (_getConfig().vaults[i].chainId == _dstChainId) {
                     _to = _getConfig().vaults[i].vaultAddress;
                 }
@@ -254,7 +254,7 @@ contract StargateDriver is ProtocolDriver{
         require(success, "allPoolsLength failed");
         uint256 _allPoolsLength = abi.decode(response, (uint256));
 
-        for (uint i = 0; i < _allPoolsLength; i++) {
+        for (uint i; i < _allPoolsLength; ++i) {
             (success, response) = _factory.call(abi.encodeWithSignature("allPools(uint256)", i));
             require(success, "allPools failed");
             address _pool = abi.decode(response, (address));
@@ -316,7 +316,7 @@ contract StargateDriver is ProtocolDriver{
         require(success, "poolLength failed");
         uint256 _poolLength = abi.decode(response, (uint256));
 
-        for (uint256 poolIndex = 0; poolIndex < _poolLength; poolIndex++) {
+        for (uint256 poolIndex; poolIndex < _poolLength; poolIndex++) {
             (success, response) = address(_lpStaking).call(abi.encodeWithSignature("getPoolInfo(uint256)", poolIndex));
             require(success, "getPoolInfo failed");
             address _pool__ = abi.decode(response, (address));
