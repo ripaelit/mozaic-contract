@@ -10,7 +10,7 @@ const localTestConstants = {
     stgMainChainId: 101, // main chain ID of Stargate Token
     stablecoins: new Map<number, Array<string>>([
         [101, new Array<string>('USDC', 'USDT')],
-        [102, new Array<string>('USDT', 'BUSD')],
+        [102, new Array<string>('BUSD', 'USDT')],
     ]),
     poolIds: new Map<string, number>([
         ['USDC', 1],
@@ -108,8 +108,8 @@ const testnetTestConstants = {
             ["USDT", "0x5BCc22abEC37337630C0E0dd41D64fd86CaeE951"],
         ])],
         [10102, new Map<string, string>([
-            ["USDT", "0xF49E250aEB5abDf660d643583AdFd0be41464EfD"],
             ["BUSD", "0x1010Bb1b9Dff29e6233E7947e045e0ba58f6E92e"],
+            ["USDT", "0xF49E250aEB5abDf660d643583AdFd0be41464EfD"],
         ])],
         [10112, new Map<string, string>([
             ["USDC", "0x076488D244A73DA4Fa843f5A8Cd91F655CA81a1e"],
