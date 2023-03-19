@@ -355,8 +355,8 @@ contract SecondaryVault is NonblockingLzApp {
         // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
         uint256 _totalStablecoinMD = 0;
 
-        // Add stablecoins remaining in this vault
         for (uint i = 0; i < acceptingTokens.length; ++i) {
+            // Add stablecoins remaining in this vault
             _totalStablecoinMD = _totalStablecoinMD.add(getBalanceMDPerToken(acceptingTokens[i]));
             // Add stablecoins staked in stargate using stargateDriver
             // TODO: Do not specify driver type

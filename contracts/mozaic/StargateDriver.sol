@@ -194,10 +194,11 @@ contract StargateDriver is ProtocolDriver{
     }
 
     function _getStakedAmountLDPerToken(bytes calldata _payload) private returns (bytes memory result) {
+        // Get pool address
         (address _token) = abi.decode(_payload, (address));
-
-        // Get pool and poolId
         address _pool = _getStargatePoolFromToken(_token);
+
+        // Get pool id: _poolId = _pool.poolId()
         (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
         require(success, "poolId failed");
         uint256 _poolId = abi.decode(response, (uint256));
@@ -206,32 +207,37 @@ contract StargateDriver is ProtocolDriver{
         (bool found, uint256 poolIndex) = _getPoolIndexInFarming(_poolId);
         require(found, "The LP token not acceptable.");
 
-        // Collect pending STG rewards
+        // Collect pending STG rewards: _stgLPStaking = _getConfig().stgLPStaking.withdraw(poolIndex, 0)
         address _stgLPStaking = _getConfig().stgLPStaking;
         (success, response) = address(_stgLPStaking).call(abi.encodeWithSignature("withdraw(uint256,uint256)", poolIndex, 0));
         require(success, "withdraw failed");
 
-        (success, response) = address(_pool).call(abi.encodeWithSignature("balanceOf(address)", address(this)));
-        require(success, "balanceOf failed");
+        // Get amount LP staked
+        (success, response) = address(_stgLPStaking).call(abi.encodeWithSignature("userInfo(uint256,address)", poolIndex, address(this)));
+        require(success, "lp staked failed");
         uint256 _amountLPToken = abi.decode(response, (uint256));
         
+        // Get total liquidity: _totalLiquidity = _pool.totalLiquidity()
         (success, response) = address(_pool).call(abi.encodeWithSignature("totalLiquidity()"));
         require(success, "totalLiquidity failed");
         uint256 _totalLiquidity = abi.decode(response, (uint256));
         
+        // Get convertRate of pool: _convertRate = _pool.convertRate()
         (success, response) = address(_pool).call(abi.encodeWithSignature("convertRate()"));
         require(success, "convertRate failed");
         uint256 _convertRate = abi.decode(response, (uint256));
         
+        // Get _totalLiquidityLD from _totalLiquidity
         uint256 _totalLiquidityLD = _totalLiquidity.mul(_convertRate);
         
+        // Get total supply: _totalSupply = _pool.totalSupply()
         (success, response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
         require(success, "totalSupply failed");
         uint256 _totalSupply = abi.decode(response, (uint256));
         
         uint256 _amountStakedLD = 0;
         if (_totalSupply > 0) {
-            _amountStakedLD = _amountStakedLD.add(_totalLiquidityLD.mul(_amountLPToken).div(_totalSupply));
+            _amountStakedLD = _amountStakedLD.add(_amountLPToken.mul(_totalLiquidityLD).div(_totalSupply));
         }
 
         result = abi.encode(_amountStakedLD);
