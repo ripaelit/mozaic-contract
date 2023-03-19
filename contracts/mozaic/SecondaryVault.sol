@@ -36,7 +36,7 @@ contract SecondaryVault is NonblockingLzApp {
 
     //--------------------------------------------------------------------------
     // CONSTANTS
-    uint16 public constant PT_REPORTSNAPSHOT = 10001;
+    uint16 public constant PT_SNAPSHOT_REPORT = 10001;
     uint16 public constant PT_SETTLE_REQUESTS = 10002;
     uint16 public constant PT_SETTLED_REPORT = 10003;
     uint16 public constant PT_TAKE_SNAPSHOT = 10004;
@@ -384,9 +384,9 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _reportSnapshot() internal {
         require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
-        bytes memory lzPayload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**6), 0, "0x"));
-        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_REPORTSNAPSHOT, LzTxObj((10**6), 0, "0x"));
+        bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
@@ -545,8 +545,8 @@ contract SecondaryVault is NonblockingLzApp {
         LzTxObj memory _lzTxParams
     ) public view virtual returns (uint256 _nativeFee, uint256 _zroFee) {
         bytes memory payload = "";
-        if (_packetType == PT_REPORTSNAPSHOT) {
-            payload = abi.encode(PT_REPORTSNAPSHOT, snapshot);
+        if (_packetType == PT_SNAPSHOT_REPORT) {
+            payload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
         } else if (_packetType == PT_SETTLED_REPORT) {
             payload = abi.encode(PT_SETTLED_REPORT);
         } else {
