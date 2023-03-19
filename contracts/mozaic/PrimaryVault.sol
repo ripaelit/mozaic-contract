@@ -59,7 +59,7 @@ contract PrimaryVault is SecondaryVault {
         uint256 _mintedMozLp = 0;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
         for (uint i = 0; i < chainIds.length ; ++i) {
-            Snapshot memory report = snapshotReported[chainIds[i]];
+            Snapshot storage report = snapshotReported[chainIds[i]];
             _totalStablecoinMD = _totalStablecoinMD.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
             _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
         }
@@ -109,15 +109,16 @@ contract PrimaryVault is SecondaryVault {
         
         // Start snapshotting
         for (uint i = 0; i < chainIds.length; ++i) {
-            if (chainIds[i] == primaryChainId) {
+            uint16 _chainId = chainIds[i];
+            if (_chainId == primaryChainId) {
                 _takeSnapshot();
-                snapshotReported[chainIds[i]] = snapshot;
-                vaults[chainIds[i]].status = VaultStatus.SNAPSHOTTED;
+                snapshotReported[_chainId] = snapshot;
+                vaults[_chainId].status = VaultStatus.SNAPSHOTTED;
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
-                _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
+                _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
 
@@ -134,19 +135,20 @@ contract PrimaryVault is SecondaryVault {
 
         // Start settling
         for (uint i = 0; i < chainIds.length; ++i) {
-            Snapshot storage report = snapshotReported[chainIds[i]];
+            uint16 _chainId = chainIds[i];
+            Snapshot storage report = snapshotReported[_chainId];
             if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
                 continue;
             }
 
-            if (chainIds[i] == primaryChainId) {
+            if (_chainId == primaryChainId) {
                 _settleRequests();
-                vaults[chainIds[i]].status = VaultStatus.IDLE;
+                vaults[_chainId].status = VaultStatus.IDLE;
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(chainIds[i], PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
-                _lzSend(chainIds[i], lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
+                _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
         protocolStatus = ProtocolStatus.SETTLING;
