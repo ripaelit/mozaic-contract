@@ -78,7 +78,8 @@ const config: HardhatUserConfig = {
         //     accounts: {mnemonic: mnemonic},
         // },
         bsctest: {
-            url: `https://data-seed-prebsc-1-s3.binance.org:8545/`,
+            // url: `https://data-seed-prebsc-1-s3.binance.org:8545/`,
+            url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
             chainId: 97,
             gasPrice: 20000000000,
             accounts: {mnemonic: mnemonic},
