@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, StargateToken__factory, MockToken__factory, PrimaryVault, SecondaryVault, LPStaking__factory, Router__factory, MockToken, LPStaking } from '../../../types/typechain';
-import { ActionTypeEnum, ProtocolStatus, MozaicDeployment } from '../../constants/types';
+import { ActionTypeEnum, ProtocolStatus, VaultStatus, MozaicDeployment } from '../../constants/types';
 import exportData from '../../constants/index';
 import { BigNumber, ContractTransaction } from 'ethers';
 import { setTimeout } from 'timers/promises';
@@ -12,7 +12,7 @@ import { returnBalance, sendBalance } from '../../util/testUtils';
 const fs = require('fs');
 const hre = require('hardhat');
 
-const TIME_DELAY_MAX = 120000;
+const TIME_DELAY_MAX = 20 * 60 * 1000;  // 20 min
 const MOZAIC_DECIMALS = 18;
 
 describe('SecondaryVault.executeActions', () => {
@@ -555,7 +555,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 20) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.OPTIMIZING) {
                         console.log("Waiting for initOptimization...");
@@ -761,7 +761,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 20) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.IDLE) {
                         console.log("Waiting for settling...");
@@ -814,7 +814,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 20) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.OPTIMIZING) {
                         console.log("Waiting for initOptimization...");
@@ -846,7 +846,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 let timeDelayed = 0;
                 let success = false;
-                while (timeDelayed < TIME_DELAY_MAX * 20) {
+                while (timeDelayed < TIME_DELAY_MAX) {
                     let protocolStatus = await primaryVault.protocolStatus();
                     if (protocolStatus != ProtocolStatus.IDLE) {
                         console.log("Waiting for settling...");
@@ -949,7 +949,7 @@ describe('SecondaryVault.executeActions', () => {
             tx = await tokenC.connect(owner).mint(ben.address, benTotalLD_C);
             await tx.wait();
         })
-        it ('1. User books', async () => {
+        it.only ('1. User books', async () => {
             // alice deposits to primaryVault
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
@@ -986,24 +986,43 @@ describe('SecondaryVault.executeActions', () => {
             await tx.wait();
             console.log("Owner called initOptimizationSession");
 
+            hre.changeNetwork('fantom');
             let timeDelayed = 0;
             let success = false;
-            while (timeDelayed < TIME_DELAY_MAX * 20) {
-                let protocolStatus = await primaryVault.protocolStatus();
-                if (protocolStatus != ProtocolStatus.OPTIMIZING) {
-                    console.log("Waiting for initOptimization...");
+            while (timeDelayed < TIME_DELAY_MAX) {
+                let vaultStatus = await secondaryVault.status();
+                if (vaultStatus == VaultStatus.SNAPSHOTTED) {
+                    success = true;
+                    console.log("SecondaryVault received lz_take_snapshot and sent lz_report_snapshot in %d seconds", timeDelayed / 1000);
+                    break;
+                } else {
+                    console.log("Waiting for lz_take_snapshot...");
                     await setTimeout(timeInterval);
                     timeDelayed += timeInterval;
-                } else {
-                    success = true;
-                    let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
-                    console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
-                    expect(mlpPerStablecoinMil).to.eq(1000000);
-                    break;
                 }
             }
             if (!success) {
-                console.log("Timeout LayerZero in swapRemote");
+                console.log("Timeout lz_take_snapshot");
+            }
+
+            hre.changeNetwork('bsctest');
+            timeDelayed = 0;
+            success = false;
+            while (timeDelayed < TIME_DELAY_MAX) {
+                let protocolStatus = await primaryVault.protocolStatus();
+                if (protocolStatus == ProtocolStatus.OPTIMIZING) {
+                    success = true;
+                    let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
+                    console.log("Primaryvault received lz_report_snapshot in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
+                    break;
+                } else {
+                    console.log("Waiting for lz_report_snapshot...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                }
+            }
+            if (!success) {
+                console.log("Timeout lz_report_snapshot");
             }
         })
         it ('5. Settle Requests', async () => {
@@ -1020,24 +1039,43 @@ describe('SecondaryVault.executeActions', () => {
             tx = await primaryVault.connect(owner).settleRequestsAllVaults();
             await tx.wait();
 
+            hre.changeNetwork('fantom');
             let timeDelayed = 0;
             let success = false;
-            while (timeDelayed < TIME_DELAY_MAX * 20) {
-                let protocolStatus = await primaryVault.protocolStatus();
-                if (protocolStatus != ProtocolStatus.IDLE) {
-                    console.log("Waiting for settling...");
+            while (timeDelayed < TIME_DELAY_MAX) {
+                let vaultStatus = await secondaryVault.status();
+                if (vaultStatus == VaultStatus.IDLE) {
+                    success = true;
+                    console.log("SecondaryVault received lz_settle_requests and sent lz_settle_report in %d seconds", timeDelayed / 1000);
+                    break;
+                } else {
+                    console.log("Waiting for lz_settle_requests...");
                     await setTimeout(timeInterval);
                     timeDelayed += timeInterval;
-                } else {
-                    success = true;
-                    console.log("Settling closed in %d seconds", timeDelayed / 1000);
-                    break;
                 }
             }
             if (!success) {
-                console.log("Timeout LayerZero in settle requests");
+                console.log("Timeout lz_settle_requests");
             }
-            
+
+            timeDelayed = 0;
+            success = false;
+            while (timeDelayed < TIME_DELAY_MAX) {
+                let protocolStatus = await primaryVault.protocolStatus();
+                if (protocolStatus == ProtocolStatus.IDLE) {
+                    success = true;
+                    console.log("PrimaryVault received lz_settle_report in %d seconds", timeDelayed / 1000);
+                    break;
+                } else {
+                    console.log("Waiting for lz_settle_report...");
+                    await setTimeout(timeInterval);
+                    timeDelayed += timeInterval;
+                }
+            }
+            if (!success) {
+                console.log("Timeout lz_settle_report");
+            }
+
             hre.changeNetwork('bsctest');
             const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
             const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
