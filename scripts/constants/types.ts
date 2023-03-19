@@ -47,3 +47,8 @@ export enum ProtocolStatus {
   OPTIMIZING = 2,
   SETTLING = 3,
 }
+
+export enum VaultStatus {
+  IDLE = 0,
+  SNAPSHOTTED = 1,
+}
