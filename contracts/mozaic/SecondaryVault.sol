@@ -123,8 +123,8 @@ contract SecondaryVault is NonblockingLzApp {
     address public stargateLpStaking;
     address public stargateToken;
     address public mozaicLp;
-    uint16 public primaryChainId = 0;
-    uint16 public chainId = 0;
+    uint16 public primaryChainId;
+    uint16 public chainId;
     address[] public acceptingTokens;
 
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
@@ -213,7 +213,6 @@ contract SecondaryVault is NonblockingLzApp {
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
         status = VaultStatus.IDLE;
-        mlpPerStablecoinMil = 0;
     }
 
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
@@ -353,7 +352,7 @@ contract SecondaryVault is NonblockingLzApp {
 
         // Make Report
         // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
-        uint256 _totalStablecoinMD = 0;
+        uint256 _totalStablecoinMD;
 
         for (uint i; i < acceptingTokens.length; ++i) {
             address _token = acceptingTokens[i];

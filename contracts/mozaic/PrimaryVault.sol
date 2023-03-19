@@ -55,8 +55,8 @@ contract PrimaryVault is SecondaryVault {
 
     function _calculateMozLpPerStablecoinMil() internal {
         uint256 _stargatePriceMil = _getStargatePriceMil();
-        uint256 _totalStablecoinMD = 0;
-        uint256 _mintedMozLp = 0;
+        uint256 _totalStablecoinMD;
+        uint256 _mintedMozLp;
         // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
         for (uint i; i < chainIds.length ; ++i) {
             Snapshot storage report = snapshotReported[chainIds[i]];

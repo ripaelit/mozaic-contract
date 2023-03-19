@@ -235,7 +235,7 @@ contract StargateDriver is ProtocolDriver{
         require(success, "totalSupply failed");
         uint256 _totalSupply = abi.decode(response, (uint256));
         
-        uint256 _amountStakedLD = 0;
+        uint256 _amountStakedLD;
         if (_totalSupply > 0) {
             _amountStakedLD = _amountStakedLD.add(_amountLPToken.mul(_totalLiquidityLD).div(_totalSupply));
         }
