@@ -283,7 +283,7 @@ contract SecondaryVault is NonblockingLzApp {
         RequestBuffer storage buffer = _requests(false);
         bool exists = false;
         for (uint i = 0; i < buffer.depositRequestList.length; ++i) {
-            DepositRequest memory req = buffer.depositRequestList[i];
+            DepositRequest storage req = buffer.depositRequestList[i];
             if (req.user == _depositor && req.token == _token) {
                 exists = true;
                 break;
@@ -320,7 +320,7 @@ contract SecondaryVault is NonblockingLzApp {
         // add withdraw request to pending buffer
         bool _exists = false;
         for (uint i = 0; i < pendingBuffer.withdrawRequestList.length; ++i) {
-            WithdrawRequest memory req = pendingBuffer.withdrawRequestList[i];
+            WithdrawRequest storage req = pendingBuffer.withdrawRequestList[i];
             if (req.user == _withdrawer && req.token == _token && req.chainId == _chainId) {
                 _exists = true;
                 break;
@@ -356,17 +356,18 @@ contract SecondaryVault is NonblockingLzApp {
         uint256 _totalStablecoinMD = 0;
 
         for (uint i = 0; i < acceptingTokens.length; ++i) {
+            address _token = acceptingTokens[i];
             // Add stablecoins remaining in this vault
-            _totalStablecoinMD = _totalStablecoinMD.add(getBalanceMDPerToken(acceptingTokens[i]));
+            _totalStablecoinMD = _totalStablecoinMD.add(getBalanceMDPerToken(_token));
             // Add stablecoins staked in stargate using stargateDriver
             // TODO: Do not specify driver type
             ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
             ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
-            bytes memory _payload = abi.encode(acceptingTokens[i]);
+            bytes memory _payload = abi.encode(_token);
             (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
             require(success, "staked amount failed");
             (uint256 _amountStakedLD) = abi.decode(abi.decode(response, (bytes)), (uint256));
-            uint256 _decimals = IERC20Metadata(acceptingTokens[i]).decimals();
+            uint256 _decimals = IERC20Metadata(_token).decimals();
             _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
         }
 
@@ -394,12 +395,12 @@ contract SecondaryVault is NonblockingLzApp {
         if (status == VaultStatus.IDLE) {
             return;
         }
-        // for all dpeposit requests, mint MozaicLp
+        // for all deposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
         RequestBuffer storage _reqs = _requests(true);
         for (uint i = 0; i < _reqs.depositRequestList.length; ++i) {
-            DepositRequest memory request = _reqs.depositRequestList[i];
+            DepositRequest storage request = _reqs.depositRequestList[i];
             uint256 _depositAmountMD = _reqs.depositRequestLookup[request.user][request.token][request.chainId];
             if (_depositAmountMD == 0) {
                 continue;
@@ -413,8 +414,9 @@ contract SecondaryVault is NonblockingLzApp {
         }
         require(_reqs.totalDepositAmount == 0, "Has unsettled deposit amount.");
 
+        // for all withdraw requests, give tokens
         for (uint i = 0; i < _reqs.withdrawRequestList.length; ++i) {
-            WithdrawRequest memory request = _reqs.withdrawRequestList[i];
+            WithdrawRequest storage request = _reqs.withdrawRequestList[i];
             uint256 _withdrawAmountMLP = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token];
             if (_withdrawAmountMLP == 0) {
                 continue;
