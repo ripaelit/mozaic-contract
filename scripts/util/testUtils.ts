@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault, PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, LPStaking__factory } from '../../types/typechain';
+import { PrimaryVault, PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, LPStaking__factory, MozaicLP } from '../../types/typechain';
 import { ActionTypeEnum, ProtocolStatus, VaultStatus, MozaicDeployment } from '../constants/types';
 import { setTimeout } from 'timers/promises';
 import { BigNumber } from 'ethers';
@@ -415,5 +415,55 @@ export const initOptimization = async (
     }
     if (!success) {
         console.log("Timeout lz_report_snapshot");
+    }
+}
+
+export const settleRequests = async (
+    primaryVault: PrimaryVault,
+    secondaryVault: SecondaryVault
+) => {
+    console.log("settleRequests:");
+    
+    let owner: SignerWithAddress;
+    hre.changeNetwork('bsctest');
+    [owner] = await ethers.getSigners();
+    let tx = await primaryVault.connect(owner).settleRequestsAllVaults();
+    await tx.wait();
+
+    hre.changeNetwork('fantom');
+    let timeDelayed = 0;
+    let success = false;
+    while (timeDelayed < TIME_DELAY_MAX) {
+        let vaultStatus = await secondaryVault.status();
+        if (vaultStatus == VaultStatus.IDLE) {
+            success = true;
+            console.log("SecondaryVault received lz_settle_requests and sent lz_settle_report in %d seconds", timeDelayed / 1000);
+            break;
+        } else {
+            console.log("Waiting for lz_settle_requests...");
+            await setTimeout(TIME_INTERVAL);
+            timeDelayed += TIME_INTERVAL;
+        }
+    }
+    if (!success) {
+        console.log("Timeout lz_settle_requests");
+    }
+
+    timeDelayed = 0;
+    success = false;
+    while (timeDelayed < TIME_DELAY_MAX) {
+        let protocolStatus = await primaryVault.protocolStatus();
+        if (protocolStatus == ProtocolStatus.IDLE) {
+            success = true;
+            console.log("PrimaryVault received lz_settle_report in %d seconds", timeDelayed / 1000);
+            break;
+        } else {
+            console.log("Waiting for lz_settle_report...");
+            await setTimeout(TIME_INTERVAL);
+            timeDelayed += TIME_INTERVAL;
+        }
+    }
+    if (!success) {
+        console.log("Timeout lz_settle_report");
     }
 }
