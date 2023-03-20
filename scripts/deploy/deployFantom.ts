@@ -57,11 +57,11 @@ async function main() {
     });
     console.log("Completed verify mozaicLP");
 
-    // verify stargateDriver
-    await run(`verify:verify`, {
-        address: stargateDriver,
-        constructorArguments: [],
-    });
+    // // verify stargateDriver
+    // await run(`verify:verify`, {
+    //     address: stargateDriver,
+    //     constructorArguments: [],
+    // });
     console.log("Completed verify stargateDriver");
 }
   
