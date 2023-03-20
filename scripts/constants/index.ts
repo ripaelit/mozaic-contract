@@ -81,32 +81,36 @@ const localTestConstants = {
 
 const testnetTestConstants = {
     chainIds: [
-        10121,  // Goerli
+        // 10121,  // Goerli
         10102,  // BNB
         10112,  // Fantom
     ],
+    chainNames: new Map<number, string>([
+        [10102, 'bsctest'],
+        [10112, 'fantom'],
+    ]),
     stgMainChainId: 10121,  // Goerli
     mozaicMainChainId: 10102,   // BNB
     routers: new Map<number, string>([
-        [10121, "0x7612aE2a34E5A363E137De748801FB4c86499152"],
+        // [10121, "0x7612aE2a34E5A363E137De748801FB4c86499152"],
         [10102, "0xbB0f1be1E9CE9cB27EA5b0c3a85B7cc3381d8176"],
         [10112, "0xa73b0a56B29aD790595763e71505FCa2c1abb77f"],
     ]),
     bridges: new Map<number, string>([
-        [10121, "0xE6612eB143e4B350d55aA2E229c80b15CA336413"],
+        // [10121, "0xE6612eB143e4B350d55aA2E229c80b15CA336413"],
         [10102, "0xa1E105511416aEc3200CcE7069548cF332c6DCA2"],
         [10112, "0xb97948ad8805174e0CB27cAf0115e5eA5e02F3A7"],
     ]),
     factories: new Map<number, string>([
-        [10121, "0xB30300c11FF54f8F674a9AA0777D8D5e9fefd652"],
+        // [10121, "0xB30300c11FF54f8F674a9AA0777D8D5e9fefd652"],
         [10102, "0x407210a67cDAe7Aa09E4426109329cd3E90aFe47"],
         [10112, "0xEa2aC81591de47ab33408D48c22b10D24AAD6F0F"],
     ]),
     stablecoins: new Map<number, Map<string, string>>([
-        [10121, new Map<string, string>([
-            ["USDC", "0xDf0360Ad8C5ccf25095Aa97ee5F2785c8d848620"],
-            ["USDT", "0x5BCc22abEC37337630C0E0dd41D64fd86CaeE951"],
-        ])],
+        // [10121, new Map<string, string>([
+        //     ["USDC", "0xDf0360Ad8C5ccf25095Aa97ee5F2785c8d848620"],
+        //     ["USDT", "0x5BCc22abEC37337630C0E0dd41D64fd86CaeE951"],
+        // ])],
         [10102, new Map<string, string>([
             ["BUSD", "0x1010Bb1b9Dff29e6233E7947e045e0ba58f6E92e"],
             ["USDT", "0xF49E250aEB5abDf660d643583AdFd0be41464EfD"],
@@ -121,13 +125,33 @@ const testnetTestConstants = {
         ['BUSD', 5],
     ]), 
     lzToGlobalChainIds: new Map<number, number>([
-        [10121, 5],
+        // [10121, 5],
         [10102, 97],
         [10112, 4002],
+    ]),
+    signers: [
+        '0x5525631e49D781d5d6ee368c82B72ff7485C5B1F',
+        '0xBc1bE99E95593169C80C475D114d385c0940b573',
+        '0xEe4F53e29F7b06a6DFC9B9C22d626E32d992066D',
+    ],
+    
+    lpStakingPoolIndex: new Map<string, Map<string, number>>([
+        [
+            'bsctest', new Map<string, number>([
+                ['BUSD', 5],
+                ['USDT', 2],
+            ])
+        ],
+        [
+            'fantom', new Map<string, number>([
+                ['USDC', 1],
+            ])
+        ],
     ]),
     pancakeSwapSmartRouter: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
     stargateDriverId:     1,
     pancakeSwapDriverId:  2,
+    MOZAIC_DECIMALS: 18,
 }
 
 const exportData = {
