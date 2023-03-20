@@ -68,7 +68,7 @@ describe('SecondaryVault.executeActions', () => {
         it ('2-1. Users request deposit', async () => {
             await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsA));
             await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsB));
-            await deposit('fantom', 2, primaryVault, tokenC, ethers.utils.parseUnits('20', decimalsC));
+            await deposit('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsC));
         })
         it.skip ('2-2. Users request deposit and withdraw', async () => {
             await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('20', decimalsA));
