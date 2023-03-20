@@ -91,7 +91,6 @@ export const mint = async (
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let owner = signers[0];
-    // let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
 
     // check
     const amountBalanceBefore = await token.balanceOf(signer.address);
@@ -118,7 +117,6 @@ export const deposit = async (
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
-    // let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
 
     // check
     const totalDepositAmountBefore = await vault.getTotalDepositAmount(false);
@@ -131,15 +129,16 @@ export const deposit = async (
     await tx.wait();
 
     // check
+    const amountMD = amountLD.mul(10 ** (exportData.testnetTestConstants.MOZAIC_DECIMALS - await token.decimals()));
     const totalDepositAmount = await vault.getTotalDepositAmount(false);
     const depositAmount = await vault.getDepositAmount(false, signer.address, token.address, chainId);
     const depositAmountPerTokenA = await vault.getDepositAmountPerToken(false, token.address);
     console.log("totalDepositAmountBefore %s, totalDepositAmount %s", totalDepositAmountBefore.toString(), totalDepositAmount.toString());
     console.log("depositAmountBefore %s, depositAmount %s", depositAmountBefore.toString(), depositAmount.toString());
     console.log("depositAmountPerTokenABefore %s, depositAmountPerTokenA %s", depositAmountPerTokenABefore.toString(), depositAmountPerTokenA.toString());
-    expect(totalDepositAmount.sub(totalDepositAmountBefore)).to.eq(amountLD);
-    expect(depositAmount.sub(depositAmountBefore)).to.eq(amountLD);
-    expect(depositAmountPerTokenA.sub(depositAmountPerTokenABefore)).to.eq(amountLD);
+    expect(totalDepositAmount.sub(totalDepositAmountBefore)).to.eq(amountMD);
+    expect(depositAmount.sub(depositAmountBefore)).to.eq(amountMD);
+    expect(depositAmountPerTokenA.sub(depositAmountPerTokenABefore)).to.eq(amountMD);
 }
 
 export const withdrawWhole = async (
@@ -169,7 +168,6 @@ export const withdraw = async (
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
-    // let amountMLP = ethers.utils.parseUnits(amount.toString(), exportData.testnetTestConstants.MOZAIC_DECIMALS);
 
     // check
     const totalWithdrawAmountBefore = await vault.getTotalWithdrawAmount(false);
