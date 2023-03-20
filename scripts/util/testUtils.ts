@@ -70,3 +70,42 @@ export const sendBalance = async (amounts: BigNumber[]) => {
     await tx.wait();
     console.log("fantom vault balance", (await ethers.provider.getBalance(secondaryVaultAddr)).toString());
 }
+
+const getChainIdFromChainName = (chainName: string) => {
+    let chainNames = exportData.testnetTestConstants.chainNames;
+    let chainId = 0;
+    for (const [_chainId, _chainName] of chainNames) {
+        if (_chainName === chainName) {
+            chainId = _chainId;
+            break;
+        }
+    }
+    return chainId;
+}
+
+export const deposit = async (owner: SignerWithAddress, chainName: string, signerIndex: number, vault: SecondaryVault, tokenName: string, amountLD: BigNumber) => {
+    hre.changeNetwork(chainName);
+    let signer = await ethers.getSigner(exportData.testnetTestConstants.signers[signerIndex]);
+    let chainId = getChainIdFromChainName(chainName);
+    let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
+    let tokenAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get(tokenName)!;
+    let token = MockTokenFactory.attach(tokenAddr);
+    let tx = await token.connect(signer).approve(vault.address, amountLD);
+    await tx.wait();
+    tx = await vault.connect(signer).addDepositRequest(amountLD, token.address, chainId);
+    await tx.wait();
+    console.log("Signer%d requests deposit %s %s in %s", signerIndex, amountLD.toString(), await token.name(), chainName);
+}
+
+export const withdraw = async (owner: SignerWithAddress, chainName: string, signerIndex: number, vault: SecondaryVault, tokenName: string, amountMLP: BigNumber) => {
+    hre.changeNetwork(chainName);
+    let signer = await ethers.getSigner(exportData.testnetTestConstants.signers[signerIndex]);
+    let chainId = getChainIdFromChainName(chainName);
+    let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
+    let tokenAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get(tokenName)!;
+    let token = MockTokenFactory.attach(tokenAddr);
+    
+    let tx = await vault.connect(signer).addWithdrawRequest(amountMLP, token.address, chainId);
+    await tx.wait();
+    console.log("Signer%d requests withdraw %s MLP to %s in %s", signerIndex, amountMLP.toString(), await token.name(), chainName);
+}
