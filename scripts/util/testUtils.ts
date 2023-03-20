@@ -1,7 +1,8 @@
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault__factory, SecondaryVault__factory } from '../../types/typechain';
+import { PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken__factory } from '../../types/typechain';
 import { BigNumber } from 'ethers';
+import exportData from '../constants';
 const fs = require('fs');
 const hre = require('hardhat');
 
@@ -83,13 +84,23 @@ const getChainIdFromChainName = (chainName: string) => {
     return chainId;
 }
 
-export const deposit = async (owner: SignerWithAddress, chainName: string, signerIndex: number, vault: SecondaryVault, tokenName: string, amountLD: BigNumber) => {
+export const deposit = async (
+    chainName: string, 
+    signerIndex: number, 
+    vault: SecondaryVault, 
+    tokenName: string, 
+    amount: number
+) => {
     hre.changeNetwork(chainName);
-    let signer = await ethers.getSigner(exportData.testnetTestConstants.signers[signerIndex]);
+    let signers = await ethers.getSigners();
+    let owner = signers[0];
+    let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
     let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
     let tokenAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get(tokenName)!;
     let token = MockTokenFactory.attach(tokenAddr);
+    let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
+
     let tx = await token.connect(signer).approve(vault.address, amountLD);
     await tx.wait();
     tx = await vault.connect(signer).addDepositRequest(amountLD, token.address, chainId);
@@ -97,14 +108,23 @@ export const deposit = async (owner: SignerWithAddress, chainName: string, signe
     console.log("Signer%d requests deposit %s %s in %s", signerIndex, amountLD.toString(), await token.name(), chainName);
 }
 
-export const withdraw = async (owner: SignerWithAddress, chainName: string, signerIndex: number, vault: SecondaryVault, tokenName: string, amountMLP: BigNumber) => {
+export const withdraw = async (
+    chainName: string, 
+    signerIndex: number, 
+    vault: SecondaryVault, 
+    tokenName: string, 
+    amount: number
+) => {
     hre.changeNetwork(chainName);
-    let signer = await ethers.getSigner(exportData.testnetTestConstants.signers[signerIndex]);
+    let signers = await ethers.getSigners();
+    let owner = signers[0];
+    let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
     let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
     let tokenAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get(tokenName)!;
     let token = MockTokenFactory.attach(tokenAddr);
-    
+    let amountMLP = ethers.utils.parseUnits(amount.toString(), exportData.testnetTestConstants.MOZAIC_DECIMALS);
+
     let tx = await vault.connect(signer).addWithdrawRequest(amountMLP, token.address, chainId);
     await tx.wait();
     console.log("Signer%d requests withdraw %s MLP to %s in %s", signerIndex, amountMLP.toString(), await token.name(), chainName);
