@@ -38,7 +38,7 @@ async function main() {
         stargateDriver: stargateDriver,
         pancakeSwapDriver: pancakeSwapDriver,
     });
-    fs.writeFileSync("deployFantomResult.json", res);
+    fs.writeFileSync("deployBscResult.json", res);
 
     // verify mozaicVault
     await run(`verify:verify`, {
