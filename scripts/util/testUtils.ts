@@ -143,6 +143,27 @@ export const mint = async (
     console.log("%s: minted %s %s to signer%d in %s", chainName, amountLD.toString(), await token.name(), signerIndex);
 }
 
+export const stake = async(
+    chainName: string,
+    vault: SecondaryVault, 
+    token: MockToken,
+    amountLD: BigNumber
+) => {
+    let owner: SignerWithAddress;
+    const payloadStake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, token.address]);
+    console.log("payloadStake", payloadStake);
+    const stakeAction: SecondaryVault.ActionStruct  = {
+        driverId: exportData.testnetTestConstants.stargateDriverId,
+        actionType: ActionTypeEnum.StargateStake,
+        payload : payloadStake
+    };
+    
+    hre.changeNetwork(chainName);
+    [owner] = await ethers.getSigners();
+    let tx = await vault.connect(owner).executeActions([stakeAction]);
+    await tx.wait();
+}
+
 export const swapRemote = async(
     srcChainName: string,
     srcVault: SecondaryVault,
