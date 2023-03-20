@@ -102,7 +102,7 @@ export const mint = async (
     // check
     const amountBalance = await token.balanceOf(signer.address);
     console.log("amountBalanceBefore %s, amountBalance %s", amountBalanceBefore.toString(), amountBalance.toString());
-    expect(amountBalance.sub(amountBalance)).eq(amountLD);
+    expect(amountBalance.sub(amountBalanceBefore)).eq(amountLD);
 }
 
 export const deposit = async (
