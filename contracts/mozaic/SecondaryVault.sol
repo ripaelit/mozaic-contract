@@ -118,7 +118,7 @@ contract SecondaryVault is NonblockingLzApp {
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    VaultStatus public status;
+    // VaultStatus public status;
     Snapshot public snapshot;
     address public stargateLpStaking;
     address public stargateToken;
@@ -212,7 +212,7 @@ contract SecondaryVault is NonblockingLzApp {
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
-        status = VaultStatus.IDLE;
+        // status = VaultStatus.IDLE;
     }
 
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
@@ -341,9 +341,9 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _takeSnapshot() internal {
-        if (status == VaultStatus.SNAPSHOTTED) {
-            return;
-        }
+        // if (status == VaultStatus.SNAPSHOTTED) {
+        //     return;
+        // }
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
@@ -379,11 +379,11 @@ contract SecondaryVault is NonblockingLzApp {
         snapshot.depositRequestAmount = _requests(true).totalDepositAmount;
         snapshot.withdrawRequestAmountMLP = _requests(true).totalWithdrawAmount;
         snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        status = VaultStatus.SNAPSHOTTED;
+        // status = VaultStatus.SNAPSHOTTED;
     }
 
     function _reportSnapshot() internal {
-        require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
+        // require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
@@ -391,9 +391,9 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _settleRequests() internal {
-        if (status == VaultStatus.IDLE) {
-            return;
-        }
+        // if (status == VaultStatus.IDLE) {
+        //     return;
+        // }
         // for all deposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
@@ -439,11 +439,11 @@ contract SecondaryVault is NonblockingLzApp {
             
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
-        status = VaultStatus.IDLE;
+        // status = VaultStatus.IDLE;
     }
 
     function _reportSettled() internal {
-        require(status == VaultStatus.IDLE, "Not settled yet");
+        // require(status == VaultStatus.IDLE, "Not settled yet");
         // require(_requests(true).totalDepositAmount == 0, "Has unsettled deposit amount.");
         // require(_requests(true).totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
         
