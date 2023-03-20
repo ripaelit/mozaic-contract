@@ -22,18 +22,12 @@ describe('SecondaryVault.executeActions', () => {
     let decimalsB: number;
     let decimalsC: number;
     let decimalsMLP: number;
-    let primaryLPStaking: LPStaking;
-    let secondaryLPStaking: LPStaking;
-    let primaryMozaicLP: MozaicLP;
-    let secondaryMozaicLP: MozaicLP;
 
     before(async () => {
         // Parse bsctest deploy info
         hre.changeNetwork('bsctest');
         [owner] = await ethers.getSigners();
         let json = JSON.parse(fs.readFileSync('deployBscResult.json', 'utf-8'));
-        let mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
-        primaryMozaicLP = mozaicLpFactory.attach(json.mozaicLP);
         let primaryvaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
         let primaryVaultAddr = json.mozaicVault;
         primaryVault = primaryvaultFactory.attach(primaryVaultAddr);
@@ -45,16 +39,11 @@ describe('SecondaryVault.executeActions', () => {
         let tokenBAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("USDT")!;
         tokenB = MockTokenFactory.attach(tokenBAddr);
         decimalsB = await tokenB.decimals();
-        let primaryLpStakingAddr = await primaryVault.stargateLpStaking();
-        let primaryLpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-        primaryLPStaking = primaryLpStakingFactory.attach(primaryLpStakingAddr);
 
         // Parse fantom deploy info
         hre.changeNetwork('fantom');
         [owner] = await ethers.getSigners();
         json = JSON.parse(fs.readFileSync('deployFantomResult.json', 'utf-8'));
-        mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
-        secondaryMozaicLP = mozaicLpFactory.attach(json.mozaicLP);
         let secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
         let secondaryVaultAddr = json.mozaicVault;
         secondaryVault = secondaryVaultFactory.attach(secondaryVaultAddr);
@@ -63,9 +52,6 @@ describe('SecondaryVault.executeActions', () => {
         let tokenCAddr = exportData.testnetTestConstants.stablecoins.get(secondaryChainId)!.get("USDC")!;
         tokenC = MockTokenFactory.attach(tokenCAddr);
         decimalsC = await tokenC.decimals();
-        let secondaryLpStakingAddr = await secondaryVault.stargateLpStaking();
-        let secondaryLpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-        secondaryLPStaking = secondaryLpStakingFactory.attach(secondaryLpStakingAddr);
 
         decimalsMLP = exportData.testnetTestConstants.MOZAIC_DECIMALS;
     })
@@ -84,7 +70,7 @@ describe('SecondaryVault.executeActions', () => {
             await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsB));
             await deposit('fantom', 2, primaryVault, tokenC, ethers.utils.parseUnits('20', decimalsC));
         })
-        it ('2-2. Users request deposit and withdraw', async () => {
+        it.skip ('2-2. Users request deposit and withdraw', async () => {
             await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('20', decimalsA));
             await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('20', decimalsB));
             await deposit('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsC));
@@ -92,16 +78,12 @@ describe('SecondaryVault.executeActions', () => {
             await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
             await withdraw('fantom,', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
         })
-        it.only ('2-3. Users request withdraw whole', async () => {
+        it.skip ('2-3. Users request withdraw whole', async () => {
             await withdraw('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsMLP));
             await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
             await withdraw('fantom,', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
-
-            // await withdrawWhole('bsctest', 1, primaryVault, tokenA, primaryMozaicLP);
-            // await withdrawWhole('bsctest', 2, primaryVault, tokenB, primaryMozaicLP);
-            // await withdrawWhole('fantom', 2, secondaryVault, tokenC, secondaryMozaicLP);
         })
-        it.skip ('3. InitOptimizationSession', async () => {
+        it ('3. InitOptimizationSession', async () => {
             await initOptimization(primaryVault);
         })
         it.skip ('4. Optimizing', async () => {
@@ -111,7 +93,7 @@ describe('SecondaryVault.executeActions', () => {
             amountLD = await tokenB.balanceOf(primaryVault.address);
             await swapRemote('bsctest', primaryVault, tokenB, 'fantom', secondaryVault, tokenC, amountLD);
         })
-        it.skip ('5. Settle Requests', async () => {
+        it ('5. Settle Requests', async () => {
             await settleRequests(primaryVault);
         })
         
