@@ -295,8 +295,7 @@ contract SecondaryVault is NonblockingLzApp {
             req.chainId = _chainId;
             buffer.depositRequestList.push(req);
         }
-        uint256 _decimals = IERC20Metadata(_token).decimals();
-        uint256 _amountMD = amountLDtoMD(_amountLDAccept, _decimals);
+        uint256 _amountMD = amountLDtoMD(_amountLDAccept, IERC20Metadata(_token).decimals());
         buffer.depositRequestLookup[_depositor][_token][_chainId] = buffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountMD);
         buffer.totalDepositAmount = buffer.totalDepositAmount.add(_amountMD);
         buffer.depositAmountPerToken[_token] = buffer.depositAmountPerToken[_token].add(_amountMD);
@@ -421,16 +420,15 @@ contract SecondaryVault is NonblockingLzApp {
                 continue;
             }
             uint256 _coinAmountMDtoGive = _withdrawAmountMLP.mul(1000000).div(mlpPerStablecoinMil);
-            uint256 _vaultBalanceMD = getBalanceMDPerToken(request.token);
-            // Reduce Handled Amount from Buffer
-            if (_vaultBalanceMD <= _coinAmountMDtoGive) {
+            uint256 _coinAmountLDtoGive = amountMDtoLD(_coinAmountMDtoGive, IERC20Metadata(request.token).decimals());
+            uint256 _vaultBalanceLD = IERC20(request.token).balanceOf(address(this));
+            if (_vaultBalanceLD <= _coinAmountLDtoGive) {
                 // The vault does not have enough balance. Only give as much as it has.
-                // TODO: Check numerical logic.
-                _withdrawAmountMLP = _withdrawAmountMLP.mul(_vaultBalanceMD).div(_coinAmountMDtoGive);
-                _coinAmountMDtoGive = _vaultBalanceMD;
+                _withdrawAmountMLP = _withdrawAmountMLP.mul(_vaultBalanceLD).div(_coinAmountLDtoGive);
+                _coinAmountLDtoGive = _vaultBalanceLD;
             }
             mozaicLpContract.burn(request.user, _withdrawAmountMLP);
-            _safeTransfer(request.user, request.token, _coinAmountMDtoGive);
+            _safeTransfer(request.user, request.token, _coinAmountLDtoGive);
             // Reduce Handled Amount from Buffer
             _reqs.totalWithdrawAmount = _reqs.totalWithdrawAmount.sub(_withdrawAmountMLP);
             _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token].sub(_withdrawAmountMLP);
@@ -561,6 +559,11 @@ contract SecondaryVault is NonblockingLzApp {
     function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
         // TODO: CHECKLATER if (MOZAIC_DECIMALS < _localDecimals)
         return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
+    }
+
+    function amountMDtoLD(uint256 _amountMD, uint256 _localDecimals) internal pure returns (uint256) {
+        // TODO: CHECKLATER if (MOZAIC_DECIMALS < _localDecimals)
+        return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
     }
 
     function _nonblockingLzReceive(
