@@ -7,13 +7,10 @@ import exportData from '../../constants/index';
 import { BigNumber, ContractTransaction } from 'ethers';
 import { setTimeout } from 'timers/promises';
 import { describe } from 'mocha';
-import { returnBalance, sendBalance } from '../../util/testUtils';
+import { deposit, withdraw, mint, TIME_DELAY_MAX, stake, unstake, swap, swapRemote, initOptimization, settleRequests } from '../../util/testUtils';
 
 const fs = require('fs');
 const hre = require('hardhat');
-
-const TIME_DELAY_MAX = 20 * 60 * 1000;  // 20 min
-const MOZAIC_DECIMALS = 18;
 
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
@@ -687,29 +684,10 @@ describe('SecondaryVault.executeActions', () => {
                 const amountSwapRemote = ethers.utils.parseUnits("1", decimalsB);
                 console.log("Before swapRemote, primaryVault has tokenB %d, secondaryVault has tokenC %d", amountSrcBefore.toString(), amountDstBefore.toString());
 
+                // swapRemote
                 hre.changeNetwork('bsctest');
                 [owner] = await ethers.getSigners();
-
-                // send nativeFee to srcVault
-                const routerFactory = await ethers.getContractFactory('Router', owner) as Router__factory;
-                const routerAddr = exportData.testnetTestConstants.routers.get(srcChainId)!;
-                const router = routerFactory.attach(routerAddr);
-                const TYPE_SWAP_REMOTE = 1;   // Bridge.TYPE_SWAP_REMOTE = 1
-                let [nativeFee, zroFee] = await router.quoteLayerZeroFee(dstChainId, TYPE_SWAP_REMOTE, tokenCAddr, "0x", ({
-                    dstGasForCall: 0,       // extra gas, if calling smart contract,
-                    dstNativeAmount: 0,     // amount of dust dropped in destination wallet 
-                    dstNativeAddr: "0x" // destination wallet for dust
-                }));
-                console.log("nativeFee %d, zroFee %d", nativeFee.toString(), zroFee.toString());
-                tx = await owner.sendTransaction({
-                    to: primaryVault.address,
-                    value: nativeFee
-                });
-                await tx.wait();
-                console.log("primaryVault received nativeToken", nativeFee.toString());
-
-                // swapRemote
-                const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256","uint256"], [amountSwapRemote, tokenBAddr, dstChainId, dstPoolId, nativeFee]);
+                const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256"], [amountSwapRemote, tokenBAddr, dstChainId, dstPoolId]);
                 console.log("payloadSwapRemote", payloadSwapRemote);
                 const swapRemoteAction: SecondaryVault.ActionStruct  = {
                     driverId: exportData.testnetTestConstants.stargateDriverId,
@@ -780,12 +758,12 @@ describe('SecondaryVault.executeActions', () => {
                 const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
                 const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
                 console.log("After settle, alicePrimaryMLP %d, benPrimaryMLP %d", alicePrimaryMLP, benPrimaryMLP);
-                expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit1LD_A.mul(10**(MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
-                expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B.mul(10**(MOZAIC_DECIMALS - decimalsB)));  // mLP eq to SD
+                expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit1LD_A.mul(10**(exportData.testnetTestConstants.MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
+                expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B.mul(10**(exportData.testnetTestConstants.MOZAIC_DECIMALS - decimalsB)));  // mLP eq to SD
                 hre.changeNetwork('fantom');
                 const benSecondaryMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
                 console.log("After settle, benSecondaryMLP %d", benSecondaryMLP);
-                expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C.mul(10**(MOZAIC_DECIMALS - decimalsC)));  // mLP eq to SD
+                expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C.mul(10**(exportData.testnetTestConstants.MOZAIC_DECIMALS - decimalsC)));  // mLP eq to SD
             })
         })
         describe ('Round 2', () => {
@@ -864,7 +842,7 @@ describe('SecondaryVault.executeActions', () => {
 
                 const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
                 console.log("After settle, alicePrimaryMLP %d", alicePrimaryMLP.toString());
-                expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit2LD_A.mul(10**(MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
+                expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDeposit2LD_A.mul(10**(exportData.testnetTestConstants.MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
                 hre.changeNetwork('fantom');
                 const benSecondaryMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
                 console.log("After settle, benSecondaryMLP %d", benSecondaryMLP.toString());
@@ -877,7 +855,7 @@ describe('SecondaryVault.executeActions', () => {
             })
         })
     })
-    describe ('Requests-1, Optimize, Settle', () => {
+    describe ('Test for Control Center', () => {
         let primaryChainId: number;
         let secondaryChainId: number;
         let primaryVault: PrimaryVault;
@@ -887,40 +865,19 @@ describe('SecondaryVault.executeActions', () => {
         let tokenCAddr: string;
         let MockTokenFactory: MockToken__factory;
         let tokenA: MockToken;
-        let decimalsA: number;
-        let aliceTotalLD_A: BigNumber;
-        let aliceDepositLD_A: BigNumber;
         let tokenB: MockToken;
-        let decimalsB: number;
-        let benTotalLD_B: BigNumber;
-        let benDepositLD_B: BigNumber;
-        let tx: ContractTransaction;
         let tokenC: MockToken;
-        let decimalsC: number;
-        let benTotalLD_C: BigNumber;
-        let benDepositLD_C: BigNumber;
-        let primaryLpStakingAddr: string;
-        let primaryLpStakingFactory: LPStaking__factory;
-        let primaryLpStaking: LPStaking;
-        const timeInterval = 10000;
 
         before (async () => {
             hre.changeNetwork('bsctest');
             [owner, alice, ben] = await ethers.getSigners();
             primaryChainId = exportData.testnetTestConstants.chainIds[1];
             primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
-            primaryLpStakingAddr = await primaryVault.stargateLpStaking();
-            primaryLpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-            primaryLpStaking = primaryLpStakingFactory.attach(primaryLpStakingAddr);
             MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-            tokenAAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("USDT")!;
+            tokenAAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("BUSD")!;
             tokenA = MockTokenFactory.attach(tokenAAddr);
-            decimalsA = await tokenA.decimals();
-            console.log("tokenA decimals", decimalsA);
-            tokenBAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("BUSD")!;
+            tokenBAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("USDT")!;
             tokenB = MockTokenFactory.attach(tokenBAddr);
-            decimalsB = await tokenB.decimals();
-            console.log("tokenB decimals", decimalsB);
             
             hre.changeNetwork('fantom');
             [owner, alice, ben] = await ethers.getSigners();
@@ -929,265 +886,37 @@ describe('SecondaryVault.executeActions', () => {
             MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
             tokenCAddr = exportData.testnetTestConstants.stablecoins.get(secondaryChainId)!.get("USDC")!;
             tokenC = MockTokenFactory.attach(tokenCAddr);
-            decimalsC = await tokenC.decimals();
-            console.log("tokenC decimals", decimalsC);
-            
-            // Mint tokens
-            aliceTotalLD_A = ethers.utils.parseUnits("100", decimalsA);
-            benTotalLD_B = ethers.utils.parseUnits("100", decimalsB);
-            benTotalLD_C = ethers.utils.parseUnits("100", decimalsC);
-            hre.changeNetwork('bsctest');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenA.connect(owner).mint(alice.address, aliceTotalLD_A);
-            await tx.wait();
-            tx = await tokenB.connect(owner).mint(ben.address, benTotalLD_B);
-            await tx.wait();
-            hre.changeNetwork('fantom');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenC.connect(owner).mint(ben.address, benTotalLD_C);
-            await tx.wait();
-
-            aliceDepositLD_A = ethers.utils.parseUnits("10", decimalsA);
-            benDepositLD_B = ethers.utils.parseUnits("15", decimalsB);
-            benDepositLD_C = ethers.utils.parseUnits("20", decimalsC);
         })
-        it.skip ('1. User books', async () => {
-            // alice deposits to primaryVault
-            hre.changeNetwork('bsctest');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenA.connect(alice).approve(primaryVault.address, aliceDepositLD_A);
-            await tx.wait();
-            tx = await primaryVault.connect(alice).addDepositRequest(aliceDepositLD_A, tokenA.address, primaryChainId);
-            await tx.wait();
-            console.log("Alice deposited %s %s to primaryVault", await tokenA.name(), aliceDepositLD_A.toString());
-
-            // ben deposits to primaryVault
-            tx = await tokenB.connect(ben).approve(primaryVault.address, benDepositLD_B);
-            await tx.wait();
-            tx = await primaryVault.connect(ben).addDepositRequest(benDepositLD_B, tokenB.address, primaryChainId);
-            await tx.wait();
-            console.log("Ben deposited %s %s to primaryVault", await tokenB.name(), benDepositLD_B.toString());
-
-            // ben deposits to secondaryVault
-            hre.changeNetwork('fantom');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenC.connect(ben).approve(secondaryVault.address, benDepositLD_C);
-            await tx.wait();
-            tx = await secondaryVault.connect(ben).addDepositRequest(benDepositLD_C, tokenC.address, secondaryChainId);
-            await tx.wait();
-            console.log("Ben deposited %s %s to secondaryVault", await tokenC.name(), benDepositLD_C.toString());
+        it ('1. Mint token to users', async () => {
+            mint('bsctest', 1, tokenA, 100);
+            mint('bsctest', 2, tokenB, 100);
+            mint('fantom', 2, tokenC, 100);
         })
-        it ('3. Start optimizing', async () => {
-            // Algostory: #### 3-1. Session Start (Protocol Status: IDLE -> OPTIMIZING)
-            hre.changeNetwork('bsctest');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await primaryVault.connect(owner).initOptimizationSession();
-            await tx.wait();
-            console.log("Owner called initOptimizationSession");
-
-            hre.changeNetwork('fantom');
-            let timeDelayed = 0;
-            let success = false;
-            while (timeDelayed < TIME_DELAY_MAX) {
-                let vaultStatus = await secondaryVault.status();
-                if (vaultStatus == VaultStatus.SNAPSHOTTED) {
-                    success = true;
-                    console.log("SecondaryVault received lz_take_snapshot and sent lz_report_snapshot in %d seconds", timeDelayed / 1000);
-                    break;
-                } else {
-                    console.log("Waiting for lz_take_snapshot...");
-                    await setTimeout(timeInterval);
-                    timeDelayed += timeInterval;
-                }
-            }
-            if (!success) {
-                console.log("Timeout lz_take_snapshot");
-            }
-
-            hre.changeNetwork('bsctest');
-            timeDelayed = 0;
-            success = false;
-            while (timeDelayed < TIME_DELAY_MAX) {
-                let protocolStatus = await primaryVault.protocolStatus();
-                if (protocolStatus == ProtocolStatus.OPTIMIZING) {
-                    success = true;
-                    let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
-                    console.log("Primaryvault received lz_report_snapshot in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
-                    break;
-                } else {
-                    console.log("Waiting for lz_report_snapshot...");
-                    await setTimeout(timeInterval);
-                    timeDelayed += timeInterval;
-                }
-            }
-            if (!success) {
-                console.log("Timeout lz_report_snapshot");
-            }
+        it ('2. Users request deposit', async () => {
+            deposit('bsctest', 1, primaryVault, tokenA, 10);
+            deposit('bsctest', 2, primaryVault, tokenB, 15);
+            deposit('fantom', 2, primaryVault, tokenC, 20);
+        })
+        it ('3. InitOptimizationSession', async () => {
+            initOptimization(primaryVault, secondaryVault);
+        })
+        it ('4. Optimizing', async () => {
+            // send whole token in primaryVault to secondaryVault
+            let amountLD = await tokenA.balanceOf(primaryVault.address);
+            swapRemote('bsctest', primaryVault, tokenA, 'fantom', secondaryVault, tokenC, amountLD);
+            amountLD = await tokenB.balanceOf(primaryVault.address);
+            swapRemote('bsctest', primaryVault, tokenB, 'fantom', secondaryVault, tokenC, amountLD);
         })
         it ('5. Settle Requests', async () => {
-            // Alice, Ben receive mLP, Vaults receive coin
-            hre.changeNetwork('bsctest');
-            const alicePrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
-            const benPrimaryMLPBefore = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
-            hre.changeNetwork('fantom');
-            const benSecondaryMLPBefore = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-            console.log("alicePrimaryMLPBefore %d, benPrimaryMLPBefore %d, benSecondaryMLPBefore %d", alicePrimaryMLPBefore.toString(), benPrimaryMLPBefore.toString(), benSecondaryMLPBefore.toString());
-
-            hre.changeNetwork('bsctest');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await primaryVault.connect(owner).settleRequestsAllVaults();
-            await tx.wait();
-
-            hre.changeNetwork('fantom');
-            let timeDelayed = 0;
-            let success = false;
-            while (timeDelayed < TIME_DELAY_MAX) {
-                let vaultStatus = await secondaryVault.status();
-                if (vaultStatus == VaultStatus.IDLE) {
-                    success = true;
-                    console.log("SecondaryVault received lz_settle_requests and sent lz_settle_report in %d seconds", timeDelayed / 1000);
-                    break;
-                } else {
-                    console.log("Waiting for lz_settle_requests...");
-                    await setTimeout(timeInterval);
-                    timeDelayed += timeInterval;
-                }
-            }
-            if (!success) {
-                console.log("Timeout lz_settle_requests");
-            }
-
-            timeDelayed = 0;
-            success = false;
-            while (timeDelayed < TIME_DELAY_MAX) {
-                let protocolStatus = await primaryVault.protocolStatus();
-                if (protocolStatus == ProtocolStatus.IDLE) {
-                    success = true;
-                    console.log("PrimaryVault received lz_settle_report in %d seconds", timeDelayed / 1000);
-                    break;
-                } else {
-                    console.log("Waiting for lz_settle_report...");
-                    await setTimeout(timeInterval);
-                    timeDelayed += timeInterval;
-                }
-            }
-            if (!success) {
-                console.log("Timeout lz_settle_report");
-            }
-
-            hre.changeNetwork('bsctest');
-            const alicePrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(alice.address);
-            const benPrimaryMLP = await mozaicDeployments.get(primaryChainId)!.mozaicLp.balanceOf(ben.address);
-            hre.changeNetwork('fantom');
-            const benSecondaryMLP = await mozaicDeployments.get(secondaryChainId)!.mozaicLp.balanceOf(ben.address);
-            console.log("After settle, alicePrimaryMLP %d, benPrimaryMLP %d, benSecondaryMLP %d", alicePrimaryMLP, benPrimaryMLP, benSecondaryMLP);
-            expect(alicePrimaryMLP.sub(alicePrimaryMLPBefore)).to.eq(aliceDepositLD_A.mul(10**(MOZAIC_DECIMALS - decimalsA)));  // mLP eq to SD
-            expect(benPrimaryMLP.sub(benPrimaryMLPBefore)).to.eq(benDepositLD_B.mul(10**(MOZAIC_DECIMALS - decimalsB)));  // mLP eq to SD
-            expect(benSecondaryMLP.sub(benSecondaryMLPBefore)).to.eq(benDepositLD_C.mul(10**(MOZAIC_DECIMALS - decimalsC)));  // mLP eq to SD
+            settleRequests(primaryVault, secondaryVault);
         })
-    })
-    describe.only ('Requests-2', () => {
-        let primaryChainId: number;
-        let secondaryChainId: number;
-        let primaryVault: PrimaryVault;
-        let secondaryVault: SecondaryVault;
-        let tokenAAddr: string;
-        let tokenBAddr: string;
-        let tokenCAddr: string;
-        let MockTokenFactory: MockToken__factory;
-        let tokenA: MockToken;
-        let decimalsA: number;
-        let aliceDepositLD_A: BigNumber;
-        let aliceWithdrawMLP_A: BigNumber;
-        let tokenB: MockToken;
-        let decimalsB: number;
-        let benDepositLD_B: BigNumber;
-        let benWithdrawMLP_B: BigNumber;
-        let tx: ContractTransaction;
-        let tokenC: MockToken;
-        let decimalsC: number;
-        let benDepositLD_C: BigNumber;
-        let benWithdrawMLP_C: BigNumber;
-        let primaryLpStakingAddr: string;
-        let primaryLpStakingFactory: LPStaking__factory;
-        let primaryLpStaking: LPStaking;
-        const timeInterval = 10000;
-
-        before (async () => {
-            hre.changeNetwork('bsctest');
-            [owner, alice, ben] = await ethers.getSigners();
-            primaryChainId = exportData.testnetTestConstants.chainIds[1];
-            primaryVault = mozaicDeployments.get(primaryChainId)!.mozaicVault as PrimaryVault;
-            primaryLpStakingAddr = await primaryVault.stargateLpStaking();
-            primaryLpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
-            primaryLpStaking = primaryLpStakingFactory.attach(primaryLpStakingAddr);
-            MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-            tokenAAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("USDT")!;
-            tokenA = MockTokenFactory.attach(tokenAAddr);
-            decimalsA = await tokenA.decimals();
-            console.log("tokenA decimals", decimalsA);
-            tokenBAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("BUSD")!;
-            tokenB = MockTokenFactory.attach(tokenBAddr);
-            decimalsB = await tokenB.decimals();
-            console.log("tokenB decimals", decimalsB);
-            
-            hre.changeNetwork('fantom');
-            [owner, alice, ben] = await ethers.getSigners();
-            secondaryChainId = exportData.testnetTestConstants.chainIds[2];
-            secondaryVault = mozaicDeployments.get(secondaryChainId)!.mozaicVault as SecondaryVault;
-            MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-            tokenCAddr = exportData.testnetTestConstants.stablecoins.get(secondaryChainId)!.get("USDC")!;
-            tokenC = MockTokenFactory.attach(tokenCAddr);
-            decimalsC = await tokenC.decimals();
-            console.log("tokenC decimals", decimalsC);
-
-            aliceDepositLD_A = ethers.utils.parseUnits("20", decimalsA);
-            benDepositLD_B = ethers.utils.parseUnits("20", decimalsB);
-            benDepositLD_C = ethers.utils.parseUnits("20", decimalsC);
-            aliceWithdrawMLP_A = ethers.utils.parseUnits("10", MOZAIC_DECIMALS);
-            benWithdrawMLP_B = ethers.utils.parseUnits("15", MOZAIC_DECIMALS);
-            benWithdrawMLP_C = ethers.utils.parseUnits("20", MOZAIC_DECIMALS);
-        })
-        it ('1. User books', async () => {
-            // alice deposits to primaryVault
-            hre.changeNetwork('bsctest');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenA.connect(alice).approve(primaryVault.address, aliceDepositLD_A);
-            await tx.wait();
-            tx = await primaryVault.connect(alice).addDepositRequest(aliceDepositLD_A, tokenA.address, primaryChainId);
-            await tx.wait();
-            console.log("Alice requests deposite %s %s to primaryVault", await tokenA.name(), aliceDepositLD_A.toString());
-
-            // alice withdraw from primaryVault
-            tx = await primaryVault.connect(alice).addWithdrawRequest(aliceWithdrawMLP_A, tokenA.address, primaryChainId);
-            await tx.wait();
-            console.log("Alice requests withdraw %s to primaryVault", aliceWithdrawMLP_A.toString());
-
-            // ben deposits to primaryVault
-            tx = await tokenB.connect(ben).approve(primaryVault.address, benDepositLD_B);
-            await tx.wait();
-            tx = await primaryVault.connect(ben).addDepositRequest(benDepositLD_B, tokenB.address, primaryChainId);
-            await tx.wait();
-            console.log("Ben requests deposite %s %s to primaryVault", await tokenB.name(), benDepositLD_B.toString());
-
-            // ben withdraw from primaryVault
-            tx = await primaryVault.connect(ben).addWithdrawRequest(benWithdrawMLP_B, tokenB.address, primaryChainId);
-            await tx.wait();
-            console.log("Ben requests withdraw %s to primaryVault", benWithdrawMLP_B.toString());
-
-            // ben deposits to secondaryVault
-            hre.changeNetwork('fantom');
-            [owner, alice, ben] = await ethers.getSigners();
-            tx = await tokenC.connect(ben).approve(secondaryVault.address, benDepositLD_C);
-            await tx.wait();
-            tx = await secondaryVault.connect(ben).addDepositRequest(benDepositLD_C, tokenC.address, secondaryChainId);
-            await tx.wait();
-            console.log("Ben requests deposite %s %s to secondaryVault", await tokenC.name(), benDepositLD_C.toString());
-
-            // ben withdraw from secondaryVault
-            tx = await secondaryVault.connect(ben).addWithdrawRequest(benWithdrawMLP_C, tokenC.address, secondaryChainId);
-            await tx.wait();
-            console.log("Ben requests withdraw %s to primaryVault", benWithdrawMLP_C.toString());
+        it ('6. Users request deposit and withdraw', async () => {
+            deposit('bsctest', 1, primaryVault, tokenA, 20);
+            deposit('bsctest', 2, primaryVault, tokenB, 20);
+            deposit('fantom', 2, secondaryVault, tokenC, 20);
+            withdraw('bsctest', 1, primaryVault, tokenA, 10);
+            withdraw('bsctest', 2, primaryVault, tokenB, 15);
+            withdraw('fantom,', 2, secondaryVault, tokenC, 20);
         })
     })
 })
