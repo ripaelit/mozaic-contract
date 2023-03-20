@@ -90,20 +90,46 @@ const getChainIdFromChainName = (chainName: string) => {
     return chainId;
 }
 
+export const mint = async (
+    chainName: string,
+    signerIndex: number,
+    token: MockToken,
+    amountLD: BigNumber
+) => {
+    console.log("Mint: %s signer%d %s %s", chainName, signerIndex, await token.name(), amountLD.toString());
+
+    hre.changeNetwork(chainName);
+    let signers = await ethers.getSigners();
+    let signer = signers[signerIndex];
+    let owner = signers[0];
+    // let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
+
+    // check
+    const amountBalanceBefore = await token.balanceOf(signer.address);
+
+    let tx = await token.connect(owner).mint(signer.address, amountLD);
+    await tx.wait();
+
+    // check
+    const amountBalance = await token.balanceOf(signer.address);
+    console.log("amountBalanceBefore %s, amountBalance %s", amountBalanceBefore.toString(), amountBalance.toString());
+    expect(amountBalance.sub(amountBalance)).eq(amountLD);
+}
+
 export const deposit = async (
     chainName: string, 
     signerIndex: number, 
     vault: SecondaryVault, 
     token: MockToken, 
-    amount: number
+    amountLD: BigNumber
 ) => {
-    console.log("Deposit: %s signer%d %s %sETH", chainName, signerIndex, await token.name(), amount);
+    console.log("Deposit: %s signer%d %s %s", chainName, signerIndex, await token.name(), amountLD.toString());
 
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
-    let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
+    // let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
 
     // check
     const totalDepositAmountBefore = await vault.getTotalDepositAmount(false);
@@ -127,20 +153,34 @@ export const deposit = async (
     expect(depositAmountPerTokenA.sub(depositAmountPerTokenABefore)).to.eq(amountLD);
 }
 
+export const withdrawWhole = async (
+    chainName: string, 
+    signerIndex: number, 
+    vault: SecondaryVault, 
+    token: MockToken,
+    mozaicLP: MozaicLP
+) => {
+    hre.changeNetwork(chainName);
+    let signers = await ethers.getSigners();
+    let signer = signers[signerIndex];
+    const amountMLP = await mozaicLP.balanceOf(signer.address);
+    await withdraw(chainName, signerIndex, vault, token, amountMLP);
+}
+
 export const withdraw = async (
     chainName: string, 
     signerIndex: number, 
     vault: SecondaryVault, 
     token: MockToken, 
-    amount: number
+    amountMLP: BigNumber
 ) => {
-    console.log("Withdraw: %s signer%d %s %sMLP", chainName, signerIndex, await token.name(), amount);
+    console.log("Withdraw: %s signer%d %s %s MLP", chainName, signerIndex, await token.name(), amountMLP);
     
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
-    let amountMLP = ethers.utils.parseUnits(amount.toString(), exportData.testnetTestConstants.MOZAIC_DECIMALS);
+    // let amountMLP = ethers.utils.parseUnits(amount.toString(), exportData.testnetTestConstants.MOZAIC_DECIMALS);
 
     // check
     const totalWithdrawAmountBefore = await vault.getTotalWithdrawAmount(false);
@@ -160,33 +200,6 @@ export const withdraw = async (
     expect(totalWithdrawAmount.sub(totalWithdrawAmountBefore)).to.eq(amountMLP);
     expect(withdrawAmount.sub(withdrawAmountBefore)).to.eq(amountMLP);
     expect(withdrawAmountPerTokenA.sub(withdrawAmountPerTokenABefore)).to.eq(amountMLP);
-
-}
-
-export const mint = async (
-    chainName: string,
-    signerIndex: number,
-    token: MockToken,
-    amount: number
-) => {
-    console.log("Mint: %s signer%d %s %sETH", chainName, signerIndex, await token.name(), amount);
-
-    hre.changeNetwork(chainName);
-    let signers = await ethers.getSigners();
-    let signer = signers[signerIndex];
-    let owner = signers[0];
-    let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
-
-    // check
-    const amountBalanceBefore = await token.balanceOf(signer.address);
-
-    let tx = await token.connect(owner).mint(signer.address, amountLD);
-    await tx.wait();
-
-    // check
-    const amountBalance = await token.balanceOf(signer.address);
-    console.log("amountBalanceBefore %s, amountBalance %s", amountBalanceBefore.toString(), amountBalance.toString());
-    expect(amountBalance.sub(amountBalance)).eq(amountLD);
 }
 
 export const stake = async(
