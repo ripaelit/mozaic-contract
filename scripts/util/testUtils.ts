@@ -185,6 +185,28 @@ export const unstake = async(
     await tx.wait();
 }
 
+export const swap = async(
+    chainName: string,
+    vault: SecondaryVault, 
+    srcToken: MockToken,
+    dstToken: MockToken,
+    amountLD: BigNumber
+) => {
+    let owner: SignerWithAddress;
+    const payloadSwap = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, srcToken.address, dstToken.address]);
+    console.log("payloadSwap", payloadSwap);
+    const swapAction: SecondaryVault.ActionStruct  = {
+        driverId: exportData.testnetTestConstants.pancakeSwapDriverId,
+        actionType: ActionTypeEnum.Swap,
+        payload : payloadSwap
+    };
+    
+    hre.changeNetwork(chainName);
+    [owner] = await ethers.getSigners();
+    let tx = await vault.connect(owner).executeActions([swapAction]);
+    await tx.wait();
+}
+
 export const swapRemote = async(
     srcChainName: string,
     srcVault: SecondaryVault,
