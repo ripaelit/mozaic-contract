@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, LPStaking__factory } from '../../types/typechain';
+import { PrimaryVault, PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, LPStaking__factory } from '../../types/typechain';
 import { ActionTypeEnum, ProtocolStatus, VaultStatus, MozaicDeployment } from '../constants/types';
 import { setTimeout } from 'timers/promises';
 import { BigNumber } from 'ethers';
@@ -10,6 +10,7 @@ const fs = require('fs');
 const hre = require('hardhat');
 
 export const TIME_DELAY_MAX = 20 * 60 * 1000;  // 20 min
+export const TIME_INTERVAL = 10000;
 
 export const returnBalanceFrom = async (vaults: string[]) => {
     console.log("returnBalanceFrom");
@@ -343,13 +344,12 @@ export const swapRemote = async(
     let amountDstRemain: BigNumber;
     let timeDelayed = 0;
     let success = false;
-    const timeInterval = 10000;
     while (timeDelayed < TIME_DELAY_MAX) {
         amountDstRemain = await dstToken.balanceOf(dstVault.address);
         if (amountDstRemain.eq(amountDstBefore)) {
             console.log("Waiting for LayerZero delay...");
-            await setTimeout(timeInterval);
-            timeDelayed += timeInterval;
+            await setTimeout(TIME_INTERVAL);
+            timeDelayed += TIME_INTERVAL;
         } else {
             success = true;
             console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
@@ -362,5 +362,58 @@ export const swapRemote = async(
     }
     if (!success) {
         console.log("Timeout LayerZero in swapRemote");
+    }
+}
+
+export const initOptimization = async (
+    primaryVault: PrimaryVault,
+    secondaryVault: SecondaryVault
+) => {
+    console.log("initOptimization:");
+
+    let owner: SignerWithAddress;
+    hre.changeNetwork('bsctest');
+    [owner] = await ethers.getSigners();
+    let tx = await primaryVault.connect(owner).initOptimizationSession();
+    await tx.wait();
+    console.log("Owner called initOptimizationSession");
+
+    hre.changeNetwork('fantom');
+    let timeDelayed = 0;
+    let success = false;
+    while (timeDelayed < TIME_DELAY_MAX) {
+        let vaultStatus = await secondaryVault.status();
+        if (vaultStatus == VaultStatus.SNAPSHOTTED) {
+            success = true;
+            console.log("SecondaryVault received lz_take_snapshot and sent lz_report_snapshot in %d seconds", timeDelayed / 1000);
+            break;
+        } else {
+            console.log("Waiting for lz_take_snapshot...");
+            await setTimeout(TIME_INTERVAL);
+            timeDelayed += TIME_INTERVAL;
+        }
+    }
+    if (!success) {
+        console.log("Timeout lz_take_snapshot");
+    }
+
+    hre.changeNetwork('bsctest');
+    timeDelayed = 0;
+    success = false;
+    while (timeDelayed < TIME_DELAY_MAX) {
+        let protocolStatus = await primaryVault.protocolStatus();
+        if (protocolStatus == ProtocolStatus.OPTIMIZING) {
+            success = true;
+            let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
+            console.log("Primaryvault received lz_report_snapshot in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
+            break;
+        } else {
+            console.log("Waiting for lz_report_snapshot...");
+            await setTimeout(TIME_INTERVAL);
+            timeDelayed += TIME_INTERVAL;
+        }
+    }
+    if (!success) {
+        console.log("Timeout lz_report_snapshot");
     }
 }
