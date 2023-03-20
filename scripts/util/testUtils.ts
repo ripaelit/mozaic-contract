@@ -6,6 +6,7 @@ import { ActionTypeEnum, ProtocolStatus, VaultStatus, MozaicDeployment } from '.
 import { setTimeout } from 'timers/promises';
 import { BigNumber } from 'ethers';
 import exportData from '../constants';
+import { getChainIdFromChainName } from './utils'
 const fs = require('fs');
 const hre = require('hardhat');
 
@@ -76,18 +77,6 @@ export const sendBalance = async (amounts: BigNumber[]) => {
     });
     await tx.wait();
     console.log("fantom vault balance", (await ethers.provider.getBalance(secondaryVaultAddr)).toString());
-}
-
-const getChainIdFromChainName = (chainName: string) => {
-    let chainNames = exportData.testnetTestConstants.chainNames;
-    let chainId = 0;
-    for (const [_chainId, _chainName] of chainNames) {
-        if (_chainName === chainName) {
-            chainId = _chainId;
-            break;
-        }
-    }
-    return chainId;
 }
 
 export const mint = async (
@@ -379,8 +368,7 @@ export const swapRemote = async(
 }
 
 export const initOptimization = async (
-    primaryVault: PrimaryVault,
-    secondaryVault: SecondaryVault
+    primaryVault: PrimaryVault
 ) => {
     console.log("initOptimization:");
 
@@ -391,34 +379,14 @@ export const initOptimization = async (
     await tx.wait();
     console.log("Owner called initOptimizationSession");
 
-    hre.changeNetwork('fantom');
     let timeDelayed = 0;
     let success = false;
-    while (timeDelayed < TIME_DELAY_MAX) {
-        let vaultStatus = await secondaryVault.status();
-        if (vaultStatus == VaultStatus.SNAPSHOTTED) {
-            success = true;
-            console.log("SecondaryVault received lz_take_snapshot and sent lz_report_snapshot in %d seconds", timeDelayed / 1000);
-            break;
-        } else {
-            console.log("Waiting for lz_take_snapshot...");
-            await setTimeout(TIME_INTERVAL);
-            timeDelayed += TIME_INTERVAL;
-        }
-    }
-    if (!success) {
-        console.log("Timeout lz_take_snapshot");
-    }
-
-    hre.changeNetwork('bsctest');
-    timeDelayed = 0;
-    success = false;
     while (timeDelayed < TIME_DELAY_MAX) {
         let protocolStatus = await primaryVault.protocolStatus();
         if (protocolStatus == ProtocolStatus.OPTIMIZING) {
             success = true;
             let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
-            console.log("Primaryvault received lz_report_snapshot in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
+            console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
             break;
         } else {
             console.log("Waiting for lz_report_snapshot...");
@@ -432,8 +400,7 @@ export const initOptimization = async (
 }
 
 export const settleRequests = async (
-    primaryVault: PrimaryVault,
-    secondaryVault: SecondaryVault
+    primaryVault: PrimaryVault
 ) => {
     console.log("settleRequests:");
     
@@ -443,32 +410,13 @@ export const settleRequests = async (
     let tx = await primaryVault.connect(owner).settleRequestsAllVaults();
     await tx.wait();
 
-    hre.changeNetwork('fantom');
     let timeDelayed = 0;
     let success = false;
-    while (timeDelayed < TIME_DELAY_MAX) {
-        let vaultStatus = await secondaryVault.status();
-        if (vaultStatus == VaultStatus.IDLE) {
-            success = true;
-            console.log("SecondaryVault received lz_settle_requests and sent lz_settle_report in %d seconds", timeDelayed / 1000);
-            break;
-        } else {
-            console.log("Waiting for lz_settle_requests...");
-            await setTimeout(TIME_INTERVAL);
-            timeDelayed += TIME_INTERVAL;
-        }
-    }
-    if (!success) {
-        console.log("Timeout lz_settle_requests");
-    }
-
-    timeDelayed = 0;
-    success = false;
     while (timeDelayed < TIME_DELAY_MAX) {
         let protocolStatus = await primaryVault.protocolStatus();
         if (protocolStatus == ProtocolStatus.IDLE) {
             success = true;
-            console.log("PrimaryVault received lz_settle_report in %d seconds", timeDelayed / 1000);
+            console.log("settleRequestsAllVaults in %d seconds", timeDelayed / 1000);
             break;
         } else {
             console.log("Waiting for lz_settle_report...");
