@@ -96,17 +96,34 @@ export const deposit = async (
     token: MockToken, 
     amount: number
 ) => {
+    console.log("Deposit: %s signer%d %s %sETH", chainName, signerIndex, await token.name(), amount);
+
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
     let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
 
+    // check
+    const totalDepositAmountBefore = await vault.getTotalDepositAmount(false);
+    const depositAmountBefore = await vault.getDepositAmount(false, signer.address, token.address, chainId);
+    const depositAmountPerTokenABefore = await vault.getDepositAmountPerToken(false, token.address);
+
     let tx = await token.connect(signer).approve(vault.address, amountLD);
     await tx.wait();
     tx = await vault.connect(signer).addDepositRequest(amountLD, token.address, chainId);
     await tx.wait();
-    console.log("%s: signer%d requests deposit %s %s", chainName, signerIndex, amountLD.toString(), await token.name());
+
+    // check
+    const totalDepositAmount = await vault.getTotalDepositAmount(false);
+    const depositAmount = await vault.getDepositAmount(false, signer.address, token.address, chainId);
+    const depositAmountPerTokenA = await vault.getDepositAmountPerToken(false, token.address);
+    console.log("totalDepositAmountBefore %s, totalDepositAmount %s", totalDepositAmountBefore.toString(), totalDepositAmount.toString());
+    console.log("depositAmountBefore %s, depositAmount %s", depositAmountBefore.toString(), depositAmount.toString());
+    console.log("depositAmountPerTokenABefore %s, depositAmountPerTokenA %s", depositAmountPerTokenABefore.toString(), depositAmountPerTokenA.toString());
+    expect(totalDepositAmount.sub(totalDepositAmountBefore)).to.eq(amountLD);
+    expect(depositAmount.sub(depositAmountBefore)).to.eq(amountLD);
+    expect(depositAmountPerTokenA.sub(depositAmountPerTokenABefore)).to.eq(amountLD);
 }
 
 export const withdraw = async (
@@ -116,15 +133,33 @@ export const withdraw = async (
     token: MockToken, 
     amount: number
 ) => {
+    console.log("Withdraw: %s signer%d %s %sMLP", chainName, signerIndex, await token.name(), amount);
+    
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
     let amountMLP = ethers.utils.parseUnits(amount.toString(), exportData.testnetTestConstants.MOZAIC_DECIMALS);
 
+    // check
+    const totalWithdrawAmountBefore = await vault.getTotalWithdrawAmount(false);
+    const withdrawAmountBefore = await vault.getWithdrawAmount(false, signer.address, chainId, token.address);
+    const withdrawAmountPerTokenABefore = await vault.getWithdrawAmountPerToken(false, token.address);
+
     let tx = await vault.connect(signer).addWithdrawRequest(amountMLP, token.address, chainId);
     await tx.wait();
-    console.log("%s: signer%d requests withdraw %s MLP to %s", chainName, signerIndex, amountMLP.toString(), await token.name());
+
+    // check
+    const totalWithdrawAmount = await vault.getTotalWithdrawAmount(false);
+    const withdrawAmount = await vault.getWithdrawAmount(false, signer.address, chainId, token.address);
+    const withdrawAmountPerTokenA = await vault.getWithdrawAmountPerToken(false, token.address);
+    console.log("totalWithdrawAmountBefore %s, totalWithdrawAmount %s", totalWithdrawAmountBefore.toString(), totalWithdrawAmount.toString());
+    console.log("withdrawAmountBefore %s, withdrawAmount %s", withdrawAmountBefore.toString(), withdrawAmount.toString());
+    console.log("withdrawAmountPerTokenABefore %s, withdrawAmountPerTokenA %s", withdrawAmountPerTokenABefore.toString(), withdrawAmountPerTokenA.toString());
+    expect(totalWithdrawAmount.sub(totalWithdrawAmountBefore)).to.eq(amountMLP);
+    expect(withdrawAmount.sub(withdrawAmountBefore)).to.eq(amountMLP);
+    expect(withdrawAmountPerTokenA.sub(withdrawAmountPerTokenABefore)).to.eq(amountMLP);
+
 }
 
 export const mint = async (
@@ -133,14 +168,24 @@ export const mint = async (
     token: MockToken,
     amount: number
 ) => {
+    console.log("Mint: %s signer%d %s %sETH", chainName, signerIndex, await token.name(), amount);
+
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
     let owner = signers[0];
     let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
+
+    // check
+    const amountBalanceBefore = await token.balanceOf(signer.address);
+
     let tx = await token.connect(owner).mint(signer.address, amountLD);
     await tx.wait();
-    console.log("%s: minted %s %s to signer%d in %s", chainName, amountLD.toString(), await token.name(), signerIndex);
+
+    // check
+    const amountBalance = await token.balanceOf(signer.address);
+    console.log("amountBalanceBefore %s, amountBalance %s", amountBalanceBefore.toString(), amountBalance.toString());
+    expect(amountBalance.sub(amountBalance)).eq(amountLD);
 }
 
 export const stake = async(
@@ -149,6 +194,8 @@ export const stake = async(
     token: MockToken,
     amountLD: BigNumber
 ) => {
+    console.log("Stake: %s %s %s", chainName, await token.name(), amountLD.toString());
+    
     let owner: SignerWithAddress;
     const payloadStake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLD, token.address]);
     console.log("payloadStake", payloadStake);
@@ -174,8 +221,8 @@ export const stake = async(
     // Check token and lpStaked
     const amountToken = await token.connect(owner).balanceOf(vault.address);
     const amountLPStaked = (await lpStaking.userInfo(BigNumber.from(lpStakingPoolIndex.toString()), vault.address)).amount;
-    console.log("%s: Before stake token %d, LpStaked %d", chainName, amountTokenBefore.toString(), amountLPStakedBefore.toString());
-    console.log("%s: After stake token %d, LpStaked %d", chainName, amountToken.toString(), amountLPStaked.toString());
+    console.log("Before stake token %d, LpStaked %d", amountTokenBefore.toString(), amountLPStakedBefore.toString());
+    console.log("After stake token %d, LpStaked %d", amountToken.toString(), amountLPStaked.toString());
     expect(amountTokenBefore.sub(amountToken)).to.eq(amountLD);
     expect(amountLPStaked).gt(amountLPStakedBefore);
 }
@@ -186,6 +233,8 @@ export const unstake = async(
     token: MockToken,
     amountLP: BigNumber
 ) => {
+    console.log("Unstake: %s LP %s -> %s", chainName, amountLP.toString(), await token.name());
+    
     let owner: SignerWithAddress;
     const payloadUnstake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLP, token.address]);
     console.log("payloadUnstake", payloadUnstake);
@@ -211,8 +260,8 @@ export const unstake = async(
     // Check token and lpStaked
     const amountToken = await token.connect(owner).balanceOf(vault.address);
     const amountLPStaked = (await lpStaking.userInfo(BigNumber.from(lpStakingPoolIndex.toString()), vault.address)).amount;
-    console.log("%s: Before unstake token %d, LpStaked %d", chainName, amountTokenBefore.toString(), amountLPStakedBefore.toString());
-    console.log("%s: After unstake token %d, LpStaked %d", chainName, amountToken.toString(), amountLPStaked.toString());
+    console.log("Before unstake token %d, LpStaked %d", amountTokenBefore.toString(), amountLPStakedBefore.toString());
+    console.log("After unstake token %d, LpStaked %d", amountToken.toString(), amountLPStaked.toString());
     expect(amountToken).gt(amountTokenBefore);
     expect(amountLPStakedBefore.sub(amountLPStaked)).eq(amountLP);
 }
@@ -224,6 +273,8 @@ export const swap = async(
     dstToken: MockToken,
     amountLD: BigNumber
 ) => {
+    console.log("Swap: %s %s %s -> %s", chainName, await srcToken.name(), amountLD.toString(), await dstToken.name());
+
     let owner: SignerWithAddress;
     const payloadSwap = ethers.utils.defaultAbiCoder.encode(["uint256","address", "address"], [amountLD, srcToken.address, dstToken.address]);
     console.log("payloadSwap", payloadSwap);
@@ -245,8 +296,8 @@ export const swap = async(
     // check token
     const amountSrc = await srcToken.balanceOf(vault.address);
     const amountDst = await dstToken.balanceOf(vault.address);
-    console.log("%s: Before swap, vault has srcToken %d, dstToken %d", chainName, amountSrcBefore.toString(), amountDstBefore.toString());
-    console.log("%S: After swap, vault has srcToken %d, dstToken %d", chainName, amountSrc.toString(), amountDst.toString());
+    console.log("Before swap, srcToken %d, dstToken %d", amountSrcBefore.toString(), amountDstBefore.toString());
+    console.log("After swap, srcToken %d, dstToken %d", amountSrc.toString(), amountDst.toString());
     expect(amountSrc).lt(amountSrcBefore);
     expect(amountDst).gt(amountDstBefore);
 }
@@ -260,6 +311,8 @@ export const swapRemote = async(
     dstToken: MockToken,
     amountLD: BigNumber
 ) => {
+    console.log("SwapRemote: %s %s %s -> %s %s", srcChainName, await srcToken.name(), amountLD.toString(), dstChainName, await dstToken.name());
+
     let owner: SignerWithAddress;
     const dstChainId = getChainIdFromChainName(dstChainName);
     const dstPoolId = exportData.testnetTestConstants.poolIds.get(await dstToken.name())!;
@@ -300,8 +353,8 @@ export const swapRemote = async(
         } else {
             success = true;
             console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
-            console.log("Before swapRemote, %s srcVault has srcToken %s, %s dstVault has dstToken %s", srcChainName, amountSrcBefore.toString(), dstChainName, amountDstBefore.toString());
-            console.log("After swapRemote, %s srcVault has srcToken %s, %s dstVault has dstToken %s", srcChainName, amountSrcRemain.toString(), dstChainName, amountDstRemain.toString());
+            console.log("Before swapRemote, srcToken %s, dstToken %s", amountSrcBefore.toString(), amountDstBefore.toString());
+            console.log("After swapRemote, srcToken %s, dstToken %s", amountSrcRemain.toString(), amountDstRemain.toString());
             expect(amountSrcRemain).lt(amountSrcBefore);
             expect(amountDstRemain).gt(amountDstBefore);
             break;
