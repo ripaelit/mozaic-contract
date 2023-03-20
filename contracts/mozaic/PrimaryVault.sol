@@ -108,12 +108,21 @@ contract PrimaryVault is SecondaryVault {
         }
         
         // Start snapshotting
+        uint256 remainingSnapshot = chainIds.length;
+
         for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
+
+            if (vaults[_chainId].status == VaultStatus.SNAPSHOTTED) {
+                --remainingSnapshot;
+                continue;
+            }
+
             if (_chainId == primaryChainId) {
                 _takeSnapshot();
                 snapshotReported[_chainId] = snapshot;
                 vaults[_chainId].status = VaultStatus.SNAPSHOTTED;
+                --remainingSnapshot;
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
                 (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
@@ -122,8 +131,14 @@ contract PrimaryVault is SecondaryVault {
             }
         }
 
-        mlpPerStablecoinMil = 0;
-        protocolStatus = ProtocolStatus.SNAPSHOTTING;
+        if (remainingSnapshot > 0) {
+            mlpPerStablecoinMil = 0;
+            protocolStatus = ProtocolStatus.SNAPSHOTTING;
+            
+        } else {
+            _calculateMozLpPerStablecoinMil();
+            protocolStatus = ProtocolStatus.OPTIMIZING;
+        }
     }
 
     function settleRequestsAllVaults() external onlyOwner {
@@ -135,9 +150,11 @@ contract PrimaryVault is SecondaryVault {
 
         // Start settling
         uint256 remainingSettle = chainIds.length;
+
         for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
             Snapshot storage report = snapshotReported[_chainId];
+
             if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
                 --remainingSettle;
                 continue;
@@ -146,6 +163,7 @@ contract PrimaryVault is SecondaryVault {
             if (_chainId == primaryChainId) {
                 _settleRequests();
                 vaults[_chainId].status = VaultStatus.IDLE;
+                --remainingSettle;
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
                 (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
@@ -153,6 +171,7 @@ contract PrimaryVault is SecondaryVault {
                 _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
+
         if (remainingSettle > 0) {
             protocolStatus = ProtocolStatus.SETTLING;
         }
