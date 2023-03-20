@@ -164,6 +164,27 @@ export const stake = async(
     await tx.wait();
 }
 
+export const unstake = async(
+    chainName: string,
+    vault: SecondaryVault, 
+    token: MockToken,
+    amountMLP: BigNumber
+) => {
+    let owner: SignerWithAddress;
+    const payloadUnstake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountMLP, token.address]);
+    console.log("payloadUnstake", payloadUnstake);
+    const unstakeAction: SecondaryVault.ActionStruct  = {
+        driverId: exportData.testnetTestConstants.stargateDriverId,
+        actionType: ActionTypeEnum.StargateUnstake,
+        payload : payloadUnstake
+    };
+    
+    hre.changeNetwork(chainName);
+    [owner] = await ethers.getSigners();
+    let tx = await vault.connect(owner).executeActions([unstakeAction]);
+    await tx.wait();
+}
+
 export const swapRemote = async(
     srcChainName: string,
     srcVault: SecondaryVault,
