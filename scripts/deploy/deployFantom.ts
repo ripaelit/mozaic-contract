@@ -1,7 +1,7 @@
 import { ethers, run } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { deployAllToTestNet } from '../util/deployUtils';
-import exportData from '../constants/index';
+import { getChainIdFromChainName } from '../util/utils'
 const fs = require('fs');
 const hre = require('hardhat');
 
@@ -14,7 +14,7 @@ async function main() {
     console.log("Account balance:", (await owner.getBalance()).toString());
 
     // deploy
-    const chainId = exportData.testnetTestConstants.chainIds[2];
+    const chainId = getChainIdFromChainName('fantom');
     const mozaicDeployment = await deployAllToTestNet(owner, chainId);
     console.log("Completed deploy");
 
