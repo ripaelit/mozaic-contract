@@ -162,7 +162,7 @@ export const withdraw = async (
     token: MockToken, 
     amountMLP: BigNumber
 ) => {
-    console.log("Withdraw: %s signer%d %s %s MLP", chainName, signerIndex, await token.name(), amountMLP);
+    console.log("Withdraw: %s signer%d %s %s MLP", chainName, signerIndex, await token.name(), amountMLP.toString());
     
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
