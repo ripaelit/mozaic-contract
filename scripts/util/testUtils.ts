@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, MockToken__factory } from '../../types/typechain';
+import { PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, LPStaking__factory } from '../../types/typechain';
 import { ActionTypeEnum, ProtocolStatus, VaultStatus, MozaicDeployment } from '../constants/types';
 import { setTimeout } from 'timers/promises';
 import { BigNumber } from 'ethers';
@@ -157,21 +157,37 @@ export const stake = async(
         actionType: ActionTypeEnum.StargateStake,
         payload : payloadStake
     };
-    
+
+    // Check token and lpStaked
     hre.changeNetwork(chainName);
     [owner] = await ethers.getSigners();
+    const amountTokenBefore = await token.connect(owner).balanceOf(vault.address);
+    let lpStakingAddr = await vault.stargateLpStaking();
+    let lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+    let lpStaking = lpStakingFactory.attach(lpStakingAddr);
+    const lpStakingPoolIndex = exportData.testnetTestConstants.lpStakingPoolIndex.get(chainName)!.get(await token.name())!;
+    const amountLPStakedBefore = (await lpStaking.userInfo(BigNumber.from(lpStakingPoolIndex.toString()), vault.address)).amount;
+
     let tx = await vault.connect(owner).executeActions([stakeAction]);
     await tx.wait();
+
+    // Check token and lpStaked
+    const amountToken = await token.connect(owner).balanceOf(vault.address);
+    const amountLPStaked = (await lpStaking.userInfo(BigNumber.from(lpStakingPoolIndex.toString()), vault.address)).amount;
+    console.log("%s: Before stake token %d, LpStaked %d", chainName, amountTokenBefore.toString(), amountLPStakedBefore.toString());
+    console.log("%s: After stake token %d, LpStaked %d", chainName, amountToken.toString(), amountLPStaked.toString());
+    expect(amountTokenBefore.sub(amountToken)).to.eq(amountLD);
+    expect(amountLPStaked).gt(amountLPStakedBefore);
 }
 
 export const unstake = async(
     chainName: string,
     vault: SecondaryVault, 
     token: MockToken,
-    amountMLP: BigNumber
+    amountLP: BigNumber
 ) => {
     let owner: SignerWithAddress;
-    const payloadUnstake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountMLP, token.address]);
+    const payloadUnstake = ethers.utils.defaultAbiCoder.encode(["uint256","address"], [amountLP, token.address]);
     console.log("payloadUnstake", payloadUnstake);
     const unstakeAction: SecondaryVault.ActionStruct  = {
         driverId: exportData.testnetTestConstants.stargateDriverId,
@@ -179,10 +195,26 @@ export const unstake = async(
         payload : payloadUnstake
     };
     
+    // Check token and lpStaked
     hre.changeNetwork(chainName);
     [owner] = await ethers.getSigners();
+    const amountTokenBefore = await token.connect(owner).balanceOf(vault.address);
+    let lpStakingAddr = await vault.stargateLpStaking();
+    let lpStakingFactory = (await ethers.getContractFactory('LPStaking', owner)) as LPStaking__factory;
+    let lpStaking = lpStakingFactory.attach(lpStakingAddr);
+    const lpStakingPoolIndex = exportData.testnetTestConstants.lpStakingPoolIndex.get(chainName)!.get(await token.name())!;
+    const amountLPStakedBefore = (await lpStaking.userInfo(BigNumber.from(lpStakingPoolIndex.toString()), vault.address)).amount;
+
     let tx = await vault.connect(owner).executeActions([unstakeAction]);
     await tx.wait();
+
+    // Check token and lpStaked
+    const amountToken = await token.connect(owner).balanceOf(vault.address);
+    const amountLPStaked = (await lpStaking.userInfo(BigNumber.from(lpStakingPoolIndex.toString()), vault.address)).amount;
+    console.log("%s: Before unstake token %d, LpStaked %d", chainName, amountTokenBefore.toString(), amountLPStakedBefore.toString());
+    console.log("%s: After unstake token %d, LpStaked %d", chainName, amountToken.toString(), amountLPStaked.toString());
+    expect(amountToken).gt(amountTokenBefore);
+    expect(amountLPStakedBefore.sub(amountLPStaked)).eq(amountLP);
 }
 
 export const swap = async(
@@ -201,10 +233,22 @@ export const swap = async(
         payload : payloadSwap
     };
     
+    // check token
     hre.changeNetwork(chainName);
     [owner] = await ethers.getSigners();
+    const amountSrcBefore = await srcToken.balanceOf(vault.address);
+    const amountDstBefore = await dstToken.balanceOf(vault.address);
+
     let tx = await vault.connect(owner).executeActions([swapAction]);
     await tx.wait();
+
+    // check token
+    const amountSrc = await srcToken.balanceOf(vault.address);
+    const amountDst = await dstToken.balanceOf(vault.address);
+    console.log("%s: Before swap, vault has srcToken %d, dstToken %d", chainName, amountSrcBefore.toString(), amountDstBefore.toString());
+    console.log("%S: After swap, vault has srcToken %d, dstToken %d", chainName, amountSrc.toString(), amountDst.toString());
+    expect(amountSrc).lt(amountSrcBefore);
+    expect(amountDst).gt(amountDstBefore);
 }
 
 export const swapRemote = async(
@@ -214,23 +258,22 @@ export const swapRemote = async(
     dstChainName: string,
     dstVault: SecondaryVault,
     dstToken: MockToken,
-    amount: number
+    amountLD: BigNumber
 ) => {
     let owner: SignerWithAddress;
     const dstChainId = getChainIdFromChainName(dstChainName);
     const dstPoolId = exportData.testnetTestConstants.poolIds.get(await dstToken.name())!;
 
+    // check token
     hre.changeNetwork(srcChainName);
     const amountSrcBefore = await srcToken.balanceOf(srcVault.address);
-    const amountSwapRemoteLD = ethers.utils.parseUnits(amount.toString(), await srcToken.decimals());
-
     hre.changeNetwork(dstChainName);
     const amountDstBefore = await dstToken.balanceOf(dstVault.address);
 
     // swapRemote
     hre.changeNetwork(srcChainName);
     [owner] = await ethers.getSigners();
-    const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256"], [amountSwapRemoteLD, srcToken.address, dstChainId, dstPoolId]);
+    const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256"], [amountLD, srcToken.address, dstChainId, dstPoolId]);
     console.log("payloadSwapRemote", payloadSwapRemote);
     const swapRemoteAction: SecondaryVault.ActionStruct  = {
         driverId: exportData.testnetTestConstants.stargateDriverId,
@@ -257,8 +300,9 @@ export const swapRemote = async(
         } else {
             success = true;
             console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
-            console.log("Before swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcBefore.toString(), amountDstBefore.toString());
-            console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain.toString(), amountDstRemain.toString());
+            console.log("Before swapRemote, %s srcVault has srcToken %s, %s dstVault has dstToken %s", srcChainName, amountSrcBefore.toString(), dstChainName, amountDstBefore.toString());
+            console.log("After swapRemote, %s srcVault has srcToken %s, %s dstVault has dstToken %s", srcChainName, amountSrcRemain.toString(), dstChainName, amountDstRemain.toString());
+            expect(amountSrcRemain).lt(amountSrcBefore);
             expect(amountDstRemain).gt(amountDstBefore);
             break;
         }
