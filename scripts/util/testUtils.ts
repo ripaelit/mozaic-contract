@@ -1,10 +1,15 @@
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken__factory } from '../../types/typechain';
+import { PrimaryVault__factory, SecondaryVault, SecondaryVault__factory, MockToken, MockToken__factory } from '../../types/typechain';
+import { ActionTypeEnum, ProtocolStatus, VaultStatus, MozaicDeployment } from '../constants/types';
+import { setTimeout } from 'timers/promises';
 import { BigNumber } from 'ethers';
 import exportData from '../constants';
 const fs = require('fs');
 const hre = require('hardhat');
+
+export const TIME_DELAY_MAX = 20 * 60 * 1000;  // 20 min
 
 export const returnBalanceFrom = async (vaults: string[]) => {
     console.log("returnBalanceFrom");
@@ -88,44 +93,113 @@ export const deposit = async (
     chainName: string, 
     signerIndex: number, 
     vault: SecondaryVault, 
-    tokenName: string, 
+    token: MockToken, 
     amount: number
 ) => {
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
-    let owner = signers[0];
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
-    let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-    let tokenAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get(tokenName)!;
-    let token = MockTokenFactory.attach(tokenAddr);
     let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
 
     let tx = await token.connect(signer).approve(vault.address, amountLD);
     await tx.wait();
     tx = await vault.connect(signer).addDepositRequest(amountLD, token.address, chainId);
     await tx.wait();
-    console.log("Signer%d requests deposit %s %s in %s", signerIndex, amountLD.toString(), await token.name(), chainName);
+    console.log("%s: signer%d requests deposit %s %s", chainName, signerIndex, amountLD.toString(), await token.name());
 }
 
 export const withdraw = async (
     chainName: string, 
     signerIndex: number, 
     vault: SecondaryVault, 
-    tokenName: string, 
+    token: MockToken, 
     amount: number
 ) => {
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
-    let owner = signers[0];
     let signer = signers[signerIndex];
     let chainId = getChainIdFromChainName(chainName);
-    let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
-    let tokenAddr = exportData.testnetTestConstants.stablecoins.get(chainId)!.get(tokenName)!;
-    let token = MockTokenFactory.attach(tokenAddr);
     let amountMLP = ethers.utils.parseUnits(amount.toString(), exportData.testnetTestConstants.MOZAIC_DECIMALS);
 
     let tx = await vault.connect(signer).addWithdrawRequest(amountMLP, token.address, chainId);
     await tx.wait();
-    console.log("Signer%d requests withdraw %s MLP to %s in %s", signerIndex, amountMLP.toString(), await token.name(), chainName);
+    console.log("%s: signer%d requests withdraw %s MLP to %s", chainName, signerIndex, amountMLP.toString(), await token.name());
+}
+
+export const mint = async (
+    chainName: string,
+    signerIndex: number,
+    token: MockToken,
+    amount: number
+) => {
+    hre.changeNetwork(chainName);
+    let signers = await ethers.getSigners();
+    let signer = signers[signerIndex];
+    let owner = signers[0];
+    let amountLD = ethers.utils.parseUnits(amount.toString(), await token.decimals());
+    let tx = await token.connect(owner).mint(signer.address, amountLD);
+    await tx.wait();
+    console.log("%s: minted %s %s to signer%d in %s", chainName, amountLD.toString(), await token.name(), signerIndex);
+}
+
+export const swapRemote = async(
+    srcChainName: string,
+    srcVault: SecondaryVault,
+    srcToken: MockToken,
+    dstChainName: string,
+    dstVault: SecondaryVault,
+    dstToken: MockToken,
+    amount: number
+) => {
+    let owner: SignerWithAddress;
+    const dstChainId = getChainIdFromChainName(dstChainName);
+    const dstPoolId = exportData.testnetTestConstants.poolIds.get(await dstToken.name())!;
+
+    hre.changeNetwork(srcChainName);
+    const amountSrcBefore = await srcToken.balanceOf(srcVault.address);
+    const amountSwapRemoteLD = ethers.utils.parseUnits(amount.toString(), await srcToken.decimals());
+
+    hre.changeNetwork(dstChainName);
+    const amountDstBefore = await dstToken.balanceOf(dstVault.address);
+
+    // swapRemote
+    hre.changeNetwork(srcChainName);
+    [owner] = await ethers.getSigners();
+    const payloadSwapRemote = ethers.utils.defaultAbiCoder.encode(["uint256","address","uint16","uint256"], [amountSwapRemoteLD, srcToken.address, dstChainId, dstPoolId]);
+    console.log("payloadSwapRemote", payloadSwapRemote);
+    const swapRemoteAction: SecondaryVault.ActionStruct  = {
+        driverId: exportData.testnetTestConstants.stargateDriverId,
+        actionType: ActionTypeEnum.SwapRemote,
+        payload : payloadSwapRemote
+    };
+    let tx = await srcVault.connect(owner).executeActions([swapRemoteAction]);
+    await tx.wait();
+
+    // Check result
+    hre.changeNetwork(srcChainName);
+    const amountSrcRemain = await srcToken.balanceOf(srcVault.address);
+    hre.changeNetwork(dstChainName);
+    let amountDstRemain: BigNumber;
+    let timeDelayed = 0;
+    let success = false;
+    const timeInterval = 10000;
+    while (timeDelayed < TIME_DELAY_MAX) {
+        amountDstRemain = await dstToken.balanceOf(dstVault.address);
+        if (amountDstRemain.eq(amountDstBefore)) {
+            console.log("Waiting for LayerZero delay...");
+            await setTimeout(timeInterval);
+            timeDelayed += timeInterval;
+        } else {
+            success = true;
+            console.log("LayerZero succeeded in %d seconds", timeDelayed / 1000);
+            console.log("Before swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcBefore.toString(), amountDstBefore.toString());
+            console.log("After swapRemote, srcVault has srcToken %d, dstVault has dstToken %d", amountSrcRemain.toString(), amountDstRemain.toString());
+            expect(amountDstRemain).gt(amountDstBefore);
+            break;
+        }
+    }
+    if (!success) {
+        console.log("Timeout LayerZero in swapRemote");
+    }
 }
