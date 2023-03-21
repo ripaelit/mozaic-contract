@@ -556,12 +556,12 @@ contract SecondaryVault is NonblockingLzApp {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
-    function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) internal pure returns (uint256) {
+    function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) public pure returns (uint256) {
         // TODO: CHECKLATER if (MOZAIC_DECIMALS < _localDecimals)
         return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
     }
 
-    function amountMDtoLD(uint256 _amountMD, uint256 _localDecimals) internal pure returns (uint256) {
+    function amountMDtoLD(uint256 _amountMD, uint256 _localDecimals) public pure returns (uint256) {
         // TODO: CHECKLATER if (MOZAIC_DECIMALS < _localDecimals)
         return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
     }
