@@ -65,25 +65,38 @@ describe('SecondaryVault.executeActions', () => {
     describe ('Test for Control Center', () => {
         before (async () => {
         })
-        it ('1. Mint token to users', async () => {
+        it.skip ('1. Mint token for test', async () => {
+            await mint('bsctest', 0, tokenA, ethers.utils.parseUnits('10000000000', decimalsA))
+            await mint('bsctest', 0, tokenB, ethers.utils.parseUnits('10000000000', decimalsB))
+            await mint('fantom', 0, tokenC, ethers.utils.parseUnits('10000000000', decimalsC))
+        })
+        it.skip ('1. Mint token to users', async () => {
             await mint('bsctest', 1, tokenA, ethers.utils.parseUnits('100', decimalsA));
             await mint('bsctest', 2, tokenB, ethers.utils.parseUnits('100', decimalsB));
             await mint('fantom', 2, tokenC, ethers.utils.parseUnits('100', decimalsC));
         })
-        it ('2-1. Users request deposit', async () => {
+        it.skip ('2-1. Users request deposit', async () => {
             await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsA));
             await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsB));
             await deposit('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsC));
         })
-        it.skip ('2-2. Users request withdraw', async () => {
+        it.skip ('2-2. Users request deposit and withdraw', async () => {
+            await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsA));
+            await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('10', decimalsB));
+            await deposit('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('10', decimalsC));
             await withdraw('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsMLP));
             await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
-            await withdraw('fantom,', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
+            await withdraw('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
         })
-        it.skip ('2-3. Users request withdraw whole', async () => {
+        it.skip ('2-3. Users request withdraw', async () => {
+            await withdraw('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsMLP));
+            await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
+            await withdraw('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
+        })
+        it.skip ('2-4. Users request withdraw whole', async () => {
             await withdrawWhole('bsctest', 1, primaryVault, tokenA, primaryMozaicLP);
             await withdrawWhole('bsctest', 2, primaryVault, tokenB, primaryMozaicLP);
-            await withdrawWhole('fantom,', 2, secondaryVault, tokenC, secondaryMozaicLP);
+            await withdrawWhole('fantom', 2, secondaryVault, tokenC, secondaryMozaicLP);
         })
         it.skip ('3. InitOptimizationSession', async () => {
             await initOptimization(primaryVault);
