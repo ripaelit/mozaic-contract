@@ -566,6 +566,22 @@ contract SecondaryVault is NonblockingLzApp {
         return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
     }
 
+    function amountMDtoMLP(uint256 _amountMD) public view returns (uint256) {
+        if (totalBalanceMD == 0 && totalMLP == 0) {
+            return _amountMD;
+        } else {
+            return _amountMD.mul(totalMLP).div(totalBalanceMD);
+        }
+    }
+
+    function amountMLPtoMD(uint256 _amountMLP) public view returns (uint256) {
+        if (totalBalanceMD == 0 && totalMLP == 0) {
+            return _amountMLP;
+        } else {
+            return _amountMLP.mul(totalBalanceMD).div(totalMLP);
+        }
+    }
+
     function _nonblockingLzReceive(
         uint16 _srcChainId, 
         bytes memory _srcAddress, 
