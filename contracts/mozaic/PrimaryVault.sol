@@ -53,21 +53,15 @@ contract PrimaryVault is SecondaryVault {
         return true;
     }
 
-    function _calculateMozLpPerStablecoinMil() internal {
+    function _updateStats() internal {
         uint256 _stargatePriceMil = _getStargatePriceMil();
-        uint256 _totalStablecoinMD;
-        uint256 _mintedMozLp;
-        // _mintedMozLp - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
+        // totalMLP - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
+        totalBalanceMD = 0;
+        totalMLP = 0;
         for (uint i; i < chainIds.length ; ++i) {
             Snapshot storage report = snapshotReported[chainIds[i]];
-            _totalStablecoinMD = _totalStablecoinMD.add(report.totalStablecoin + _stargatePriceMil.mul(report.totalStargate).div(1000000));
-            _mintedMozLp = _mintedMozLp.add(report.totalMozaicLp);
-        }
-        if (_totalStablecoinMD > 0) {
-            mlpPerStablecoinMil = _mintedMozLp.mul(1000000).div(_totalStablecoinMD);
-        }
-        else {
-            mlpPerStablecoinMil = INITIAL_MLP_PER_COIN_MIL;
+            totalBalanceMD = totalBalanceMD.add(report.totalStablecoin + (report.totalStargate).mul(_stargatePriceMil).div(1000000));
+            totalMLP = totalMLP.add(report.totalMozaicLp);
         }
     }
    
@@ -93,7 +87,7 @@ contract PrimaryVault is SecondaryVault {
         if (_packetType == PT_TAKE_SNAPSHOT) {
             payload = abi.encode(PT_TAKE_SNAPSHOT);
         } else if (_packetType == PT_SETTLE_REQUESTS) {
-            payload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
+            payload = abi.encode(PT_SETTLE_REQUESTS, totalBalanceMD, totalMLP);
         } else {
             // revert("Unknown packet type");
         }
@@ -123,7 +117,6 @@ contract PrimaryVault is SecondaryVault {
             }
         }
 
-        mlpPerStablecoinMil = 0;
         protocolStatus = ProtocolStatus.SNAPSHOTTING;
     }
 
@@ -132,7 +125,6 @@ contract PrimaryVault is SecondaryVault {
             return;
         }
         // require(_allVaultsSnapshotted(), "Requires all reports");
-        // require(mlpPerStablecoinMil > 0, "mozaiclp price not ready");
 
         // Start settling
         // Use remainingSettle to save lz fee for unnecessary settle
@@ -152,7 +144,7 @@ contract PrimaryVault is SecondaryVault {
                 vaults[_chainId].status = VaultStatus.IDLE;
                 --remainingSettle;
             } else {
-                bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, mlpPerStablecoinMil);
+                bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, totalBalanceMD, totalMLP);
                 (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
                 bytes memory _adapterParams = _txParamBuilder(_chainId, PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
                 _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
@@ -183,7 +175,7 @@ contract PrimaryVault is SecondaryVault {
             vaults[_srcChainId].status = VaultStatus.SNAPSHOTTED;
 
             if (_allVaultsSnapshotted()) {
-                _calculateMozLpPerStablecoinMil();
+                _updateStats();
                 protocolStatus = ProtocolStatus.OPTIMIZING;
             }
 

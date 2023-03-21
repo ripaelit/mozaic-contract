@@ -131,10 +131,11 @@ contract SecondaryVault is NonblockingLzApp {
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
     // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
-    uint256 public mlpPerStablecoinMil; // mozLP/stablecoinSD*1_000_000
     uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
     uint16[] public chainIds;
     mapping (uint16 => VaultDescriptor) public vaults;
+    uint256 public totalBalanceMD;
+    uint256 public totalMLP;
 
     function _requests(bool staged) internal view returns (RequestBuffer storage) {
         return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
@@ -403,8 +404,8 @@ contract SecondaryVault is NonblockingLzApp {
             if (_depositAmountMD == 0) {
                 continue;
             }
-            uint256 _amountToMint = _depositAmountMD.mul(mlpPerStablecoinMil).div(1000000);
-            mozaicLpContract.mint(request.user, _amountToMint);
+            uint256 _amountMLPToMint = amountMDtoMLP(_depositAmountMD);
+            mozaicLpContract.mint(request.user, _amountMLPToMint);
             // Reduce Handled Amount from Buffer
             _reqs.totalDepositAmount = _reqs.totalDepositAmount.sub(_depositAmountMD);
             _reqs.depositAmountPerToken[request.token] = _reqs.depositAmountPerToken[request.token].sub(_depositAmountMD);
@@ -419,7 +420,7 @@ contract SecondaryVault is NonblockingLzApp {
             if (_withdrawAmountMLP == 0) {
                 continue;
             }
-            uint256 _coinAmountMDtoGive = _withdrawAmountMLP.mul(1000000).div(mlpPerStablecoinMil);
+            uint256 _coinAmountMDtoGive = amountMLPtoMD(_withdrawAmountMLP);
             uint256 _coinAmountLDtoGive = amountMDtoLD(_coinAmountMDtoGive, IERC20Metadata(request.token).decimals());
             uint256 _vaultBalanceLD = IERC20(request.token).balanceOf(address(this));
             if (_vaultBalanceLD <= _coinAmountLDtoGive) {
@@ -598,7 +599,7 @@ contract SecondaryVault is NonblockingLzApp {
             _reportSnapshot();
 
         } else if (packetType == PT_SETTLE_REQUESTS) {
-            (, mlpPerStablecoinMil) = abi.decode(_payload, (uint16, uint256));
+            (, totalBalanceMD, totalMLP) = abi.decode(_payload, (uint16, uint256, uint256));
             _settleRequests();
             _reportSettled();
 
