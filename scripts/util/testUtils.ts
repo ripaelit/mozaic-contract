@@ -383,8 +383,9 @@ export const initOptimization = async (
         let protocolStatus = await primaryVault.protocolStatus();
         if (protocolStatus == ProtocolStatus.OPTIMIZING) {
             success = true;
-            let mlpPerStablecoinMil = await primaryVault.mlpPerStablecoinMil();
-            console.log("initOptimization in %d seconds, mlpPerStablecoinMil %s", timeDelayed / 1000, mlpPerStablecoinMil.toString());
+            const totalMLP = await primaryVault.totalMLP();
+            const totalBalanceMD = await primaryVault.totalBalanceMD();
+            console.log("initOptimization in %d seconds, totalMLP %s, totalBalanceMD %s", timeDelayed / 1000, totalMLP.toString(), totalBalanceMD.toString());
             break;
         } else {
             console.log("Waiting for lz_report_snapshot...");
