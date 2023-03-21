@@ -12,7 +12,6 @@ import "../../interfaces/IStargateFeeLibrary.sol";
 // libraries
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-
 /// Pool contracts on other chains and managed by the Stargate protocol.
 contract Pool is LPTokenERC20, ReentrancyGuard {
     using SafeMath for uint256;
@@ -194,12 +193,9 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
 
         s.lkbRemove = amountSD.sub(s.lpFee).add(s.eqReward);
         // check for transfer solvency.
+        require(cp.balance >= s.lkbRemove, "Stargate: dst balance too low");
+        cp.balance = cp.balance.sub(s.lkbRemove);
 
-        // CHECKAFTER: 
-        // require(cp.balance >= s.lkbRemove, "Stargate: dst balance too low");
-        // cp.balance = cp.balance.sub(s.lkbRemove);
-        ////
-        
         if (newLiquidity) {
             deltaCredit = deltaCredit.add(amountSD).add(s.eqReward);
         } else if (s.eqReward > 0) {
@@ -255,7 +251,9 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         require(_from != address(0x0), "Stargate: _from cannot be 0x0");
         uint256 _deltaCredit = deltaCredit; // sload optimization.
         uint256 _capAmountLP = _amountSDtoLP(_deltaCredit);
+
         if (_amountLP > _capAmountLP) _amountLP = _capAmountLP;
+
         amountSD = _burnLocal(_from, _amountLP);
         deltaCredit = _deltaCredit.sub(amountSD);
         uint256 amountLD = amountSDtoLD(amountSD);
@@ -325,6 +323,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
         // update LKB
         uint256 chainPathIndex = chainPathIndexLookup[_srcChainId][_srcPoolId];
         chainPaths[chainPathIndex].lkb = chainPaths[chainPathIndex].lkb.sub(_s.lkbRemove);
+
         // user receives the amount + the srcReward
         amountLD = amountSDtoLD(_s.amount.add(_s.eqReward));
         _safeTransfer(token, _to, amountLD);
@@ -595,7 +594,7 @@ contract Pool is LPTokenERC20, ReentrancyGuard {
             }
 
             // deduct the amount of credit sent
-            // deltaCredit = deltaCredit.sub(spent);    // kevin
+            deltaCredit = deltaCredit.sub(spent);
         }
     }
 
