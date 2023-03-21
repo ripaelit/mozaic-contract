@@ -215,32 +215,14 @@ contract StargateDriver is ProtocolDriver{
         // Get amount LP staked
         (success, response) = address(_stgLPStaking).call(abi.encodeWithSignature("userInfo(uint256,address)", poolIndex, address(this)));
         require(success, "lp staked failed");
-        uint256 _amountLPToken = abi.decode(response, (uint256));
-        
-        // Get total liquidity: _totalLiquidity = _pool.totalLiquidity()
-        (success, response) = address(_pool).call(abi.encodeWithSignature("totalLiquidity()"));
-        require(success, "totalLiquidity failed");
-        uint256 _totalLiquidity = abi.decode(response, (uint256));
-        
-        // Get convertRate of pool: _convertRate = _pool.convertRate()
-        (success, response) = address(_pool).call(abi.encodeWithSignature("convertRate()"));
-        require(success, "convertRate failed");
-        uint256 _convertRate = abi.decode(response, (uint256));
-        
-        // Get _totalLiquidityLD from _totalLiquidity
-        uint256 _totalLiquidityLD = _totalLiquidity.mul(_convertRate);
-        
-        // Get total supply: _totalSupply = _pool.totalSupply()
-        (success, response) = address(_pool).call(abi.encodeWithSignature("totalSupply()"));
-        require(success, "totalSupply failed");
-        uint256 _totalSupply = abi.decode(response, (uint256));
-        
-        uint256 _amountStakedLD;
-        if (_totalSupply > 0) {
-            _amountStakedLD = _amountStakedLD.add(_amountLPToken.mul(_totalLiquidityLD).div(_totalSupply));
-        }
+        uint256 _amountLP = abi.decode(response, (uint256));
 
-        result = abi.encode(_amountStakedLD);
+        // Get amount LD staked
+        (success, response) = address(_pool).call(abi.encodeWithSignature("amountLPtoLD(uint256)", _amountLP));
+        require(success, "amountLPtoLD failed");
+        uint256 _amountLD = abi.decode(response, (uint256));
+        
+        result = abi.encode(_amountLD);
     }
 
     function _getStargatePoolFromToken(address _token) private returns (address) {
