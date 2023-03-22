@@ -37,9 +37,11 @@ describe('SecondaryVault.executeActions', () => {
         let tokenAAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("BUSD")!;
         tokenA = MockTokenFactory.attach(tokenAAddr);
         decimalsA = await tokenA.decimals();
+        console.log("tokenA %s decimalsA %d", await tokenA.name(), decimalsA);
         let tokenBAddr = exportData.testnetTestConstants.stablecoins.get(primaryChainId)!.get("USDT")!;
         tokenB = MockTokenFactory.attach(tokenBAddr);
         decimalsB = await tokenB.decimals();
+        console.log("tokenB %s decimalsB %d", await tokenB.name(), decimalsB);
         let mozaicLPFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
         primaryMozaicLP = mozaicLPFactory.attach(json.mozaicLP);
 
@@ -55,20 +57,25 @@ describe('SecondaryVault.executeActions', () => {
         let tokenCAddr = exportData.testnetTestConstants.stablecoins.get(secondaryChainId)!.get("USDC")!;
         tokenC = MockTokenFactory.attach(tokenCAddr);
         decimalsC = await tokenC.decimals();
+        console.log("tokenC %s decimalsC %d", await tokenC.name(), decimalsC);
         mozaicLPFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
         secondaryMozaicLP = mozaicLPFactory.attach(json.mozaicLP);
 
-        decimalsMLP = exportData.testnetTestConstants.MOZAIC_DECIMALS;
+        // decimalsMLP = exportData.testnetTestConstants.MOZAIC_DECIMALS;
+        decimalsMLP = await secondaryMozaicLP.decimals();
+        console.log("MozaicLP %s decimalsMLP %d", await secondaryMozaicLP.name(), decimalsMLP);
     })
     after (async () => {
     })
     describe ('Test for Control Center', () => {
         before (async () => {
         })
-        it.skip ('1. Mint token for test', async () => {
-            await mint('bsctest', 0, tokenA, ethers.utils.parseUnits('10000000000', decimalsA))
-            await mint('bsctest', 0, tokenB, ethers.utils.parseUnits('10000000000', decimalsB))
-            await mint('fantom', 0, tokenC, ethers.utils.parseUnits('10000000000', decimalsC))
+        it ('test', async () => {
+            // await mint('bsctest', 0, tokenA, ethers.utils.parseUnits('10000000000', decimalsA))
+            // await mint('bsctest', 0, tokenB, ethers.utils.parseUnits('10000000000', decimalsB))
+            // await mint('fantom', 0, tokenC, ethers.utils.parseUnits('10000000000', decimalsC))
+            // await deposit('bsctest', 0, primaryVault, tokenA, ethers.utils.parseUnits('1000000', decimalsA));
+            await deposit('fantom', 0, secondaryVault, tokenC, ethers.utils.parseUnits('1000000', decimalsC));
         })
         it.skip ('1. Mint token to users', async () => {
             await mint('bsctest', 1, tokenA, ethers.utils.parseUnits('100', decimalsA));
