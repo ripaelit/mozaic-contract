@@ -78,10 +78,12 @@ const config: HardhatUserConfig = {
         //     accounts: {mnemonic: mnemonic},
         // },
         bsctest: {
-            // url: `https://data-seed-prebsc-1-s3.binance.org:8545/`,
-            // url: `https://data-seed-prebsc-2-s3.binance.org:8545/`,
-            url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
+            // url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
             // url: `https://data-seed-prebsc-2-s1.binance.org:8545/`,
+            // url: `https://data-seed-prebsc-1-s2.binance.org:8545/`,
+            // url: `https://data-seed-prebsc-2-s2.binance.org:8545/`,
+            url: `https://data-seed-prebsc-1-s3.binance.org:8545/`,
+            // url: `https://data-seed-prebsc-2-s3.binance.org:8545/`,
             chainId: 97,
             gasPrice: 20000000000,
             accounts: {mnemonic: mnemonic},
@@ -100,8 +102,8 @@ const config: HardhatUserConfig = {
         // Obtain one at https://etherscan.io/
 
         // apiKey: goerliApiKey,
-        apiKey: bscscanApiKey,
-        // apiKey: fantomApiKey,
+        // apiKey: bscscanApiKey,
+        apiKey: fantomApiKey,
     },
     paths: {
         sources: "./contracts",
