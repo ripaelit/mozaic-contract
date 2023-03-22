@@ -151,7 +151,7 @@ const testnetTestConstants = {
     pancakeSwapSmartRouter: "0xC6665d98Efd81f47B03801187eB46cbC63F328B0",
     stargateDriverId:     1,
     pancakeSwapDriverId:  2,
-    MOZAIC_DECIMALS: 18,
+    MOZAIC_DECIMALS: 6,
 }
 
 const exportData = {
