@@ -135,6 +135,7 @@ contract PrimaryVault is SecondaryVault {
             Snapshot storage report = snapshotReported[_chainId];
 
             if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
+                vaults[_chainId].status = VaultStatus.IDLE;
                 --remainingSettle;
                 continue;
             }
