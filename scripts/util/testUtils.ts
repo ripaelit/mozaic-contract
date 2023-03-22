@@ -129,7 +129,7 @@ export const deposit = async (
     await tx.wait();
 
     // check
-    const amountMD = amountLD.mul(10 ** (exportData.testnetTestConstants.MOZAIC_DECIMALS - await token.decimals()));
+    const amountMD = amountLD.div(10 ** (await token.decimals() - exportData.testnetTestConstants.MOZAIC_DECIMALS));
     const totalDepositAmount = await vault.getTotalDepositAmount(false);
     const depositAmount = await vault.getDepositAmount(false, signer.address, token.address, chainId);
     const depositAmountPerTokenA = await vault.getDepositAmountPerToken(false, token.address);
