@@ -281,26 +281,26 @@ contract SecondaryVault is NonblockingLzApp {
         _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
 
         // add deposit request to pending buffer
-        RequestBuffer storage buffer = _requests(false);
+        RequestBuffer storage _pendingBuffer = _requests(false);
         bool exists = false;
-        for (uint i; i < buffer.depositRequestList.length; ++i) {
-            DepositRequest storage req = buffer.depositRequestList[i];
-            if (req.user == _depositor && req.token == _token) {
+        for (uint i; i < _pendingBuffer.depositRequestList.length; ++i) {
+            DepositRequest storage _req = _pendingBuffer.depositRequestList[i];
+            if (_req.user == _depositor && _req.token == _token) {
                 exists = true;
                 break;
             }
         }
         if (!exists) {
-            DepositRequest memory req;
-            req.user = _depositor;
-            req.token = _token;
-            req.chainId = _chainId;
-            buffer.depositRequestList.push(req);
+            DepositRequest memory _req;
+            _req.user = _depositor;
+            _req.token = _token;
+            _req.chainId = _chainId;
+            _pendingBuffer.depositRequestList.push(_req);
         }
         uint256 _amountMD = amountLDtoMD(_amountLDAccept, IERC20Metadata(_token).decimals());
-        buffer.depositRequestLookup[_depositor][_token][_chainId] = buffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountMD);
-        buffer.totalDepositAmount = buffer.totalDepositAmount.add(_amountMD);
-        buffer.depositAmountPerToken[_token] = buffer.depositAmountPerToken[_token].add(_amountMD);
+        _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] = _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountMD);
+        _pendingBuffer.totalDepositAmount = _pendingBuffer.totalDepositAmount.add(_amountMD);
+        _pendingBuffer.depositAmountPerToken[_token] = _pendingBuffer.depositAmountPerToken[_token].add(_amountMD);
 
         emit DepositRequestAdded(_depositor, _token, _chainId, _amountMD);
     }
@@ -311,39 +311,36 @@ contract SecondaryVault is NonblockingLzApp {
         require(isAcceptingToken(_token), "should be accepting token");
 
         address _withdrawer = msg.sender;
-        RequestBuffer storage pendingBuffer = _requests(false);
-        RequestBuffer storage stagedBuffer = _requests(true);
+        RequestBuffer storage _pendingBuffer = _requests(false);
+        RequestBuffer storage _stagedBuffer = _requests(true);
 
-        // check amount MLP user has, if not enough, limit withdraw amount MLP
-        uint256 bookedAmountMLP = pendingBuffer.withdrawAmountPerUser[_withdrawer] + stagedBuffer.withdrawAmountPerUser[_withdrawer];
-        uint256 limitAmountMLP = MozaicLP(mozaicLp).balanceOf(_withdrawer);
-        if (_amountMLP + bookedAmountMLP > limitAmountMLP) {
-            _amountMLP = limitAmountMLP - bookedAmountMLP;
-        }
+        // check amount MLP user has, if not enough, revert
+        uint256 _bookedAmountMLP = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _stagedBuffer.withdrawAmountPerUser[_withdrawer];
+        require(_amountMLP.add(_bookedAmountMLP) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
 
         // add new withdraw amount to pending buffer
-        pendingBuffer.withdrawAmountPerUser[_withdrawer] = pendingBuffer.withdrawAmountPerUser[_withdrawer].add(_amountMLP);
+        _pendingBuffer.withdrawAmountPerUser[_withdrawer] = _pendingBuffer.withdrawAmountPerUser[_withdrawer].add(_amountMLP);
 
         // add withdraw request to pending buffer
         bool _exists = false;
-        for (uint i; i < pendingBuffer.withdrawRequestList.length; ++i) {
-            WithdrawRequest storage req = pendingBuffer.withdrawRequestList[i];
-            if (req.user == _withdrawer && req.token == _token && req.chainId == _chainId) {
+        for (uint i; i < _pendingBuffer.withdrawRequestList.length; ++i) {
+            WithdrawRequest storage _req = _pendingBuffer.withdrawRequestList[i];
+            if (_req.user == _withdrawer && _req.token == _token && _req.chainId == _chainId) {
                 _exists = true;
                 break;
             }
         }
         if (!_exists) {
-            WithdrawRequest memory req;
-            req.user = _withdrawer;
-            req.token = _token;
-            req.chainId = _chainId;
-            pendingBuffer.withdrawRequestList.push(req);
+            WithdrawRequest memory _req;
+            _req.user = _withdrawer;
+            _req.token = _token;
+            _req.chainId = _chainId;
+            _pendingBuffer.withdrawRequestList.push(_req);
         }
 
-        pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] = pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token].add(_amountMLP);
-        pendingBuffer.totalWithdrawAmount = pendingBuffer.totalWithdrawAmount.add(_amountMLP);
-        pendingBuffer.withdrawAmountPerToken[_token] = pendingBuffer.withdrawAmountPerToken[_token].add(_amountMLP);
+        _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] = _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token].add(_amountMLP);
+        _pendingBuffer.totalWithdrawAmount = _pendingBuffer.totalWithdrawAmount.add(_amountMLP);
+        _pendingBuffer.withdrawAmountPerToken[_token] = _pendingBuffer.withdrawAmountPerToken[_token].add(_amountMLP);
 
         emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
     }
