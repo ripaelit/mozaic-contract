@@ -313,8 +313,15 @@ contract SecondaryVault is NonblockingLzApp {
         address _withdrawer = msg.sender;
         RequestBuffer storage pendingBuffer = _requests(false);
         RequestBuffer storage stagedBuffer = _requests(true);
-        // check if the user has enough balance
-        require (_amountMLP.add(stagedBuffer.withdrawAmountPerUser[_withdrawer]) <= MozaicLP(mozaicLp).balanceOf(_withdrawer), "Withdraw amount > owned mLP");
+
+        // check amount MLP user has, if not enough, limit withdraw amount MLP
+        uint256 bookedAmountMLP = pendingBuffer.withdrawAmountPerUser[_withdrawer] + stagedBuffer.withdrawAmountPerUser[_withdrawer];
+        uint256 limitAmountMLP = MozaicLP(mozaicLp).balanceOf(_withdrawer);
+        if (_amountMLP + bookedAmountMLP > limitAmountMLP) {
+            _amountMLP = limitAmountMLP - bookedAmountMLP;
+        }
+
+        // add new withdraw amount to pending buffer
         pendingBuffer.withdrawAmountPerUser[_withdrawer] = pendingBuffer.withdrawAmountPerUser[_withdrawer].add(_amountMLP);
 
         // add withdraw request to pending buffer
