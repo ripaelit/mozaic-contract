@@ -2672,6 +2672,11 @@ hard-rejection@^2.1.0:
   resolved "https://registry.npmjs.org/hard-rejection/-/hard-rejection-2.1.0.tgz"
   integrity sha512-VIZB+ibDhx7ObhAe7OVtoEbuP4h/MuOTHJ+J8h/eBXotJYl0fBgR72xDFCKgIh22OJZIOVNxBMWuhAr10r8HdA==
 
+hardhat-change-network@^0.0.7:
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/hardhat-change-network/-/hardhat-change-network-0.0.7.tgz#9f9b7943ff966515658b70bf5e44bc2f073af402"
+  integrity sha512-Usp9fJan9SOJnOlVcv/jMJDchseE7bIDA5ZsBnracgVk4MiBwkvMqpmLWn5G1aDBvnUCthvS2gO3odfahgkV0Q==
+
 hardhat-contract-sizer@^2.8.0:
   version "2.8.0"
   resolved "https://registry.yarnpkg.com/hardhat-contract-sizer/-/hardhat-contract-sizer-2.8.0.tgz#730a9bf35ed200ba57b6865bd3f459a91c90f205"
