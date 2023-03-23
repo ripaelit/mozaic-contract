@@ -51,4 +51,8 @@ But we also need to pay attention to overflow cases.
 
 Make sure there's no asset left as that token.
 
+#### AddDepositRequest and AddWithdrawRequest should be onChain. no need to accept layerZeroChainId
+
+Previously we thought it's contract's obligation to mint mLP on desired chain.
+But it's not. Relieve the burden of smart contract.
 

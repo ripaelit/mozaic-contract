@@ -428,12 +428,13 @@ contract SecondaryVault is NonblockingLzApp {
             uint256 _coinAmountMDtoGive = amountMLPtoMD(_withdrawAmountMLP);
             uint256 _coinAmountLDtoGive = amountMDtoLD(_coinAmountMDtoGive, IERC20Metadata(request.token).decimals());
             uint256 _vaultBalanceLD = IERC20(request.token).balanceOf(address(this));
-            if (_vaultBalanceLD <= _coinAmountLDtoGive) {
+            uint256 _mlpToBurn = _withdrawAmountMLP;
+            if (_vaultBalanceLD < _coinAmountLDtoGive) {
                 // The vault does not have enough balance. Only give as much as it has.
-                _withdrawAmountMLP = _withdrawAmountMLP.mul(_vaultBalanceLD).div(_coinAmountLDtoGive);
+                _mlpToBurn = _withdrawAmountMLP.mul(_vaultBalanceLD).div(_coinAmountLDtoGive);
                 _coinAmountLDtoGive = _vaultBalanceLD;
             }
-            mozaicLpContract.burn(request.user, _withdrawAmountMLP);
+            mozaicLpContract.burn(request.user, _mlpToBurn);
             _safeTransfer(request.user, request.token, _coinAmountLDtoGive);
             // Reduce Handled Amount from Buffer
             _reqs.totalWithdrawAmount = _reqs.totalWithdrawAmount.sub(_withdrawAmountMLP);
