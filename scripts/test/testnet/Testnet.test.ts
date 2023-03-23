@@ -70,52 +70,69 @@ describe('SecondaryVault.executeActions', () => {
     describe ('Test for Control Center', () => {
         before (async () => {
         })
-        it ('test', async () => {
-            // await mint('bsctest', 0, tokenA, ethers.utils.parseUnits('10000000000', decimalsA))
-            // await mint('bsctest', 0, tokenB, ethers.utils.parseUnits('10000000000', decimalsB))
-            // await mint('fantom', 0, tokenC, ethers.utils.parseUnits('10000000000', decimalsC))
-            // await deposit('bsctest', 0, primaryVault, tokenA, ethers.utils.parseUnits('1000000', decimalsA));
-            await deposit('fantom', 0, secondaryVault, tokenC, ethers.utils.parseUnits('1000000', decimalsC));
-        })
-        it.skip ('1. Mint token to users', async () => {
-            await mint('bsctest', 1, tokenA, ethers.utils.parseUnits('100', decimalsA));
-            await mint('bsctest', 2, tokenB, ethers.utils.parseUnits('100', decimalsB));
-            await mint('fantom', 2, tokenC, ethers.utils.parseUnits('100', decimalsC));
-        })
-        it.skip ('2-1. Users request deposit', async () => {
+        // it.skip ('Mint tokens to owner', async () => {
+        //     await mint('bsctest', 0, tokenA, ethers.utils.parseUnits('10000000000', decimalsA))
+        //     await mint('bsctest', 0, tokenB, ethers.utils.parseUnits('10000000000', decimalsB))
+        //     await mint('fantom', 0, tokenC, ethers.utils.parseUnits('10000000000', decimalsC))
+        // })
+        // it.skip ('Owner deposit tokens to get MLP', async () => {
+        //     await deposit('bsctest', 0, primaryVault, tokenA, ethers.utils.parseUnits('1000000', decimalsA));
+        //     await deposit('bsctest', 0, primaryVault, tokenB, ethers.utils.parseUnits('1000000', decimalsB));
+        //     await deposit('fantom', 0, secondaryVault, tokenC, ethers.utils.parseUnits('1000000', decimalsC));
+        // })
+        // it.skip ('Mint tokens to users', async () => {
+        //     await mint('bsctest', 1, tokenA, ethers.utils.parseUnits('100', decimalsA));
+        //     await mint('bsctest', 2, tokenB, ethers.utils.parseUnits('100', decimalsB));
+        //     await mint('fantom', 2, tokenC, ethers.utils.parseUnits('100', decimalsC));
+        // })
+
+        it ('2. Users request only deposit', async () => {
             await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsA));
-            await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsB));
-            await deposit('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsC));
+            await deposit('bsctest', 1, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsB));
+            await deposit('fantom', 1, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsC));
         })
-        it.skip ('2-2. Users request deposit and withdraw', async () => {
-            await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsA));
-            await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('10', decimalsB));
-            await deposit('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('10', decimalsC));
-            await withdraw('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsMLP));
-            await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
-            await withdraw('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
-        })
-        it.skip ('2-3. Users request withdraw', async () => {
-            await withdraw('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsMLP));
-            await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
-            await withdraw('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
-        })
-        it.skip ('2-4. Users request withdraw whole', async () => {
-            await withdrawWhole('bsctest', 1, primaryVault, tokenA, primaryMozaicLP);
-            await withdrawWhole('bsctest', 2, primaryVault, tokenB, primaryMozaicLP);
-            await withdrawWhole('fantom', 2, secondaryVault, tokenC, secondaryMozaicLP);
-        })
-        it.skip ('3. InitOptimizationSession', async () => {
+
+        // it ('Users request deposit and withdraw', async () => {
+        //     await deposit('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsA));
+        //     await deposit('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('10', decimalsB));
+        //     await deposit('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('10', decimalsC));
+        //     await withdraw('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsMLP));
+        //     await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
+        //     await withdraw('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
+        // })
+
+        // it ('Users request only withdraw', async () => {
+        //     await withdraw('bsctest', 1, primaryVault, tokenA, ethers.utils.parseUnits('10', decimalsMLP));
+        //     await withdraw('bsctest', 2, primaryVault, tokenB, ethers.utils.parseUnits('15', decimalsMLP));
+        //     await withdraw('fantom', 2, secondaryVault, tokenC, ethers.utils.parseUnits('20', decimalsMLP));
+        // })
+
+        // it ('2-4. Users request withdraw whole', async () => {
+        //     await withdrawWhole('bsctest', 1, primaryVault, tokenB, primaryMozaicLP);
+        //     // await withdrawWhole('bsctest', 2, primaryVault, tokenB, primaryMozaicLP);
+        //     await withdrawWhole('fantom', 2, secondaryVault, tokenC, secondaryMozaicLP);
+        // })
+
+        it ('3. InitOptimizationSession', async () => {
             await initOptimization(primaryVault);
         })
-        it.skip ('4. Optimizing', async () => {
+
+        it ('4. Optimizing', async () => {
             // send whole token in primaryVault to secondaryVault
+            hre.changeNetwork('bsctest');
             let amountLD = await tokenA.balanceOf(primaryVault.address);
             await swapRemote('bsctest', primaryVault, tokenA, 'fantom', secondaryVault, tokenC, amountLD);
+
+            hre.changeNetwork('bsctest');
             amountLD = await tokenB.balanceOf(primaryVault.address);
             await swapRemote('bsctest', primaryVault, tokenB, 'fantom', secondaryVault, tokenC, amountLD);
+
+            hre.changeNetwork('fantom');
+            amountLD = await tokenC.balanceOf(secondaryVault.address);
+            await stake('fantom', secondaryVault, tokenC, amountLD);
         })
-        it.skip ('5. Settle Requests', async () => {
+
+        it ('5. Settle Requests', async () => {
             await settleRequests(primaryVault);
         })
         
