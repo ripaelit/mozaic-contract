@@ -5,6 +5,7 @@ typechain
 artifacts
 coverage*
 .env
-yarn.lock
-.gitignore
 scripts/args/*.js
+deployBscResult.json
+deployFantomResult.json
+deployLocalResult.json

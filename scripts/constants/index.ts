@@ -138,13 +138,13 @@ const testnetTestConstants = {
     lpStakingPoolIndex: new Map<string, Map<string, number>>([
         [
             'bsctest', new Map<string, number>([
-                ['BUSD', 5],
-                ['USDT', 2],
+                ['BUSD', 0],
+                ['USDT', 1],
             ])
         ],
         [
             'fantom', new Map<string, number>([
-                ['USDC', 1],
+                ['USDC', 0],
             ])
         ],
     ]),
