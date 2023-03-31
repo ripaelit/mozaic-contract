@@ -111,8 +111,8 @@ contract PrimaryVault is SecondaryVault {
                 vaults[_chainId].status = VaultStatus.SNAPSHOTTED;
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_TAKE_SNAPSHOT, LzTxObj((10**7), 0, "0x"));
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
                 _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }
@@ -124,9 +124,7 @@ contract PrimaryVault is SecondaryVault {
         if (protocolStatus != ProtocolStatus.OPTIMIZING) {
             return;
         }
-        // require(_allVaultsSnapshotted(), "Requires all reports");
 
-        // Start settling
         // Use remainingSettle to save lz fee for unnecessary settle
         uint256 remainingSettle = chainIds.length;
 
@@ -146,8 +144,8 @@ contract PrimaryVault is SecondaryVault {
                 --remainingSettle;
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, totalBalanceMD, totalMLP);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_SETTLE_REQUESTS, LzTxObj((10**7), 0, "0x"));
+                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
+                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
                 _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
             }
         }

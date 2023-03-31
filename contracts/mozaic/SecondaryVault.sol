@@ -42,7 +42,6 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public constant PT_TAKE_SNAPSHOT = 10004;
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
-    // uint256 public constant MOZAIC_DECIMALS = 18;
     uint256 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
 
     bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
@@ -369,8 +368,8 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _reportSnapshot() internal {
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
-        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
@@ -424,8 +423,8 @@ contract SecondaryVault is NonblockingLzApp {
 
     function _reportSettled() internal {
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**6), 0, "0x"));
-        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**6), 0, "0x"));
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
         _lzSend(primaryChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
@@ -462,10 +461,6 @@ contract SecondaryVault is NonblockingLzApp {
         require(success, "register vault failed");
 
     }
-
-    // function getVaultsCount() public view returns (uint256) {
-    //     return chainIds.length;
-    // }
 
     function setGasAmount(
         uint16 _chainId,
