@@ -290,7 +290,7 @@ contract SecondaryVault is NonblockingLzApp {
             _req.chainId = _chainId;
             _pendingBuffer.depositRequestList.push(_req);
         }
-        uint256 _amountMD = amountLDtoMD(_amountLDAccept, IERC20Metadata(_token).decimals());
+        uint256 _amountMD = convertLDtoMD(_token, _amountLDAccept);
         _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] = _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountMD);
         _pendingBuffer.totalDepositAmount = _pendingBuffer.totalDepositAmount.add(_amountMD);
         _pendingBuffer.depositAmountPerToken[_token] = _pendingBuffer.depositAmountPerToken[_token].add(_amountMD);
@@ -398,7 +398,7 @@ contract SecondaryVault is NonblockingLzApp {
                 continue;
             }
             uint256 _coinAmountMDtoGive = amountMLPtoMD(_withdrawAmountMLP);
-            uint256 _coinAmountLDtoGive = amountMDtoLD(_coinAmountMDtoGive, IERC20Metadata(request.token).decimals());
+            uint256 _coinAmountLDtoGive = convertMDtoLD(request.token, _coinAmountMDtoGive);
             uint256 _vaultBalanceLD = IERC20(request.token).balanceOf(address(this));
             uint256 _mlpToBurn = _withdrawAmountMLP;
             if (_vaultBalanceLD < _coinAmountLDtoGive) {
@@ -524,7 +524,7 @@ contract SecondaryVault is NonblockingLzApp {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
-    function convertLDtoMD(address _token, uint256 _amountLD) public pure returns (uint256) {
+    function convertLDtoMD(address _token, uint256 _amountLD) public view returns (uint256) {
         uint8 _localDecimals = IERC20Metadata(_token).decimals();
         if (MOZAIC_DECIMALS >= _localDecimals) {
             return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
