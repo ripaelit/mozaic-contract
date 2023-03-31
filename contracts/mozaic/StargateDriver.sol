@@ -290,6 +290,24 @@ contract StargateDriver is ProtocolDriver{
         return  _amountLD.div(_convertRate); // pool.amountLDtoSD(_amountLD);
     }
 
+    function convertLDtoMD(address _token, uint256 _amountLD) public pure returns (uint256) {
+        uint256 _localDecimals = IERC20Metadata(_token).decimals();
+        if (MOZAIC_DECIMALS >= _localDecimals) {
+            return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
+        } else {
+            return _amountLD.div(10**(_localDecimals - MOZAIC_DECIMALS));
+        }
+    }
+
+    function convertMDtoLD(address _token, uint256 _amountMD) public pure returns (uint256) {
+        uint256 _localDecimals = IERC20Metadata(_token).decimals();
+        if (MOZAIC_DECIMALS >= _localDecimals) {
+            return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
+        } else {
+            return _amountMD.mul(10**(_localDecimals - MOZAIC_DECIMALS));
+        }
+    }
+
     function _getPoolIndexInFarming(uint256 _poolId) private returns (bool, uint256) {
         address _pool = _getPool(_poolId);
         address _lpStaking = _getConfig().stgLPStaking;
