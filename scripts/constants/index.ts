@@ -85,7 +85,7 @@ const testnetTestConstants = {
         10102,  // BNB
         10112,  // Fantom
     ],
-    chainNames: new Map<number, string>([
+    chains: new Map<number, string>([
         [10102, 'bsctest'],
         [10112, 'fantom'],
     ]),

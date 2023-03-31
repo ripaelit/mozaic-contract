@@ -1,9 +1,9 @@
 import exportData from '../constants';
 
 export const getChainIdFromChainName = (chainName: string) => {
-    let chainNames = exportData.testnetTestConstants.chainNames;
+    let chains = exportData.testnetTestConstants.chains;
     let chainId = 0;
-    for (const [_chainId, _chainName] of chainNames) {
+    for (const [_chainId, _chainName] of chains) {
         if (_chainName === chainName) {
             chainId = _chainId;
             break;
