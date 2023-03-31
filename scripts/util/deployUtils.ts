@@ -428,6 +428,34 @@ export const initMozaics = async (
             await tx.wait();
         }
     }
+
+    // Set gasLookup
+    // TODO:
+    // - change to get chain id from chain name
+    // - consider gasLookup amount, especially for PT_SETTLE_REQUESTS
+    const bscChainId = exportData.testnetTestConstants.chainIds[0];
+    const fantomChainId = exportData.testnetTestConstants.chainIds[1];
+    const bscVault = mozaicDeployments.get(bscChainId)!.mozaicVault;
+    const fantomVault = mozaicDeployments.get(fantomChainId)!.mozaicVault;
+    const PT_SNAPSHOT_REPORT = 10001;
+    const PT_SETTLE_REQUESTS = 10002;
+    const PT_SETTLED_REPORT = 10003;
+    const PT_TAKE_SNAPSHOT = 10004;
+
+    hre.changeNetwork('bsctest');
+    [owner] = await ethers.getSigners();
+    let tx = await bscVault.connect(owner).setGasAmount(fantomChainId, PT_TAKE_SNAPSHOT, 2_000_000);
+    await tx.wait();
+    tx = await bscVault.connect(owner).setGasAmount(fantomChainId, PT_SETTLE_REQUESTS, 2_000_000);
+    await tx.wait();
+
+    hre.changeNetwork('fantom');
+    [owner] = await ethers.getSigners();
+    tx = await fantomVault.connect(owner).setGasAmount(bscChainId, PT_SNAPSHOT_REPORT, 400_000);
+    await tx.wait();
+    tx = await fantomVault.connect(owner).setGasAmount(bscChainId, PT_SETTLED_REPORT, 200_000);
+    await tx.wait();
+
     console.log("Initialized mozaics");
 }
 
