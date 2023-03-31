@@ -11,7 +11,7 @@ const fs = require('fs');
 const hre = require('hardhat');
 
 export const TIME_DELAY_MAX = 20 * 60 * 1000;  // 20min
-export const TIME_INTERVAL = 20 * 1000; // 20s
+export const TIME_INTERVAL = 60 * 1000; // 60s
 
 export const returnBalanceFrom = async (vaults: string[]) => {
     console.log("returnBalanceFrom");
