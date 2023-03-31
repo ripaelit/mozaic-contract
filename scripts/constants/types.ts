@@ -39,6 +39,7 @@ export enum ActionTypeEnum {
     StargateStake = 3,
     StargateUnstake = 4,
     GetStakedAmountLD = 5,
+    GetTotalAssetsMD = 6,
 }
 
 export enum ProtocolStatus {
