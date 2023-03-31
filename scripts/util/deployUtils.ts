@@ -444,16 +444,16 @@ export const initMozaics = async (
 
     hre.changeNetwork('bsctest');
     [owner] = await ethers.getSigners();
-    let tx = await bscVault.connect(owner).setGasAmount(fantomChainId, PT_TAKE_SNAPSHOT, 2_000_000);
+    let tx = await bscVault.connect(owner).setMinDstGas(fantomChainId, PT_TAKE_SNAPSHOT, 2_000_000);
     await tx.wait();
-    tx = await bscVault.connect(owner).setGasAmount(fantomChainId, PT_SETTLE_REQUESTS, 2_000_000);
+    tx = await bscVault.connect(owner).setMinDstGas(fantomChainId, PT_SETTLE_REQUESTS, 2_000_000);
     await tx.wait();
 
     hre.changeNetwork('fantom');
     [owner] = await ethers.getSigners();
-    tx = await fantomVault.connect(owner).setGasAmount(bscChainId, PT_SNAPSHOT_REPORT, 400_000);
+    tx = await fantomVault.connect(owner).setMinDstGas(bscChainId, PT_SNAPSHOT_REPORT, 400_000);
     await tx.wait();
-    tx = await fantomVault.connect(owner).setGasAmount(bscChainId, PT_SETTLED_REPORT, 200_000);
+    tx = await fantomVault.connect(owner).setMinDstGas(bscChainId, PT_SETTLED_REPORT, 200_000);
     await tx.wait();
 
     console.log("Initialized mozaics");
