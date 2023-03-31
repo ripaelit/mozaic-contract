@@ -131,7 +131,7 @@ contract SecondaryVault is NonblockingLzApp {
     RequestBuffer public rightBuffer;
     mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
     uint16[] public chainIds;
-    mapping (uint16 => VaultDescriptor) public vaults;
+    mapping (uint16 => VaultDescriptor) public vaultLookup;
     uint256 public totalBalanceMD;
     uint256 public totalMLP;
 
@@ -451,7 +451,7 @@ contract SecondaryVault is NonblockingLzApp {
         if (isNew) {
             chainIds.push(_chainId);
         }
-        vaults[_chainId] = VaultDescriptor(_addr, VaultStatus.IDLE);
+        vaultLookup[_chainId] = VaultDescriptor(_addr, VaultStatus.IDLE);
 
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
         (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _addr));

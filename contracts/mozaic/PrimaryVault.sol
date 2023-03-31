@@ -37,7 +37,7 @@ contract PrimaryVault is SecondaryVault {
 
     function _allVaultsSnapshotted() internal view returns (bool) {
         for (uint i; i < chainIds.length ; ++i) {
-            if (vaults[chainIds[i]].status != VaultStatus.SNAPSHOTTED) {
+            if (vaultLookup[chainIds[i]].status != VaultStatus.SNAPSHOTTED) {
                 return false;
             }
         }
@@ -46,7 +46,7 @@ contract PrimaryVault is SecondaryVault {
 
     function _allVaultsSettled() internal view returns (bool) {
         for (uint i; i < chainIds.length ; ++i) {
-            if (vaults[chainIds[i]].status != VaultStatus.IDLE) {
+            if (vaultLookup[chainIds[i]].status != VaultStatus.IDLE) {
                 return false;
             }
         }
@@ -108,7 +108,7 @@ contract PrimaryVault is SecondaryVault {
             if (_chainId == primaryChainId) {
                 _takeSnapshot();
                 snapshotReported[_chainId] = snapshot;
-                vaults[_chainId].status = VaultStatus.SNAPSHOTTED;
+                vaultLookup[_chainId].status = VaultStatus.SNAPSHOTTED;
             } else {
                 bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
                 (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
@@ -133,14 +133,14 @@ contract PrimaryVault is SecondaryVault {
             Snapshot storage report = snapshotReported[_chainId];
 
             if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
-                vaults[_chainId].status = VaultStatus.IDLE;
+                vaultLookup[_chainId].status = VaultStatus.IDLE;
                 --remainingSettle;
                 continue;
             }
 
             if (_chainId == primaryChainId) {
                 _settleRequests();
-                vaults[_chainId].status = VaultStatus.IDLE;
+                vaultLookup[_chainId].status = VaultStatus.IDLE;
                 --remainingSettle;
             } else {
                 bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, totalBalanceMD, totalMLP);
@@ -171,7 +171,7 @@ contract PrimaryVault is SecondaryVault {
 
         if (packetType == PT_SNAPSHOT_REPORT) {
             (, snapshotReported[_srcChainId]) = abi.decode(_payload, (uint16, Snapshot));
-            vaults[_srcChainId].status = VaultStatus.SNAPSHOTTED;
+            vaultLookup[_srcChainId].status = VaultStatus.SNAPSHOTTED;
 
             if (_allVaultsSnapshotted()) {
                 _updateStats();
@@ -180,7 +180,7 @@ contract PrimaryVault is SecondaryVault {
 
         } 
         else if (packetType == PT_SETTLED_REPORT) {
-            vaults[_srcChainId].status = VaultStatus.IDLE;
+            vaultLookup[_srcChainId].status = VaultStatus.IDLE;
 
             if (_allVaultsSettled()) {
                 protocolStatus = ProtocolStatus.IDLE;
