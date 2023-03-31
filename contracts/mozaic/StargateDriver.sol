@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract StargateDriver is ProtocolDriver{
     using SafeMath for uint256;
 
-    struct VaultDescriptor {
+    struct VaultInfo {
         uint16 chainId;
         address vaultAddress;
     }
@@ -22,7 +22,7 @@ contract StargateDriver is ProtocolDriver{
     struct StargateDriverConfig {
         address stgRouter;
         address stgLPStaking;
-        VaultDescriptor[] vaults;
+        VaultInfo[] vaults;
     }
 
     uint8 internal constant TYPE_SWAP_REMOTE = 1;
@@ -50,7 +50,7 @@ contract StargateDriver is ProtocolDriver{
         }
         
         if (!flagExist) {   // if new vault, add it.
-            VaultDescriptor memory _newVault;
+            VaultInfo memory _newVault;
             _newVault.chainId = _chainId;
             _newVault.vaultAddress = _vaultAddress;
             _config.vaults.push(_newVault);
