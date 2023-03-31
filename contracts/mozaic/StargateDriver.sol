@@ -8,6 +8,7 @@ import "./ProtocolDriver.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract StargateDriver is ProtocolDriver{
@@ -25,6 +26,7 @@ contract StargateDriver is ProtocolDriver{
     }
 
     uint8 internal constant TYPE_SWAP_REMOTE = 1;
+    uint8 internal constant MOZAIC_DECIMALS = 6;
     bytes32 public constant CONFIG_SLOT = keccak256("StargateDriver.config");
     
     function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory) {
@@ -74,6 +76,9 @@ contract StargateDriver is ProtocolDriver{
         }
         else if (_actionType == ActionType.GetStakedAmountLD) {
             response = _getStakedAmountLDPerToken(_payload);
+        }
+        else if (_actionType == ActionType.GetAssetsMD) {
+            response = _getAssetsMDPerToken(_payload);
         }
         else {
             revert("Undefined Action");
@@ -194,8 +199,9 @@ contract StargateDriver is ProtocolDriver{
     }
 
     function _getStakedAmountLDPerToken(bytes calldata _payload) private returns (bytes memory result) {
-        // Get pool address
         (address _token) = abi.decode(_payload, (address));
+
+        // Get pool address
         address _pool = _getStargatePoolFromToken(_token);
 
         // Get pool id: _poolId = _pool.poolId()
@@ -223,6 +229,44 @@ contract StargateDriver is ProtocolDriver{
         uint256 _amountLD = abi.decode(response, (uint256));
         
         result = abi.encode(_amountLD);
+    }
+
+    function _getAssetsMDPerToken(bytes calldata _payload) private returns (bytes memory result) {
+        (address _token) = abi.decode(_payload, (address));
+
+        uint256 _totalAssetsLD = IERC20(_token).balanceOf(address(this));
+
+        // Get pool address
+        address _pool = _getStargatePoolFromToken(_token);
+
+        // Get pool id: _poolId = _pool.poolId()
+        (bool success, bytes memory response) = _pool.call(abi.encodeWithSignature("poolId()"));
+        require(success, "poolId failed");
+        uint256 _poolId = abi.decode(response, (uint256));
+
+        // Find the Liquidity Pool's index in the Farming Pool.
+        (bool found, uint256 poolIndex) = _getPoolIndexInFarming(_poolId);
+        require(found, "The LP token not acceptable.");
+
+        // Collect pending STG rewards: _stgLPStaking = _getConfig().stgLPStaking.withdraw(poolIndex, 0)
+        address _stgLPStaking = _getConfig().stgLPStaking;
+        (success, response) = address(_stgLPStaking).call(abi.encodeWithSignature("withdraw(uint256,uint256)", poolIndex, 0));
+        require(success, "withdraw failed");
+
+        // Get amount LP staked
+        (success, response) = address(_stgLPStaking).call(abi.encodeWithSignature("userInfo(uint256,address)", poolIndex, address(this)));
+        require(success, "lp staked failed");
+        uint256 _amountLP = abi.decode(response, (uint256));
+
+        // Get amount LD staked
+        (success, response) = address(_pool).call(abi.encodeWithSignature("amountLPtoLD(uint256)", _amountLP));
+        require(success, "amountLPtoLD failed");
+        uint256 _amountLD = abi.decode(response, (uint256));
+
+        _totalAssetsLD = _totalAssetsLD.add(_amountLD);
+        uint256 _totalAssetsMD = convertLDtoMD(_token, _totalAssetsLD);
+        
+        result = abi.encode(_totalAssetsMD);
     }
 
     function _getStargatePoolFromToken(address _token) private returns (address) {
