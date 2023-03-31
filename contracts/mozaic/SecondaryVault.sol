@@ -564,7 +564,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function amountMDtoMLP(uint256 _amountMD) public view returns (uint256) {
-        if (totalBalanceMD == 0 && totalMLP == 0) {
+        if (totalBalanceMD == 0) {
             return _amountMD;
         } else {
             return _amountMD.mul(totalMLP).div(totalBalanceMD);
@@ -572,7 +572,7 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function amountMLPtoMD(uint256 _amountMLP) public view returns (uint256) {
-        if (totalBalanceMD == 0 && totalMLP == 0) {
+        if (totalMLP == 0) {
             return _amountMLP;
         } else {
             return _amountMLP.mul(totalBalanceMD).div(totalMLP);
