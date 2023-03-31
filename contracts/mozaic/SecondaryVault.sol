@@ -349,28 +349,15 @@ contract SecondaryVault is NonblockingLzApp {
         // Stage Requests: Pending --> Processing
         bufferFlag = !bufferFlag;
 
-        // Make Report
-        // PoC: Right now Stargate logic is hard-coded. Need to move to each protocol driver.
-        uint256 _totalStablecoinMD;
-
-        for (uint i; i < acceptingTokens.length; ++i) {
-            address _token = acceptingTokens[i];
-            // Add stablecoins remaining in this vault
-            _totalStablecoinMD = _totalStablecoinMD.add(getBalanceMDPerToken(_token));
-            // Add stablecoins staked in stargate using stargateDriver
-            // TODO: Do not specify driver type
-            ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-            ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetStakedAmountLD;
-            bytes memory _payload = abi.encode(_token);
-            (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
-            require(success, "staked amount failed");
-            (uint256 _amountStakedLD) = abi.decode(abi.decode(response, (bytes)), (uint256));
-            uint256 _decimals = IERC20Metadata(_token).decimals();
-            _totalStablecoinMD = _totalStablecoinMD.add(amountLDtoMD(_amountStakedLD, _decimals));
-        }
+        // Get total assets as MD
+        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+        ProtocolDriver.ActionType _actionType = ProtocolDriver.ActionType.GetTotalAssetsMD;
+        bytes memory _payload = abi.encode(acceptingTokens);
+        (bool success, bytes memory response) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_actionType), _payload));
+        require(success, "get assets failed");
+        (uint256 _totalStablecoinMD) = abi.decode(abi.decode(response, (bytes)), (uint256));
 
         // TODO: Protocol-Specific Logic. Move to StargateDriver
-        
         snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
