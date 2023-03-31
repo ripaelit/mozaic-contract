@@ -42,7 +42,7 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public constant PT_TAKE_SNAPSHOT = 10004;
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
-    uint256 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
+    uint8 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
 
     bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
     bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
@@ -527,7 +527,7 @@ contract SecondaryVault is NonblockingLzApp {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
-    function amountLDtoMD(uint256 _amountLD, uint256 _localDecimals) public pure returns (uint256) {
+    function amountLDtoMD(uint256 _amountLD, uint8 _localDecimals) public pure returns (uint256) {
         if (MOZAIC_DECIMALS >= _localDecimals) {
             return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
         } else {
@@ -535,7 +535,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
     }
 
-    function amountMDtoLD(uint256 _amountMD, uint256 _localDecimals) public pure returns (uint256) {
+    function amountMDtoLD(uint256 _amountMD, uint8 _localDecimals) public pure returns (uint256) {
         if (MOZAIC_DECIMALS >= _localDecimals) {
             return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
         } else {
