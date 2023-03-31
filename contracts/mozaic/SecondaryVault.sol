@@ -129,7 +129,7 @@ contract SecondaryVault is NonblockingLzApp {
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
-    mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
+    // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
     uint16[] public chainIds;
     mapping (uint16 => VaultDescriptor) public vaultLookup;
     uint256 public totalBalanceMD;
@@ -459,14 +459,6 @@ contract SecondaryVault is NonblockingLzApp {
 
     }
 
-    function setGasAmount(
-        uint16 _chainId,
-        uint16 _packetType,
-        uint256 _gasAmount
-    ) external onlyOwner {
-        // TODO: require invalid packetType
-        gasLookup[_chainId][_packetType] = _gasAmount;
-    }
 
     function txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
         uint16 txType = 1;
@@ -496,7 +488,7 @@ contract SecondaryVault is NonblockingLzApp {
             }
         }
 
-        uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
+        uint256 totalGas = minDstGasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
         if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
             lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
         } else {
