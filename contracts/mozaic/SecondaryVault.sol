@@ -130,7 +130,7 @@ contract SecondaryVault is NonblockingLzApp {
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
-    // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
+    mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
     uint16[] public chainIds;
     mapping (uint16 => VaultDescriptor) public vaults;
     uint256 public totalBalanceMD;
@@ -480,28 +480,28 @@ contract SecondaryVault is NonblockingLzApp {
     //     return chainIds.length;
     // }
 
-    // function setGasAmount(
-    //     uint16 _chainId,
-    //     uint16 _packetType,
-    //     uint256 _gasAmount
-    // ) external onlyOwner {
-    //     // TODO: require invalid packetType
-    //     gasLookup[_chainId][_packetType] = _gasAmount;
-    // }
+    function setGasAmount(
+        uint16 _chainId,
+        uint16 _packetType,
+        uint256 _gasAmount
+    ) external onlyOwner {
+        // TODO: require invalid packetType
+        gasLookup[_chainId][_packetType] = _gasAmount;
+    }
 
     function txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
         uint16 txType = 1;
         return abi.encodePacked(txType, _gasAmount);
     }
 
-    // function txParamBuilderType2(
-    //     uint256 _gasAmount,
-    //     uint256 _dstNativeAmount,
-    //     bytes memory _dstNativeAddr
-    // ) internal pure returns (bytes memory) {
-    //     uint16 txType = 2;
-    //     return abi.encodePacked(txType, _gasAmount, _dstNativeAmount, _dstNativeAddr);
-    // }
+    function txParamBuilderType2(
+        uint256 _gasAmount,
+        uint256 _dstNativeAmount,
+        bytes memory _dstNativeAddr
+    ) internal pure returns (bytes memory) {
+        uint16 txType = 2;
+        return abi.encodePacked(txType, _gasAmount, _dstNativeAmount, _dstNativeAddr);
+    }
 
     function _txParamBuilder(
         uint16 _chainId,
@@ -509,22 +509,20 @@ contract SecondaryVault is NonblockingLzApp {
         LzTxObj memory _lzTxParams
     ) internal view returns (bytes memory) {
         bytes memory lzTxParam;
-        // address dstNativeAddr;
-        // {
-        //     bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
-        //     assembly {
-        //         dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
-        //     }
-        // }
+        address dstNativeAddr;
+        {
+            bytes memory dstNativeAddrBytes = _lzTxParams.dstNativeAddr;
+            assembly {
+                dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
+            }
+        }
 
-        // // TODO: CHECKLATER
-        // // uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
-        uint256 totalGas = _lzTxParams.dstGasForCall.add(200000);
-        // if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
-            // lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
-        // } else {
+        uint256 totalGas = gasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
+        if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
+            lzTxParam = txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
+        } else {
             lzTxParam = txParamBuilderType1(totalGas);
-        // }
+        }
 
         return lzTxParam;
     }
