@@ -119,7 +119,6 @@ contract SecondaryVault is NonblockingLzApp {
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    // VaultStatus public status;
     Snapshot public snapshot;
     address public stargateLpStaking;
     address public stargateToken;
@@ -132,7 +131,6 @@ contract SecondaryVault is NonblockingLzApp {
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
     // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
-    uint256 public constant INITIAL_MLP_PER_COIN_MIL = 1000000;
     uint16[] public chainIds;
     mapping (uint16 => VaultDescriptor) public vaults;
     uint256 public totalBalanceMD;
@@ -214,7 +212,6 @@ contract SecondaryVault is NonblockingLzApp {
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
-        // status = VaultStatus.IDLE;
     }
 
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
@@ -346,9 +343,6 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _takeSnapshot() internal {
-        // if (status == VaultStatus.SNAPSHOTTED) {
-        //     return;
-        // }
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
@@ -384,11 +378,9 @@ contract SecondaryVault is NonblockingLzApp {
         snapshot.depositRequestAmount = _requests(true).totalDepositAmount;
         snapshot.withdrawRequestAmountMLP = _requests(true).totalWithdrawAmount;
         snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
-        // status = VaultStatus.SNAPSHOTTED;
     }
 
     function _reportSnapshot() internal {
-        // require(status == VaultStatus.SNAPSHOTTED, "Not snapshotted yet");
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj((10**6), 0, "0x"));
@@ -396,9 +388,6 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function _settleRequests() internal {
-        // if (status == VaultStatus.IDLE) {
-        //     return;
-        // }
         // for all deposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
@@ -444,14 +433,9 @@ contract SecondaryVault is NonblockingLzApp {
             
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
-        // status = VaultStatus.IDLE;
     }
 
     function _reportSettled() internal {
-        // require(status == VaultStatus.IDLE, "Not settled yet");
-        // require(_requests(true).totalDepositAmount == 0, "Has unsettled deposit amount.");
-        // require(_requests(true).totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
-        
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**6), 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SETTLED_REPORT, LzTxObj((10**6), 0, "0x"));
@@ -572,8 +556,6 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function amountMDtoLD(uint256 _amountMD, uint256 _localDecimals) public pure returns (uint256) {
-        // TODO: CHECKLATER if (MOZAIC_DECIMALS < _localDecimals)
-        // return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
         if (MOZAIC_DECIMALS >= _localDecimals) {
             return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
         } else {
