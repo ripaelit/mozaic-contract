@@ -14,7 +14,8 @@ abstract contract ProtocolDriver is Ownable {
         GetPriceMil,
         Stake,
         Unstake,
-        GetStakedAmountLD
+        GetStakedAmountLD,
+        GetAssetsMD
     }
 
     function configDriver(bytes calldata params) public virtual onlyOwner returns (bytes memory) {
