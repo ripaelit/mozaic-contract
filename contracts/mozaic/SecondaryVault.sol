@@ -135,6 +135,7 @@ contract SecondaryVault is NonblockingLzApp {
     mapping (uint16 => VaultDescriptor) public vaultLookup;
     uint256 public totalBalanceMD;
     uint256 public totalMLP;
+    address private _manager;
 
     function _requests(bool staged) internal view returns (RequestBuffer storage) {
         return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
@@ -178,6 +179,23 @@ contract SecondaryVault is NonblockingLzApp {
 
     function getWithdrawAmountPerToken(bool _staged, address _token) public view returns (uint256) {
         return _requests(_staged).withdrawAmountPerToken[_token];
+    }
+
+    modifier onlyManager() {
+        _checkManager();
+        _;
+    }
+
+    function manager() public view virtual returns (address) {
+        return _manager;
+    }
+
+    function _checkManager() internal view virtual {
+        require(manager() == _msgSender(), "OnlyManager: caller is not the manager");
+    }
+
+    function setManager(address _manager__) public onlyOwner {
+        _manager = _manager__;
     }
 
 
