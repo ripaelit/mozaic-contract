@@ -58,6 +58,7 @@ contract MozaicManager is Ownable {
     uint8 public numWaiting;
     uint256 public totalCoinMD;
     uint256 public totalMLP;
+    bool public settleAllowed;
 
     //---------------------------------------------------------------------------
     // MODIFIERS
@@ -125,10 +126,7 @@ contract MozaicManager is Ownable {
                 snapshotReported[_chainId] = vault.takeSnapshot();
                 --numWaiting;
             } else {
-                bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
-                _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+                bridge.takeSnapshot(_chainId);
             }
         }
 
@@ -149,12 +147,9 @@ contract MozaicManager is Ownable {
             }
 
             if (_chainId == mainChainId) {
-                vault.preSettle(totalCoinMD, totalMLP);
+                preSettle(totalCoinMD, totalMLP);
             } else {
-                bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, totalCoinMD, totalMLP);
-                (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
-                bytes memory _adapterParams = _txParamBuilder(_chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
-                _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+                bridge.preSettle(_chainId, totalCoinMD, totalMLP);
             }
         }
 
@@ -163,14 +158,6 @@ contract MozaicManager is Ownable {
         }
         else {
             protocolStatus = ProtocolStatus.IDLE;
-        }
-    }
-
-    function settleRequests() external onlyOwner {
-        if (settleAllowed == true) {
-            vault.settleRequests();
-            bridge.reportSettled();
-            settleAllowd = false;
         }
     }
 
@@ -188,8 +175,16 @@ contract MozaicManager is Ownable {
         }
     }
 
-    function takeSnapshot() external onlyBridge returns (Snapshot memory snapshot) {
-        return vault.takeSnapshot();
+    function settleRequests() external onlyOwner {
+        if (settleAllowed == true) {
+            vault.settleRequests();
+            bridge.reportSettled();
+            settleAllowed = false;
+        }
+    }
+
+    function takeSnapshot() external onlyBridge {
+        bridge.reportSnapshot(vault.takeSnapshot());
     }
 
     function preSettle(uint256 _totalCoinMD, uint256 _totalMLP) external onlyBridge {
