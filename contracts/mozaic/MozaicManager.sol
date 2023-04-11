@@ -114,15 +114,6 @@ contract MozaicManager is Ownable {
         return 1000000;
     }
 
-    function takeSnapshot() external onlyBridge returns (Snapshot memory snapshot) {
-        return vault.takeSnapshot();
-    }
-
-    function preSettle(uint256 _totalCoinMD, uint256 _totalMLP) external onlyBridge {
-        settleAllowed = true;
-        vault.preSettle(_totalCoinMD, _totalMLP);
-    }
-
     function initOptimizationSession() external onlyOwner onlyMain {
         require(protocolStatus == ProtocolStatus.IDLE, "Protocol must be idle");
         
@@ -197,38 +188,12 @@ contract MozaicManager is Ownable {
         }
     }
 
-    
-    // function settleRequestsAllVaults() external onlyOwner {
-    //     if (protocolStatus != ProtocolStatus.OPTIMIZING) {
-    //         return;
-    //     }
+    function takeSnapshot() external onlyBridge returns (Snapshot memory snapshot) {
+        return vault.takeSnapshot();
+    }
 
-    //     numWaiting = chainIds.length;
-    //     for (uint i; i < chainIds.length; ++i) {
-    //         uint16 _chainId = chainIds[i];
-    //         Snapshot storage report = snapshotReported[_chainId];
-
-    //         if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
-    //             --numWaiting;
-    //             continue;
-    //         }
-
-    //         if (_chainId == mainChainId) {
-    //             vault.settleRequests();
-    //             --numWaiting;
-    //         } else {
-    //             bytes memory lzPayload = abi.encode(PT_SETTLE_REQUESTS, totalCoinMD, totalMLP);
-    //             (uint256 _nativeFee, ) = quoteLayerZeroFee(_chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
-    //             bytes memory _adapterParams = _txParamBuilder(_chainId, PT_SETTLE_REQUESTS, LzTxObj(0, 0, "0x"));
-    //             _lzSend(_chainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
-    //         }
-    //     }
-
-    //     if (numWaiting > 0) {
-    //         protocolStatus = ProtocolStatus.SETTLING;
-    //     }
-    //     else {
-    //         protocolStatus = ProtocolStatus.IDLE;
-    //     }
-    // }
+    function preSettle(uint256 _totalCoinMD, uint256 _totalMLP) external onlyBridge {
+        settleAllowed = true;
+        vault.preSettle(_totalCoinMD, _totalMLP);
+    }
 }
