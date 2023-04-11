@@ -5,7 +5,6 @@ pragma solidity ^0.8.9;
 // imports
 import "../libraries/lzApp/NonblockingLzApp.sol";
 import "./MozaicManager.sol";
-import "./MozaicVault.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract MozaicBridge is NonblockingLzApp {
@@ -40,7 +39,6 @@ contract MozaicBridge is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    MozaicVault private vault;
     MozaicManager private manager;
     uint16 public mainChainId;
     
@@ -48,11 +46,9 @@ contract MozaicBridge is NonblockingLzApp {
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
     constructor(
         address _lzEndpoint,
-        address _vault,
         address _manager,
         uint16 _mainChainId
     ) NonblockingLzApp(_lzEndpoint) {
-        vault = MozaicVault(_vault);
         manager = MozaicManager(_manager);
         mainChainId = _mainChainId;
     }
@@ -79,14 +75,14 @@ contract MozaicBridge is NonblockingLzApp {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
-    function _reportSnapshot(Snapshot memory snapshot) internal {
+    function reportSnapshot(Snapshot memory snapshot) external onlyManager {
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(mainChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(mainChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         _lzSend(mainChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
-    function _reportSettled() internal {
+    function reportSettled() external onlyManager {
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(mainChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(mainChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
@@ -143,13 +139,13 @@ contract MozaicBridge is NonblockingLzApp {
         }
 
         if (packetType == PT_TAKE_SNAPSHOT) {
-            _reportSnapshot(vault.takeSnapshot());
+            manager.reportSnapshot(manager.takeSnapshot());
         } else if (packetType == PT_SNAPSHOT_REPORT) {
             (, Snapshot memory snapshot) = abi.decode(_payload, (uint16, Snapshot));
             manager.acceptSnapshotReport(snapshot, _srcChainId);
         } else if (packetType == PT_SETTLE_REQUESTS) {
             (, uint256 totalCoinMD, uint256 totalMLP) = abi.decode(_payload, (uint16, uint256, uint256));
-            vault.preSettle(totalCoinMD, totalMLP);
+            manager.preSettle(totalCoinMD, totalMLP);
         } else if (packetType == PT_SETTLED_REPORT) {
             manager.acceptSettledReport(_srcChainId);
         } else {
