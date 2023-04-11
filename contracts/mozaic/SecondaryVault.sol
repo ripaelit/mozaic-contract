@@ -125,6 +125,7 @@ contract SecondaryVault is NonblockingLzApp {
     uint16 public primaryChainId;
     uint16 public chainId;
     address[] public acceptingTokens;
+    mapping(address => bool) tokenMap;
 
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
@@ -218,37 +219,27 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function addToken(address _token) public onlyOwner {
-        for (uint i; i < acceptingTokens.length; ++i) {
-            if (acceptingTokens[i] == _token) {
-                return;
-            }
+        if (tokenMap[_token] == false) {
+            tokenMap[_token] = true;
+            acceptingTokens.push(_token);
         }
-        acceptingTokens.push(_token);
     }
 
     function removeToken(address _token) public onlyOwner {
-        // TODO: Make sure there's no asset as this token.
-        uint _idxToken = acceptingTokens.length;
-        for (uint i; i < acceptingTokens.length; ++i) {
-            if (acceptingTokens[i] == _token) {
-                _idxToken = i;
-                break;
+        if (tokenMap[_token] == true) {
+            tokenMap[_token] = false;
+            for (uint i; i < acceptingTokens.length; ++i) {
+                if (acceptingTokens[i] == _token) {
+                    acceptingTokens[i] = acceptingTokens[acceptingTokens.length - 1];
+                    acceptingTokens.pop();
+                    return;
+                }
             }
         }
-        require(_idxToken < acceptingTokens.length, "Token not in accepting list");
-        if (acceptingTokens.length > 1) {
-            acceptingTokens[_idxToken] = acceptingTokens[acceptingTokens.length-1];
-        }
-        acceptingTokens.pop();
     }
 
     function isAcceptingToken(address _token) public view returns (bool) {
-        for (uint i; i < acceptingTokens.length; ++i) {
-            if (acceptingTokens[i] == _token) {
-                return true;
-            }
-        }
-        return false;
+        return tokenMap[_token];
     }
 
     function executeActions(Action[] calldata _actions) public onlyOwner {
