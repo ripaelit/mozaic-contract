@@ -14,7 +14,7 @@ contract MozaicBridge is NonblockingLzApp {
     // CONSTANTS
     uint16 internal constant PT_TAKE_SNAPSHOT = 1;
     uint16 internal constant PT_SNAPSHOT_REPORT = 2;
-    uint16 internal constant PT_SETTLE_REQUESTS = 3;
+    uint16 internal constant PT_PRE_SETTLE = 3;
     uint16 internal constant PT_SETTLED_REPORT = 4;
 
     //--------------------------------------------------------------------------
@@ -61,10 +61,10 @@ contract MozaicBridge is NonblockingLzApp {
         bytes memory payload = "";
         if (_packetType == PT_TAKE_SNAPSHOT) {
             payload = abi.encode(PT_TAKE_SNAPSHOT);
-        } else if (_packetType == PT_SETTLE_REQUESTS) {
-            payload = abi.encode(PT_SETTLE_REQUESTS, 1, 1);
         } else if (_packetType == PT_SNAPSHOT_REPORT) {
             payload = abi.encode(PT_SNAPSHOT_REPORT, Snapshot(1, 1, 1, 1, 1));
+        } else if (_packetType == PT_PRE_SETTLE) {
+            payload = abi.encode(PT_PRE_SETTLE, 1, 1);
         } else if (_packetType == PT_SETTLED_REPORT) {
             payload = abi.encode(PT_SETTLED_REPORT);
         } else {
@@ -75,11 +75,25 @@ contract MozaicBridge is NonblockingLzApp {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
+    function takeSnapshot(uint256 _dstChainId) external onlyManager {
+        bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(_dstChainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
+        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+    }
+
     function reportSnapshot(Snapshot memory snapshot) external onlyManager {
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(mainChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(mainChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         _lzSend(mainChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+    }
+
+    function preSettle(uint256 _dstChainId, uint256 _totalCoinMD, uint256 _totalMLP) external onlyManager {
+        bytes memory lzPayload = abi.encode(PT_PRE_SETTLE, _totalCoinMD, _totalMLP);
+        (uint256 _nativeFee, ) = quoteLayerZeroFee(_dstChainId, PT_PRE_SETTLE, LzTxObj(0, 0, "0x"));
+        bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_PRE_SETTLE, LzTxObj(0, 0, "0x"));
+        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
     }
 
     function reportSettled() external onlyManager {
@@ -139,16 +153,20 @@ contract MozaicBridge is NonblockingLzApp {
         }
 
         if (packetType == PT_TAKE_SNAPSHOT) {
-            manager.reportSnapshot(manager.takeSnapshot());
-        } else if (packetType == PT_SNAPSHOT_REPORT) {
+            manager.takeSnapshot();
+        } 
+        else if (packetType == PT_SNAPSHOT_REPORT) {
             (, Snapshot memory snapshot) = abi.decode(_payload, (uint16, Snapshot));
             manager.acceptSnapshotReport(snapshot, _srcChainId);
-        } else if (packetType == PT_SETTLE_REQUESTS) {
+        } 
+        else if (packetType == PT_PRE_SETTLE) {
             (, uint256 totalCoinMD, uint256 totalMLP) = abi.decode(_payload, (uint16, uint256, uint256));
             manager.preSettle(totalCoinMD, totalMLP);
-        } else if (packetType == PT_SETTLED_REPORT) {
+        } 
+        else if (packetType == PT_SETTLED_REPORT) {
             manager.acceptSettledReport(_srcChainId);
-        } else {
+        } 
+        else {
             emit UnexpectedLzMessage(packetType, _payload);
         }
     }
