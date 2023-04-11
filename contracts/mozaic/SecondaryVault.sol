@@ -118,7 +118,7 @@ contract SecondaryVault is NonblockingLzApp {
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    Snapshot public snapshot;
+    // Snapshot public snapshot;
     address public stargateLpStaking;
     address public stargateToken;
     address public mozaicLp;
@@ -327,7 +327,7 @@ contract SecondaryVault is NonblockingLzApp {
         emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
     }
 
-    function _takeSnapshot() internal {
+    function _takeSnapshot() internal returns (Snapshot memory snapshot) {
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
@@ -352,7 +352,7 @@ contract SecondaryVault is NonblockingLzApp {
         snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
     }
 
-    function _reportSnapshot() internal {
+    function _reportSnapshot(Snapshot memory snapshot) internal {
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
         (uint256 _nativeFee, ) = quoteLayerZeroFee(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(primaryChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
@@ -551,8 +551,7 @@ contract SecondaryVault is NonblockingLzApp {
         }
 
         if (packetType == PT_TAKE_SNAPSHOT) {
-            _takeSnapshot();
-            _reportSnapshot();
+            _reportSnapshot(_takeSnapshot());
 
         } else if (packetType == PT_SETTLE_REQUESTS) {
             (, totalBalanceMD, totalMLP) = abi.decode(_payload, (uint16, uint256, uint256));
