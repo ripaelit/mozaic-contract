@@ -252,7 +252,6 @@ contract SecondaryVault is NonblockingLzApp {
     }
 
     function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) public {
-        require(primaryChainId > 0, "primary chain is not set");
         require(_chainId == chainId, "only onchain mint in PoC");
         require(isAcceptingToken(_token), "should be accepting token");
 
@@ -291,7 +290,6 @@ contract SecondaryVault is NonblockingLzApp {
 
     function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
         require(_chainId == chainId, "withdraw onchain on PoC");
-        require(primaryChainId > 0, "main chain should be set");
         require(isAcceptingToken(_token), "should be accepting token");
 
         address _withdrawer = msg.sender;
