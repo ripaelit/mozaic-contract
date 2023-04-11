@@ -19,15 +19,6 @@ contract MozaicBridge is NonblockingLzApp {
     uint16 internal constant PT_SETTLED_REPORT = 4;
 
     //--------------------------------------------------------------------------
-    // ENUMS
-    enum ProtocolStatus {
-        IDLE,
-        SNAPSHOTTING,
-        OPTIMIZING,
-        SETTLING
-    }
-
-    //--------------------------------------------------------------------------
     // EVENTS
     event UnexpectedLzMessage(uint16 packetType, bytes payload);
 
@@ -51,7 +42,6 @@ contract MozaicBridge is NonblockingLzApp {
     // VARIABLES
     MozaicVault private vault;
     MozaicManager private manager;
-    uint16 public chainId;
     uint16 public mainChainId;
     
     //---------------------------------------------------------------------------
@@ -60,12 +50,10 @@ contract MozaicBridge is NonblockingLzApp {
         address _lzEndpoint,
         address _vault,
         address _manager,
-        uint16 _chainId,
         uint16 _mainChainId
     ) NonblockingLzApp(_lzEndpoint) {
         vault = MozaicVault(_vault);
         manager = MozaicManager(_manager);
-        chainId = _chainId;
         mainChainId = _mainChainId;
     }
    
