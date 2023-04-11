@@ -39,8 +39,15 @@ contract MozaicBridge is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    MozaicManager private manager;
+    MozaicManager public manager;
     uint16 public mainChainId;
+
+    //---------------------------------------------------------------------------
+    // MODIFIERS
+    modifier onlyManager() {
+        require(msg.sender == address(manager), "Caller must be Manager.");
+        _;
+    }
     
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
