@@ -90,6 +90,7 @@ contract MozaicVault is Ownable {
     address public stargateLpStaking;
     address public stargateToken;
     MozaicLP public mozaicLp;
+    address public coordinator;
     uint16 public chainId;
     address[] public acceptingTokens;
     mapping(address => bool) tokenMap;
@@ -97,11 +98,8 @@ contract MozaicVault is Ownable {
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
-    // uint16[] public chainIds;
-    // mapping (uint16 => VaultDescriptor) public vaultLookup;
     uint256 public totalCoinMD;
     uint256 public totalMLP;
-    address public coordinator;
 
     //---------------------------------------------------------------------------
     // MODIFIERS
@@ -109,6 +107,10 @@ contract MozaicVault is Ownable {
         require(msg.sender == address(coordinator), "Caller must be Coordinator.");
         _;
     }
+
+    //---------------------------------------------------------------------------
+    // Constructor and Public Functions
+    constructor() {}
 
     function _requests(bool staged) internal view returns (RequestBuffer storage) {
         return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
@@ -205,27 +207,29 @@ contract MozaicVault is Ownable {
         require(success, "Return balance failed");
     }
 
-    //---------------------------------------------------------------------------
-    // Constructor and Public Functions
-    constructor(
-        uint16 _chainId,
+    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
+        protocolDrivers[_driverId] = _driver;
+        // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
+        require(success, "set driver failed");
+    }
+
+    function setContracts(
         address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp,
         address _coordinator
-    ) {
-        chainId = _chainId;
+    ) external onlyOwner {
+        require(_stargateLpStaking != address(0x0) && _stargateToken != address(0x0) && _mozaicLp != address(0x0) && _coordinator != address(0x0), "Invalid addresses");
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
         mozaicLp = MozaicLP(_mozaicLp);
         coordinator = _coordinator;
     }
 
-    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
-        protocolDrivers[_driverId] = _driver;
-        // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
-        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
-        require(success, "set driver failed");
+    function setChainId(uint16 _chainId) external onlyOwner {
+        require(_chainId > 0, "Invalid chainId");
+        chainId = _chainId;
     }
 
     function addToken(address _token) external onlyOwner {

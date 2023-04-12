@@ -39,11 +39,12 @@ contract MozaicCoordinator is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // VARIABLES
+    ProtocolStatus public protocolStatus;
     MozaicVault public vault;
     uint16 public chainId;
     uint16 public mainChainId;
     uint16[] public chainIds;
-    ProtocolStatus public protocolStatus;
+    
     mapping (uint16 => MozaicVault.Snapshot) public snapshotReported; // chainId -> Snapshot
     uint256 public numLzPending;
     uint256 public totalCoinMD;
@@ -60,12 +61,8 @@ contract MozaicCoordinator is NonblockingLzApp {
     //---------------------------------------------------------------------------
     // CONSTRUCTOR AND PUBLIC FUNCTIONS
     constructor(
-        address _lzEndpoint,
-        uint16 _chainId,
-        uint16 _mainChainId
+        address _lzEndpoint
     ) NonblockingLzApp(_lzEndpoint) {
-        chainId = _chainId;
-        mainChainId = _mainChainId;
         protocolStatus = ProtocolStatus.IDLE;
     }
 
@@ -105,7 +102,18 @@ contract MozaicCoordinator is NonblockingLzApp {
         vault = MozaicVault(_vault);
     }
 
+    function setChainId(uint16 _chainId) external onlyOwner {
+        require(_chainId > 0, "Invalid chainId");
+        chainId = _chainId;
+    }
+
+    function setMainChainId(uint16 _mainChainId) external onlyOwner {
+        require(_mainChainId > 0, "Invalid main chainId");
+        mainChainId = _mainChainId;
+    }
+
     function setChainIds(uint16[] memory _chainIds) external onlyOwner onlyMain {
+        require(_chainIds.length > 0, "Empty chainIds");
         chainIds = _chainIds;
     }
 
