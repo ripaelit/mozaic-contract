@@ -5,7 +5,6 @@ pragma solidity ^0.8.9;
 // imports
 import "../libraries/lzApp/NonblockingLzApp.sol";
 import "./MozaicVault.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract MozaicCoordinator is NonblockingLzApp {
     using SafeMath for uint256;

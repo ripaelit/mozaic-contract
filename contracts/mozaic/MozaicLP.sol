@@ -7,8 +7,8 @@ import "../interfaces/IOFT.sol";
 import "../libraries/oft/OFTCore.sol";
 
 // libraries
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
