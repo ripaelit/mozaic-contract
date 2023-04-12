@@ -46,7 +46,7 @@ contract MozaicCoordinator is NonblockingLzApp {
     uint16[] public chainIds;
     ProtocolStatus public protocolStatus;
     mapping (uint16 => MozaicVault.Snapshot) public snapshotReported; // chainId -> Snapshot
-    uint256 public numWaiting;
+    uint256 public numLzPending;
     uint256 public totalCoinMD;
     uint256 public totalMLP;
     bool public settleAllowed;
@@ -114,13 +114,13 @@ contract MozaicCoordinator is NonblockingLzApp {
         require(protocolStatus == ProtocolStatus.IDLE, "Protocol must be idle");
         require(address(vault) != address(0x0), "Zero address vault");
         
-        numWaiting = chainIds.length;
+        numLzPending = chainIds.length;
         for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
 
             if (_chainId == chainId) {
                 snapshotReported[_chainId] = vault.takeSnapshot();
-                --numWaiting;
+                --numLzPending;
             } 
             else {
                 _requestSnapshot(_chainId);
@@ -133,37 +133,31 @@ contract MozaicCoordinator is NonblockingLzApp {
     function preSettleAllVaults() external onlyOwner onlyMain {
         require(protocolStatus == ProtocolStatus.OPTIMIZING, "Protocol must be optimizing");
 
-        numWaiting = chainIds.length;
+        numLzPending = chainIds.length;
         for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
             MozaicVault.Snapshot storage report = snapshotReported[_chainId];
 
             if (report.depositRequestAmount == 0 && report.withdrawRequestAmountMLP == 0) {
-                --numWaiting;
+                --numLzPending;
                 continue;
             }
 
             if (_chainId == mainChainId) {
                 settleAllowed = true;
+                --numLzPending;
             } 
             else {
                 _requestPreSettle(_chainId, totalCoinMD, totalMLP);
             }
         }
 
-        if (numWaiting > 0) {
-            protocolStatus = ProtocolStatus.SETTLING;
-        }
-        else {
-            protocolStatus = ProtocolStatus.IDLE;
-        }
+        protocolStatus = ProtocolStatus.SETTLING;
     }
 
-    // Control Center calls this function periodically
     function settleRequests() external onlyOwner {
-        require(address(vault) != address(0x0), "Vault cannot be 0x0");
-
         if (settleAllowed == true) {
+            require(address(vault) != address(0x0), "Vault cannot be 0x0");
             vault.settleRequests(totalCoinMD, totalMLP);
             if (chainId != mainChainId) {
                 _reportSettled(mainChainId);
@@ -204,14 +198,14 @@ contract MozaicCoordinator is NonblockingLzApp {
 
     function _receiveSnapshotReport(MozaicVault.Snapshot memory snapshot, uint16 _srcChainId) internal {
         snapshotReported[_srcChainId] = snapshot;
-        if (--numWaiting == 0) {
+        if (--numLzPending == 0) {
             _updateStats();
             protocolStatus = ProtocolStatus.OPTIMIZING;
         }
     }
 
     function _receiveSettledReport(uint16 _srcChainId) internal {
-        if (--numWaiting == 0) {
+        if (--numLzPending == 0) {
             protocolStatus = ProtocolStatus.IDLE;
         }
     }
