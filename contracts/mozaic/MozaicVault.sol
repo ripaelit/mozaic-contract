@@ -43,21 +43,6 @@ contract MozaicVault is Ownable {
     bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
     bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
     
-    enum VaultStatus {
-        // No staged requests. Neutral status.
-        IDLE,
-
-        // (Primary Vault vision) Primary Vault thinks Secondary Vault is snapshotting. But haven't got report yet.
-        // SNAPSHOTTING,
-
-        // (Secondary Vault vision) Secondary Vault knows it staged requests and made snapshot. It sent snapshot report, but doesn't care the rest.
-        // (Primary Vault vision) Primary Vault got snapshot report from the Secondary Vault.
-        SNAPSHOTTED
-
-        // (Primary Vault vision) Primary Vault sent "settle" message to Secondary Vault. Thinks it is settling requests now.
-        // SETTLING
-    }
-
     //---------------------------------------------------------------------------
     // STRUCTS
     struct Action {
@@ -91,11 +76,6 @@ contract MozaicVault is Ownable {
         mapping (address => uint256) withdrawAmountPerToken; // [token] = amountMLP
         uint256 totalWithdrawAmount;
     }
-
-    // struct VaultDescriptor {
-    //     address addr;
-    //     VaultStatus status;
-    // }
 
     struct Snapshot {
         uint256 depositRequestAmount;
@@ -428,21 +408,9 @@ contract MozaicVault is Ownable {
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
     }
 
-    function registerVault(uint16 _chainId, address _addr) external onlyOwner {
-        // bool isNew = true;
-        // for (uint i; i < chainIds.length; ++i) {
-        //     if (chainIds[i] == _chainId) {
-        //         isNew = false;
-        //         break;
-        //     }
-        // }
-        // if (isNew) {
-        //     chainIds.push(_chainId);
-        // }
-        // vaultLookup[_chainId] = VaultDescriptor(_addr, VaultStatus.IDLE);
-
+    function registerVaults(uint16[] calldata _chainIds, address[] calldata _addrs) external onlyOwner {
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVault(uint16,address)", _chainId, _addr));
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVaults(uint16[],address[])", _chainIds, _addrs));
         require(success, "register vault failed");
 
     }
