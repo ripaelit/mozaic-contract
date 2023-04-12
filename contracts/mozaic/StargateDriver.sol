@@ -14,15 +14,16 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract StargateDriver is ProtocolDriver{
     using SafeMath for uint256;
 
-    struct VaultInfo {
-        uint16 chainId;
-        address vaultAddress;
-    }
+    // struct VaultInfo {
+    //     uint16 chainId;
+    //     address vaultAddress;
+    // }
 
     struct StargateDriverConfig {
         address stgRouter;
         address stgLPStaking;
-        VaultInfo[] vaults;
+        uint16[] chainIds;
+        mapping(uint16 => address) vaultsLookup;
     }
 
     uint8 internal constant TYPE_SWAP_REMOTE = 1;
@@ -37,23 +38,15 @@ contract StargateDriver is ProtocolDriver{
         _config.stgLPStaking = _stgLPStaking;
     }
 
-    function registerVault(uint16 _chainId, address _vaultAddress) public onlyOwner returns (bytes memory) {
+    function registerVaults(uint16[] memory _chainIds, address[] calldata _vaultAddrs) public onlyOwner returns (bytes memory) {
+        require(_chainIds.length == _vaultAddrs.length, "StgDriver: err in registerVaults");
         StargateDriverConfig storage _config = _getConfig();
-        bool flagExist = false;
-        // if it already exists, update vault address 
-        for (uint i; i < _config.vaults.length; ++i) {
-            if (_config.vaults[i].chainId == _chainId) {
-                _config.vaults[i].vaultAddress = _vaultAddress;
-                flagExist = true;
-                break;
-            }
+        for (uint i = 0; i < _config.chainIds.length; ++i) {
+            delete _config.vaultsLookup[_config.chainIds[i]];
         }
-        
-        if (!flagExist) {   // if new vault, add it.
-            VaultInfo memory _newVault;
-            _newVault.chainId = _chainId;
-            _newVault.vaultAddress = _vaultAddress;
-            _config.vaults.push(_newVault);
+        _config.chainIds = _chainIds;
+        for (uint i = 0; i < _chainIds.length; ++i) {
+            _config.vaultsLookup[_chainIds[i]] = _vaultAddrs[i];
         }
     }
 
@@ -182,17 +175,10 @@ contract StargateDriver is ProtocolDriver{
             IERC20(_srcToken).approve(_router, _amountLD);
         }
 
-        address _to = address(0x0);
-        {
-            for (uint i; i < _getConfig().vaults.length; ++i) {
-                if (_getConfig().vaults[i].chainId == _dstChainId) {
-                    _to = _getConfig().vaults[i].vaultAddress;
-                }
-            }
-            require(_to != address(0x0), "StargateDriver: _to cannot be 0x0");
-        }
+        address _to = _getConfig().vaultsLookup[_dstChainId];
+        require(_to != address(0x0), "StgDriver: _to cannot be 0x0");
 
-        // Get native fee
+        // Quote native fee
         (uint256 _nativeFee, ) = IStargateRouter(_router).quoteLayerZeroFee(_dstChainId, TYPE_SWAP_REMOTE, abi.encodePacked(_to), bytes(""), IStargateRouter.lzTxObj(0, 0, "0x"));
         // Swap
         IStargateRouter(_router).swap{value:_nativeFee}(_dstChainId, _srcPoolId, _dstPoolId, payable(address(this)), _amountLD, 0, IStargateRouter.lzTxObj(0, 0, "0x"), abi.encodePacked(_to), bytes(""));
