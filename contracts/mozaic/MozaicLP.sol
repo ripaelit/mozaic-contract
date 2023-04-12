@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
 
-    address private _vault;
+    address public _vault;
     constructor(
         string memory _name,
         string memory _symbol,
@@ -22,16 +22,12 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
     }
 
     modifier onlyVault() {
-        _checkVault();
+        require(_vault == _msgSender(), "OnlyVault: caller is not the vault");
         _;
     }
 
-    function vault() public view virtual returns (address) {
-        return _vault;
-    }
-
     function _checkVault() internal view virtual {
-        require(vault() == _msgSender(), "OnlyVault: caller is not the vault");
+        require(_vault == _msgSender(), "OnlyVault: caller is not the vault");
     }
 
     function setVault(address _vault__) public onlyOwner {
