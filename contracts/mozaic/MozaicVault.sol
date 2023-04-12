@@ -3,11 +3,12 @@
 pragma solidity ^0.8.9;
 
 // imports
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./ProtocolDriver.sol";
 import "./MozaicLP.sol";
+import "../interfaces/IMozaic.sol";
 
 // libraries
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -36,10 +37,10 @@ contract MozaicVault is Ownable {
 
     //--------------------------------------------------------------------------
     // CONSTANTS
-    uint16 public constant PT_SNAPSHOT_REPORT = 10001;
-    uint16 public constant PT_SETTLE_REQUESTS = 10002;
-    uint16 public constant PT_SETTLED_REPORT = 10003;
-    uint16 public constant PT_TAKE_SNAPSHOT = 10004;
+    // uint16 public constant PT_SNAPSHOT_REPORT = 10001;
+    // uint16 public constant PT_SETTLE_REQUESTS = 10002;
+    // uint16 public constant PT_SETTLED_REPORT = 10003;
+    // uint16 public constant PT_TAKE_SNAPSHOT = 10004;
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
     uint8 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
@@ -70,14 +71,6 @@ contract MozaicVault is Ownable {
         bytes payload;
     }
 
-    struct Snapshot {
-        uint256 depositRequestAmount;
-        uint256 withdrawRequestAmountMLP;
-        uint256 totalStargate;
-        uint256 totalStablecoin;
-        uint256 totalMozaicLp; // Mozaic "LP"
-    }
-
     struct DepositRequest {
         address user;
         address token;
@@ -104,12 +97,6 @@ contract MozaicVault is Ownable {
         uint256 totalWithdrawAmount;
     }
 
-    struct LzTxObj {
-        uint256 dstGasForCall;
-        uint256 dstNativeAmount;
-        bytes dstNativeAddr;
-    }
-
     struct VaultDescriptor {
         address addr;
         VaultStatus status;
@@ -118,11 +105,9 @@ contract MozaicVault is Ownable {
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    // Snapshot public snapshot;
     address public stargateLpStaking;
     address public stargateToken;
     address public mozaicLp;
-    uint16 public primaryChainId;
     uint16 public chainId;
     address[] public acceptingTokens;
     mapping(address => bool) tokenMap;
@@ -130,7 +115,6 @@ contract MozaicVault is Ownable {
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
     RequestBuffer public rightBuffer;
-    // mapping(uint16 => mapping(uint16 => uint256)) public gasLookup;
     uint16[] public chainIds;
     mapping (uint16 => VaultDescriptor) public vaultLookup;
     uint256 public totalCoinMD;
@@ -188,6 +172,40 @@ contract MozaicVault is Ownable {
         return _requests(_staged).withdrawAmountPerToken[_token];
     }
 
+    function convertLDtoMD(address _token, uint256 _amountLD) public view returns (uint256) {
+        uint8 _localDecimals = IERC20Metadata(_token).decimals();
+        if (MOZAIC_DECIMALS >= _localDecimals) {
+            return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
+        } else {
+            return _amountLD.div(10**(_localDecimals - MOZAIC_DECIMALS));
+        }
+    }
+
+    function convertMDtoLD(address _token, uint256 _amountMD) public view returns (uint256) {
+        uint8 _localDecimals = IERC20Metadata(_token).decimals();
+        if (MOZAIC_DECIMALS >= _localDecimals) {
+            return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
+        } else {
+            return _amountMD.mul(10**(_localDecimals - MOZAIC_DECIMALS));
+        }
+    }
+
+    function amountMDtoMLP(uint256 _amountMD) public view returns (uint256) {
+        if (totalCoinMD == 0) {
+            return _amountMD;
+        } else {
+            return _amountMD.mul(totalMLP).div(totalCoinMD);
+        }
+    }
+
+    function amountMLPtoMD(uint256 _amountMLP) public view returns (uint256) {
+        if (totalMLP == 0) {
+            return _amountMLP;
+        } else {
+            return _amountMLP.mul(totalCoinMD).div(totalMLP);
+        }
+    }
+
     // Use this function to receive an amount of native token equals to msg.value from msg.sender
     receive () external payable {}
 
@@ -204,37 +222,34 @@ contract MozaicVault is Ownable {
     //---------------------------------------------------------------------------
     // Constructor and Public Functions
     constructor(
-        address _lzEndpoint,
         uint16 _chainId,
-        uint16 _primaryChainId,
         address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp,
         address _manager
     ) {
         chainId = _chainId;
-        primaryChainId = _primaryChainId;
         stargateLpStaking = _stargateLpStaking;
         stargateToken = _stargateToken;
         mozaicLp = _mozaicLp;
         manager = _manager;
     }
 
-    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) public onlyOwner {
+    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
         (bool success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
         require(success, "set driver failed");
     }
 
-    function addToken(address _token) public onlyOwner {
+    function addToken(address _token) external onlyOwner {
         if (tokenMap[_token] == false) {
             tokenMap[_token] = true;
             acceptingTokens.push(_token);
         }
     }
 
-    function removeToken(address _token) public onlyOwner {
+    function removeToken(address _token) external onlyOwner {
         if (tokenMap[_token] == true) {
             tokenMap[_token] = false;
             for (uint i; i < acceptingTokens.length; ++i) {
@@ -251,7 +266,7 @@ contract MozaicVault is Ownable {
         return tokenMap[_token];
     }
 
-    function executeActions(Action[] calldata _actions) public onlyOwner {
+    function executeActions(Action[] calldata _actions) external onlyOwner {
         for (uint i; i < _actions.length ; ++i) {
             Action calldata _action = _actions[i];
             ProtocolDriver _driver = protocolDrivers[_action.driverId];
@@ -260,7 +275,7 @@ contract MozaicVault is Ownable {
         }
     }
 
-    function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) public {
+    function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) external {
         require(_chainId == chainId, "only onchain mint in PoC");
         require(isAcceptingToken(_token), "should be accepting token");
 
@@ -297,7 +312,7 @@ contract MozaicVault is Ownable {
         emit DepositRequestAdded(_depositor, _token, _chainId, _amountMD);
     }
 
-    function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) public {
+    function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) external {
         require(_chainId == chainId, "withdraw onchain on PoC");
         require(isAcceptingToken(_token), "should be accepting token");
 
@@ -336,7 +351,7 @@ contract MozaicVault is Ownable {
         emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
     }
 
-    function takeSnapshot() external onlyManager returns (Snapshot memory snapshot) {
+    function takeSnapshot() external onlyManager returns (IMozaic.Snapshot memory snapshot) {
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
@@ -361,14 +376,11 @@ contract MozaicVault is Ownable {
         snapshot.totalMozaicLp = MozaicLP(mozaicLp).totalSupply();
     }
 
-    function preSettle(uint256 _totalCoinMD, uint256 _totalMLP) external onlyManager {
-        totalCoinMD = _totalCoinMD;
-        totalMLP = _totalMLP;
-    }
-
-    function settleRequests() external onlyManager {
+    function settleRequests(uint256 _totalCoinMD, uint256 _totalMLP) external onlyManager {
         // for all deposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
+        totalCoinMD = _totalCoinMD;
+        totalMLP = _totalMLP;
         MozaicLP mozaicLpContract = MozaicLP(mozaicLp);
         RequestBuffer storage _reqs = _requests(true);
         for (uint i; i < _reqs.depositRequestList.length; ++i) {
@@ -414,23 +426,7 @@ contract MozaicVault is Ownable {
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
     }
 
-
-    //---------------------------------------------------------------------------
-    // INTERNAL
-    function _safeTransferFrom(
-        address _token,
-        address _from,
-        address _to,
-        uint256 _value
-    ) internal {
-        IERC20(_token).transferFrom(_from, _to, _value);
-    }
-
-    function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
-        IERC20(_token).transfer(_user, _amountLD);
-    } 
-
-    function registerVault(uint16 _chainId, address _addr) public onlyOwner {
+    function registerVault(uint16 _chainId, address _addr) external onlyOwner {
         bool isNew = true;
         for (uint i; i < chainIds.length; ++i) {
             if (chainIds[i] == _chainId) {
@@ -449,37 +445,18 @@ contract MozaicVault is Ownable {
 
     }
 
-    function convertLDtoMD(address _token, uint256 _amountLD) public view returns (uint256) {
-        uint8 _localDecimals = IERC20Metadata(_token).decimals();
-        if (MOZAIC_DECIMALS >= _localDecimals) {
-            return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
-        } else {
-            return _amountLD.div(10**(_localDecimals - MOZAIC_DECIMALS));
-        }
+    //---------------------------------------------------------------------------
+    // INTERNAL
+    function _safeTransferFrom(
+        address _token,
+        address _from,
+        address _to,
+        uint256 _value
+    ) internal {
+        IERC20(_token).transferFrom(_from, _to, _value);
     }
 
-    function convertMDtoLD(address _token, uint256 _amountMD) public view returns (uint256) {
-        uint8 _localDecimals = IERC20Metadata(_token).decimals();
-        if (MOZAIC_DECIMALS >= _localDecimals) {
-            return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
-        } else {
-            return _amountMD.mul(10**(_localDecimals - MOZAIC_DECIMALS));
-        }
-    }
-
-    function amountMDtoMLP(uint256 _amountMD) public view returns (uint256) {
-        if (totalCoinMD == 0) {
-            return _amountMD;
-        } else {
-            return _amountMD.mul(totalMLP).div(totalCoinMD);
-        }
-    }
-
-    function amountMLPtoMD(uint256 _amountMLP) public view returns (uint256) {
-        if (totalMLP == 0) {
-            return _amountMLP;
-        } else {
-            return _amountMLP.mul(totalCoinMD).div(totalMLP);
-        }
+    function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
+        IERC20(_token).transfer(_user, _amountLD);
     }
 }
