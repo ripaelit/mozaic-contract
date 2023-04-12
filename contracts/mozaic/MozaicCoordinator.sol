@@ -165,7 +165,9 @@ contract MozaicCoordinator is NonblockingLzApp {
 
         if (settleAllowed == true) {
             vault.settleRequests(totalCoinMD, totalMLP);
-            _reportSettled(mainChainId);
+            if (chainId != mainChainId) {
+                _reportSettled(mainChainId);
+            }
             settleAllowed = false;
         }
     }
