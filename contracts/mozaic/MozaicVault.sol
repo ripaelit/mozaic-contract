@@ -5,6 +5,7 @@ pragma solidity ^0.8.9;
 // imports
 import "./ProtocolDriver.sol";
 import "./MozaicLP.sol";
+import "./MozaicBridge.sol";
 
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -41,6 +42,15 @@ contract MozaicVault is Ownable {
 
     bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
     bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
+
+    //--------------------------------------------------------------------------
+    // ENUMS
+    enum ProtocolStatus {
+        IDLE,
+        SNAPSHOTTING,
+        OPTIMIZING,
+        SETTLING
+    }
     
     //---------------------------------------------------------------------------
     // STRUCTS
@@ -100,11 +110,23 @@ contract MozaicVault is Ownable {
     RequestBuffer public rightBuffer;
     uint256 public totalCoinMD;
     uint256 public totalMLP;
+    uint16 public mainChainId;
+    mapping (uint16 => Snapshot) public snapshotReported; // chainId -> Snapshot
+    ProtocolStatus public protocolStatus;
+    uint256 public numUnchecked;
+    bool public settleAllowed;
+    MozaicBridge public bridge;
+    uint16[] public chainIds;
 
     //---------------------------------------------------------------------------
     // MODIFIERS
-    modifier onlyCoordinator() {
-        require(msg.sender == address(coordinator), "Caller must be Coordinator.");
+    modifier onlyMain() {
+        require(chainId == mainChainId, "Only main chain");
+        _;
+    }
+
+    modifier onlyBridge() {
+        require(msg.sender == address(bridge), "Only bridge");
         _;
     }
 
@@ -207,6 +229,8 @@ contract MozaicVault is Ownable {
         require(success, "Return balance failed");
     }
 
+    //---------------------------------------------------------------------------
+    // Functions for configuration
     function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
         protocolDrivers[_driverId] = _driver;
         // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
@@ -232,6 +256,18 @@ contract MozaicVault is Ownable {
         chainId = _chainId;
     }
 
+    function setMainChainId(uint16 _mainChainId) external onlyOwner {
+        require(_mainChainId > 0, "Invalid main chainId");
+        mainChainId = _mainChainId;
+    }
+
+    function registerVaults(uint16[] calldata _chainIds, address[] calldata _addrs) external onlyOwner {
+        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVaults(uint16[],address[])", _chainIds, _addrs));
+        require(success, "register vault failed");
+
+    }
+
     function addToken(address _token) external onlyOwner {
         if (tokenMap[_token] == false) {
             tokenMap[_token] = true;
@@ -252,6 +288,61 @@ contract MozaicVault is Ownable {
         }
     }
 
+    //---------------------------------------------------------------------------
+    // Functions for control center
+    function initOptimizationSession() external onlyOwner onlyMain {
+        require(protocolStatus == ProtocolStatus.IDLE, "Protocol must be idle");
+        
+        numUnchecked = chainIds.length;
+        for (uint i; i < chainIds.length; ++i) {
+            uint16 _chainId = chainIds[i];
+
+            if (_chainId == mainChainId) {
+                Snapshot memory snapshot = _takeSnapshot();
+                _receiveSnapshotReport(snapshot, _chainId);
+            } 
+            else {
+                bridge.requestSnapshot(_chainId);
+            }
+        }
+
+        protocolStatus = ProtocolStatus.SNAPSHOTTING;
+    }
+
+    function preSettleAllVaults() external onlyOwner onlyMain {
+        require(protocolStatus == ProtocolStatus.OPTIMIZING, "Protocol must be optimizing");
+
+        numUnchecked = chainIds.length;
+        for (uint i; i < chainIds.length; ++i) {
+            uint16 _chainId = chainIds[i];
+
+            if (_chainId == mainChainId) {
+                _preSettle(totalCoinMD, totalMLP);
+            } 
+            else {
+                bridge.requestPreSettle(_chainId, totalCoinMD, totalMLP);
+            }
+        }
+
+        protocolStatus = ProtocolStatus.SETTLING;
+    }
+
+    function settleRequests() external onlyOwner {
+        if (settleAllowed == false) {
+            return;
+        }
+
+        _settleRequests();
+
+        if (chainId == mainChainId) {
+            _receiveSettledReport(chainId);
+        }
+        else {
+            bridge.reportSettled(mainChainId);
+        }
+        settleAllowed = false;
+    }
+
     function executeActions(Action[] calldata _actions) external onlyOwner {
         for (uint i; i < _actions.length ; ++i) {
             Action calldata _action = _actions[i];
@@ -261,6 +352,27 @@ contract MozaicVault is Ownable {
         }
     }
 
+    //---------------------------------------------------------------------------
+    // Functions for bridge
+    function takeSnapshot() external onlyBridge {
+        Snapshot memory snapshot = _takeSnapshot();
+        bridge.reportSnapshot(mainChainId, snapshot);
+    }
+
+    function receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) external onlyBridge onlyMain {
+        _receiveSnapshotReport(snapshot, _srcChainId);
+    }
+
+    function preSettle(uint256 _totalCoinMD, uint256 _totalMLP) external onlyBridge {
+        _preSettle(_totalCoinMD, _totalMLP);
+    }
+
+    function receiveSettledReport(uint16 _srcChainId) external onlyBridge onlyMain {
+        _receiveSettledReport(_srcChainId);
+    }
+
+    //---------------------------------------------------------------------------
+    // Functions for users
     function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) external {
         require(_chainId == chainId, "only onchain mint in PoC");
         require(isAcceptingToken(_token), "should be accepting token");
@@ -337,7 +449,44 @@ contract MozaicVault is Ownable {
         emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
     }
 
-    function takeSnapshot() external onlyCoordinator returns (Snapshot memory snapshot) {
+    //---------------------------------------------------------------------------
+    // INTERNAL
+    function _safeTransferFrom(
+        address _token,
+        address _from,
+        address _to,
+        uint256 _value
+    ) internal {
+        IERC20(_token).transferFrom(_from, _to, _value);
+    }
+
+    function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
+        IERC20(_token).transfer(_user, _amountLD);
+    }
+
+    /**
+    * NOTE: PoC: need to move to StargateDriver in next phase of development.
+     */
+    function _getStargatePriceMil() internal pure returns (uint256) {
+        // PoC: right now deploy to TestNet only. We work with MockSTG token and Mocked Stablecoins.
+        // And thus we don't have real DEX market.
+        // KEVIN-TODO:
+        return 1000000;
+    }
+
+    function _updateStats() internal {
+        uint256 _stargatePriceMil = _getStargatePriceMil();
+        // totalMLP - This is actually not required to sync via LZ. Instead we can track the value in primary vault as alternative way.
+        totalCoinMD = 0;
+        totalMLP = 0;
+        for (uint i; i < chainIds.length ; ++i) {
+            Snapshot storage report = snapshotReported[chainIds[i]];
+            totalCoinMD = totalCoinMD.add(report.totalStablecoin + (report.totalStargate).mul(_stargatePriceMil).div(1000000));
+            totalMLP = totalMLP.add(report.totalMozaicLp);
+        }
+    }
+
+    function _takeSnapshot() internal returns (Snapshot memory snapshot) {
         require(_requests(true).totalDepositAmount==0, "Still processing requests");
         require(_requests(true).totalWithdrawAmount==0, "Still processing requests");
 
@@ -362,11 +511,9 @@ contract MozaicVault is Ownable {
         snapshot.totalMozaicLp = mozaicLp.totalSupply();
     }
 
-    function settleRequests(uint256 _totalCoinMD, uint256 _totalMLP) external onlyCoordinator {
+    function _settleRequests() internal {
         // for all deposit requests, mint MozaicLp
         // TODO: Consider gas fee reduction possible.
-        totalCoinMD = _totalCoinMD;
-        totalMLP = _totalMLP;
         RequestBuffer storage _reqs = _requests(true);
         for (uint i; i < _reqs.depositRequestList.length; ++i) {
             DepositRequest storage request = _reqs.depositRequestList[i];
@@ -411,25 +558,23 @@ contract MozaicVault is Ownable {
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
     }
 
-    function registerVaults(uint16[] calldata _chainIds, address[] calldata _addrs) external onlyOwner {
-        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVaults(uint16[],address[])", _chainIds, _addrs));
-        require(success, "register vault failed");
-
+    function _receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) internal {
+        snapshotReported[_srcChainId] = snapshot;
+        if (--numUnchecked == 0) {
+            _updateStats();
+            protocolStatus = ProtocolStatus.OPTIMIZING;
+        }
     }
 
-    //---------------------------------------------------------------------------
-    // INTERNAL
-    function _safeTransferFrom(
-        address _token,
-        address _from,
-        address _to,
-        uint256 _value
-    ) internal {
-        IERC20(_token).transferFrom(_from, _to, _value);
+    function _receiveSettledReport(uint16 _srcChainId) internal {
+        if (--numUnchecked == 0) {
+            protocolStatus = ProtocolStatus.IDLE;
+        }
     }
 
-    function _safeTransfer(address _user, address _token, uint256 _amountLD) internal {
-        IERC20(_token).transfer(_user, _amountLD);
+    function _preSettle(uint256 _totalCoinMD, uint256 _totalMLP) internal {
+        settleAllowed = true;
+        totalCoinMD = _totalCoinMD;
+        totalMLP = _totalMLP;
     }
 }
