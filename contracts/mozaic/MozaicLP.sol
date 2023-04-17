@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 
 // imports
 import "../interfaces/IOFT.sol";
-import "../libraries/oft/OFTCore.sol";
+import "../libraries/token/oft/OFTCore.sol";
 
 // libraries
 import "@openzeppelin/contracts/access/Ownable.sol";
