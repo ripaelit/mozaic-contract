@@ -257,7 +257,8 @@ contract MozaicVault is Ownable {
         mainChainId = _mainChainId;
     }
 
-    function registerVaults(uint16[] calldata _chainIds, address[] calldata _addrs) external onlyOwner {
+    function registerVaults(uint16[] memory _chainIds, address[] memory _addrs) external onlyOwner {
+        chainIds = _chainIds;
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
         (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVaults(uint16[],address[])", _chainIds, _addrs));
         require(success, "register vault failed");
