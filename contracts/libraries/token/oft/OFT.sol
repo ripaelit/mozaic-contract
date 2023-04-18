@@ -1,43 +1,30 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
-// imports
-import "../interfaces/IOFT.sol";
-import "../libraries/token/oft/OFTCore.sol";
-
-// libraries
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "../../../interfaces/IOFT.sol";
+import "./OFTCore.sol";
 
-contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
-
-    address public _vault;
+// override decimal() function is needed
+contract OFT is OFTCore, ERC20, IOFT {
+    bool isMain = false;
+    address mainAddress = address(0xbfD2135BFfbb0B5378b56643c2Df8a87552Bfa23); // This is primary Vault lz endpoint address. For now it is goerli testnet address
     constructor(
         string memory _name,
         string memory _symbol,
-        address _lzEndpoint
+        address _lzEndpoint,
+        uint _initialSupply
     ) ERC20(_name, _symbol) OFTCore(_lzEndpoint) {
+        if (_lzEndpoint == mainAddress) {
+            _mint(_msgSender(), _initialSupply);
+            isMain = true;
+        }
     }
-
-    modifier onlyVault() {
-        require(_vault == _msgSender(), "OnlyVault: caller is not the vault");
-        _;
-    }
-
-    function _checkVault() internal view virtual {
-        require(_vault == _msgSender(), "OnlyVault: caller is not the vault");
-    }
-
-    function setVault(address _vault__) public onlyOwner {
-        _vault = _vault__;
-    }
-
     function decimals() public view virtual override returns (uint8) {
         return 6;
     }
-
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -62,7 +49,11 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
         override
         returns (uint256)
     {
-        return totalSupply();
+        if (isMain) {
+            return totalSupply() - balanceOf(address(this));
+        } else {
+            return totalSupply();
+        }
     }
 
     function _debitFrom(
@@ -74,7 +65,8 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
         address spender = _msgSender();
         if (_from != spender) _spendAllowance(_from, spender, _amount);
         {
-            _burn(_from, _amount);
+            if (isMain) _transfer(_from, address(this), _amount);
+            else _burn(_from, _amount);
         }
         return _amount;
     }
@@ -85,16 +77,9 @@ contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
         uint256 _amount
     ) internal virtual override returns (uint256) {
         {
-            _mint(_toAddress, _amount);
+            if (isMain) _transfer(address(this), _toAddress, _amount);
+            else _mint(_toAddress, _amount);
         }
         return _amount;
-    }
-
-    function mint(address _account, uint256 _amount) public onlyVault {
-        _mint(_account, _amount);
-    }
-
-    function burn(address _account, uint256 _amount) public onlyVault {
-        _burn(_account, _amount);
     }
 }
