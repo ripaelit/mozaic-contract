@@ -303,7 +303,7 @@ contract MozaicVault is Ownable {
                 _receiveSnapshotReport(snapshot, _chainId);
             } 
             else {
-                bridge.requestSnapshot(_chainId);
+                _requestSnapshot(_chainId);
             }
         }
 
@@ -321,7 +321,7 @@ contract MozaicVault is Ownable {
                 _preSettle(totalCoinMD, totalMLP);
             } 
             else {
-                bridge.requestPreSettle(_chainId, totalCoinMD, totalMLP);
+                _requestPreSettle(_chainId);
             }
         }
 
@@ -339,7 +339,7 @@ contract MozaicVault is Ownable {
             _receiveSettledReport(chainId);
         }
         else {
-            bridge.reportSettled(mainChainId);
+            _reportSettled();
         }
         settleAllowed = false;
     }
@@ -357,7 +357,7 @@ contract MozaicVault is Ownable {
     // Functions for bridge
     function takeSnapshot() external onlyBridge {
         Snapshot memory snapshot = _takeSnapshot();
-        bridge.reportSnapshot(mainChainId, snapshot);
+        _reportSnapshot(snapshot);
     }
 
     function receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) external onlyBridge onlyMain {
@@ -557,6 +557,26 @@ contract MozaicVault is Ownable {
             
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
+    }
+
+    function _requestSnapshot(uint16 _dstChainId) internal {
+        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_TAKE_SNAPSHOT, MozaicBridge.LzTxObj(0, 0, "0x"));
+        bridge.requestSnapshot{value: _nativeFee}(_dstChainId);
+    }
+
+    function _reportSnapshot(Snapshot memory snapshot) internal {
+        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(mainChainId, PT_SNAPSHOT_REPORT, MozaicBridge.LzTxObj(0, 0, "0x"));
+        bridge.reportSnapshot{value: _nativeFee}(mainChainId, snapshot);
+    }
+
+    function _requestPreSettle(uint16 _dstChainId) internal {
+        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_PRE_SETTLE, MozaicBridge.LzTxObj(0, 0, "0x"));
+        bridge.requestPreSettle{value: _nativeFee}(_dstChainId, totalCoinMD, totalMLP);
+    }
+
+    function _reportSettled() internal {
+        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(mainChainId, PT_SETTLED_REPORT, MozaicBridge.LzTxObj(0, 0, "0x"));
+        bridge.reportSettled{value: _nativeFee}(mainChainId);
     }
 
     function _receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) internal {
