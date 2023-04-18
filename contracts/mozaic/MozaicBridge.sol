@@ -11,10 +11,10 @@ contract MozaicBridge is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // CONSTANTS
-    uint16 internal constant PT_TAKE_SNAPSHOT = 1;
-    uint16 internal constant PT_SNAPSHOT_REPORT = 2;
-    uint16 internal constant PT_PRE_SETTLE = 3;
-    uint16 internal constant PT_SETTLED_REPORT = 4;
+    uint16 internal constant PT_TAKE_SNAPSHOT = 11;
+    uint16 internal constant PT_SNAPSHOT_REPORT = 12;
+    uint16 internal constant PT_PRE_SETTLE = 13;
+    uint16 internal constant PT_SETTLED_REPORT = 14;
 
     //--------------------------------------------------------------------------
     // EVENTS

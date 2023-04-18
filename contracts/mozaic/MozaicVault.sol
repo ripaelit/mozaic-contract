@@ -39,6 +39,10 @@ contract MozaicVault is Ownable {
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
     uint8 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
+    uint16 internal constant PT_TAKE_SNAPSHOT = 11;
+    uint16 internal constant PT_SNAPSHOT_REPORT = 12;
+    uint16 internal constant PT_PRE_SETTLE = 13;
+    uint16 internal constant PT_SETTLED_REPORT = 14;
 
     bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
     bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
