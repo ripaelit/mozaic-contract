@@ -17,7 +17,7 @@ contract MOZTokenV2 is OFTV2, IMOZTokenV2 {
 	using SafeMath for uint256;
 
 	uint256 public constant MAX_EMISSION_RATE = 0.01 ether;
-	uint256 public constant MAX_SUPPLY_LIMIT = 200000 ether;
+	uint256 public constant MAX_SUPPLY_LIMIT = 1000000000 ether;    // 1,000,000,000
 	uint256 public elasticMaxSupply; // Once deployed, controlled through governance only
 	uint256 public emissionRate; // Token emission per second
 
