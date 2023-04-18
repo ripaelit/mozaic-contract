@@ -97,10 +97,8 @@ contract MozaicVault is Ownable {
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    address public stargateLpStaking;
     address public stargateToken;
     MozaicLP public mozaicLp;
-    address public coordinator;
     uint16 public chainId;
     address[] public acceptingTokens;
     mapping(address => bool) tokenMap;
@@ -239,16 +237,14 @@ contract MozaicVault is Ownable {
     }
 
     function setContracts(
-        address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp,
-        address _coordinator
+        address _bridge
     ) external onlyOwner {
-        require(_stargateLpStaking != address(0x0) && _stargateToken != address(0x0) && _mozaicLp != address(0x0) && _coordinator != address(0x0), "Invalid addresses");
-        stargateLpStaking = _stargateLpStaking;
+        require(_stargateToken != address(0x0) && _mozaicLp != address(0x0) && _bridge != address(0x0), "Invalid addresses");
         stargateToken = _stargateToken;
         mozaicLp = MozaicLP(_mozaicLp);
-        coordinator = _coordinator;
+        bridge = MozaicBridge(_bridge);
     }
 
     function setChainId(uint16 _chainId) external onlyOwner {
