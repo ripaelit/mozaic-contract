@@ -3,9 +3,9 @@
 pragma solidity ^0.8.0;
 
 import "../../../lzApp/NonblockingLzApp.sol";
-import "../../../util/ExcessivelySafeCall.sol";
-import "./ICommonOFT.sol";
-import "./IOFTReceiverV2.sol";
+// import "../../../util/ExcessivelySafeCall.sol";
+import "../../../../interfaces/ICommonOFT.sol";
+import "../../../../interfaces/IOFTReceiverV2.sol";
 
 abstract contract OFTCoreV2 is NonblockingLzApp {
     using BytesLib for bytes;
