@@ -3,6 +3,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory} from '../../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
+import { getChainIdFromChainName } from './utils'
 import exportData from '../constants';
 const hre = require('hardhat');
 
@@ -443,9 +444,9 @@ export const initMozaics = async (
     // Set gasLookup
     // TODO:
     // - change to get chain id from chain name
-    const bscChainId = exportData.testnetTestConstants.chainIds[0];
-    const fantomChainId = exportData.testnetTestConstants.chainIds[1];
+    const bscChainId = getChainIdFromChainName('bsctest');
     const bscBridge = mozaicDeployments.get(bscChainId)!.mozaicBridge;
+    const fantomChainId = getChainIdFromChainName('fantom');
     const fantomBridge = mozaicDeployments.get(fantomChainId)!.mozaicBridge;
     const PT_TAKE_SNAPSHOT = 11;
     const PT_SNAPSHOT_REPORT = 12;
