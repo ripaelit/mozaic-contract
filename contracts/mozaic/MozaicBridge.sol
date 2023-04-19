@@ -157,7 +157,7 @@ contract MozaicBridge is NonblockingLzApp {
         }
 
         if (packetType == PT_TAKE_SNAPSHOT) {
-            vault.takeSnapshot();
+            vault.takeAndReportSnapshot();
         } 
         else if (packetType == PT_SNAPSHOT_REPORT) {
             (, MozaicVault.Snapshot memory snapshot) = abi.decode(_payload, (uint16, MozaicVault.Snapshot));

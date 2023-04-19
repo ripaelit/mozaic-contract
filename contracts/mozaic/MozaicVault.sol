@@ -355,7 +355,7 @@ contract MozaicVault is Ownable {
 
     //---------------------------------------------------------------------------
     // Functions for bridge
-    function takeSnapshot() external onlyBridge {
+    function takeAndReportSnapshot() external onlyBridge {
         Snapshot memory snapshot = _takeSnapshot();
         _reportSnapshot(snapshot);
     }
