@@ -117,6 +117,7 @@ contract MozaicVault is Ownable {
     ProtocolStatus public protocolStatus;
     uint256 public numUnchecked;
     bool public settleAllowed;
+    uint16[] public chainIdsToSettle;
     MozaicBridge public bridge;
     uint16[] public chainIds;
 
@@ -178,6 +179,10 @@ contract MozaicVault is Ownable {
 
     function getWithdrawAmountPerToken(bool _staged, address _token) public view returns (uint256) {
         return _requests(_staged).withdrawAmountPerToken[_token];
+    }
+
+    function getChainIdsToSettleLength() public view returns (uint256) {
+        return chainIdsToSettle.length;
     }
 
     function convertLDtoMD(address _token, uint256 _amountLD) public view returns (uint256) {
@@ -296,15 +301,7 @@ contract MozaicVault is Ownable {
         
         numUnchecked = chainIds.length;
         for (uint i; i < chainIds.length; ++i) {
-            uint16 _chainId = chainIds[i];
-
-            if (_chainId == mainChainId) {
-                Snapshot memory snapshot = _takeSnapshot();
-                _receiveSnapshotReport(snapshot, _chainId);
-            } 
-            else {
-                _requestSnapshot(_chainId);
-            }
+            _requestSnapshot(chainIds[i]);
         }
 
         protocolStatus = ProtocolStatus.SNAPSHOTTING;
@@ -313,24 +310,26 @@ contract MozaicVault is Ownable {
     function preSettleAllVaults() external onlyOwner onlyMain {
         require(protocolStatus == ProtocolStatus.OPTIMIZING, "Protocol must be optimizing");
 
-        numUnchecked = chainIds.length;
+        numUnchecked = 0;
+        delete chainIdsToSettle;
         for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
-
-            if (_chainId == mainChainId) {
-                _preSettle(totalCoinMD, totalMLP);
-            } 
+            if(snapshotReported[_chainId].depositRequestAmount == 0 && snapshotReported[_chainId].withdrawRequestAmountMLP == 0) {
+                continue;
+            }
             else {
                 _requestPreSettle(_chainId);
+                chainIdsToSettle.push(_chainId);
+                ++numUnchecked;
             }
         }
 
         protocolStatus = ProtocolStatus.SETTLING;
     }
 
-    function settleRequests() external onlyOwner {
+    function settleRequests() external onlyOwner returns (bool) {
         if (settleAllowed == false) {
-            return;
+            return false;
         }
 
         _settleRequests();
@@ -342,6 +341,7 @@ contract MozaicVault is Ownable {
             _reportSettled();
         }
         settleAllowed = false;
+        return true;
     }
 
     function executeActions(Action[] calldata _actions) external onlyOwner {
@@ -560,8 +560,14 @@ contract MozaicVault is Ownable {
     }
 
     function _requestSnapshot(uint16 _dstChainId) internal {
-        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_TAKE_SNAPSHOT, MozaicBridge.LzTxObj(0, 0, "0x"));
-        bridge.requestSnapshot{value: _nativeFee}(_dstChainId);
+        if (_dstChainId == mainChainId) {
+            Snapshot memory snapshot = _takeSnapshot();
+            _receiveSnapshotReport(snapshot, _dstChainId);
+        }
+        else {
+            (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_TAKE_SNAPSHOT, MozaicBridge.LzTxObj(0, 0, "0x"));
+            bridge.requestSnapshot{value: _nativeFee}(_dstChainId);
+        }
     }
 
     function _reportSnapshot(Snapshot memory snapshot) internal {
@@ -570,8 +576,13 @@ contract MozaicVault is Ownable {
     }
 
     function _requestPreSettle(uint16 _dstChainId) internal {
-        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_PRE_SETTLE, MozaicBridge.LzTxObj(0, 0, "0x"));
-        bridge.requestPreSettle{value: _nativeFee}(_dstChainId, totalCoinMD, totalMLP);
+        if (_dstChainId == mainChainId) {
+            _preSettle(totalCoinMD, totalMLP);
+        }
+        else {
+            (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_PRE_SETTLE, MozaicBridge.LzTxObj(0, 0, "0x"));
+            bridge.requestPreSettle{value: _nativeFee}(_dstChainId, totalCoinMD, totalMLP);
+        }
     }
 
     function _reportSettled() internal {
@@ -580,15 +591,17 @@ contract MozaicVault is Ownable {
     }
 
     function _receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) internal {
+        --numUnchecked;
         snapshotReported[_srcChainId] = snapshot;
-        if (--numUnchecked == 0) {
+        if (numUnchecked == 0) {
             _updateStats();
             protocolStatus = ProtocolStatus.OPTIMIZING;
         }
     }
 
     function _receiveSettledReport(uint16 _srcChainId) internal {
-        if (--numUnchecked == 0) {
+        --numUnchecked;
+        if (numUnchecked == 0) {
             protocolStatus = ProtocolStatus.IDLE;
         }
     }
