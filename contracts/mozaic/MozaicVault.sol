@@ -327,10 +327,8 @@ contract MozaicVault is Ownable {
         protocolStatus = ProtocolStatus.SETTLING;
     }
 
-    function settleRequests() external onlyOwner returns (bool) {
-        if (settleAllowed == false) {
-            return false;
-        }
+    function settleRequests() external onlyOwner {
+        require(settleAllowed == true, "Not allowed to settle");
 
         _settleRequests();
 
@@ -341,7 +339,6 @@ contract MozaicVault is Ownable {
             _reportSettled();
         }
         settleAllowed = false;
-        return true;
     }
 
     function executeActions(Action[] calldata _actions) external onlyOwner {
