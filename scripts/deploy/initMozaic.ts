@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory } from '../../types/typechain';
+import { MozaicLP__factory, MozaicVault__factory, MozaicBridge__factory } from '../../types/typechain';
 import { MozaicDeployment } from '../constants/types';
 import { initMozaics } from '../util/deployUtils';
 const fs = require('fs');
@@ -18,11 +18,14 @@ async function main() {
     let json = JSON.parse(fs.readFileSync('deployBscResult.json', 'utf-8'));
     let mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
     let mozLp = mozaicLpFactory.attach(json.mozaicLP);
-    let primaryvaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
-    let primaryVault = primaryvaultFactory.attach(json.mozaicVault);  // Because primaryChain is goerli now.
+    let mozaicVaultFactory = (await ethers.getContractFactory('MozaicVault', owner)) as MozaicVault__factory;
+    let mozaicVault = mozaicVaultFactory.attach(json.mozaicVault);
+    let mozaicBridgeFactory = (await ethers.getContractFactory('MozaicBridge', owner)) as MozaicBridge__factory;
+    let mozaicBridge = mozaicBridgeFactory.attach(json.mozaicBridge);
     mozaicDeployment = {
         mozaicLp: mozLp,
-        mozaicVault: primaryVault
+        mozaicVault: mozaicVault,
+        mozaicBridge: mozaicBridge
     }
     mozaicDeployments.set(json.chainId, mozaicDeployment);
 
@@ -32,11 +35,14 @@ async function main() {
     json = JSON.parse(fs.readFileSync('deployFantomResult.json', 'utf-8'));
     mozaicLpFactory = (await ethers.getContractFactory('MozaicLP', owner)) as MozaicLP__factory;
     mozLp = mozaicLpFactory.attach(json.mozaicLP);
-    let secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
-    let secondaryVault = secondaryVaultFactory.attach(json.mozaicVault);
+    mozaicVaultFactory = (await ethers.getContractFactory('MozaicVault', owner)) as MozaicVault__factory;
+    mozaicVault = mozaicVaultFactory.attach(json.mozaicVault);
+    mozaicBridgeFactory = (await ethers.getContractFactory('MozaicBridge', owner)) as MozaicBridge__factory;
+    mozaicBridge = mozaicBridgeFactory.attach(json.mozaicBridge);
     mozaicDeployment = {
         mozaicLp: mozLp,
-        mozaicVault: secondaryVault
+        mozaicVault: mozaicVault,
+        mozaicBridge: mozaicBridge
     }
     mozaicDeployments.set(json.chainId, mozaicDeployment);
     
