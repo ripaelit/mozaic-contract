@@ -52,9 +52,11 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
 
     // Redeeming min/max settings
     uint256 public minRedeemRatio = 50; // 1:0.5
+    uint256 public mediumRedeemRatio = 75; // 1:0.75
     uint256 public maxRedeemRatio = 100; // 1:1
-    uint256 public minRedeemDuration = 15 days; // 1296000s
-    uint256 public maxRedeemDuration = 90 days; // 7776000s
+    uint256 public minRedeemDuration = 15 days; // 1,296,000s
+    uint256 public mediumRedeemDuration = 30 days; // 2,592,000s
+    uint256 public maxRedeemDuration = 45 days; // 3,888,000s
     // Adjusted dividends rewards for redeeming xMOZ
     uint256 public redeemDividendsAdjustment = 50; // 50%
 
@@ -74,7 +76,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
 
     event ApproveUsage(address indexed userAddress, address indexed usageAddress, uint256 amount);
     event Convert(address indexed from, address to, uint256 amount);
-    event UpdateRedeemSettings(uint256 minRedeemRatio, uint256 maxRedeemRatio, uint256 minRedeemDuration, uint256 maxRedeemDuration, uint256 redeemDividendsAdjustment);
+    event UpdateRedeemSettings(uint256 minRedeemRatio, uint256 mediumRedeemRatio, uint256 maxRedeemRatio, uint256 minRedeemDuration, uint256 mediumRedeemDuration, uint256 maxRedeemDuration, uint256 redeemDividendsAdjustment);
     event UpdateDividendsAddress(address previousDividendsAddress, address newDividendsAddress);
     event UpdateDeallocationFee(address indexed usageAddress, uint256 fee);
     event SetTransferWhitelist(address account, bool add);
@@ -113,21 +115,29 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     * @dev returns redeemable MOZ for "amount" of xMOZ vested for "duration" seconds
     */
     function getMozByVestingDuration(uint256 amount, uint256 duration) public view returns (uint256) {
+        uint256 ratio;
+        
         if(duration < minRedeemDuration) {
             return 0;
         }
-
+        else if(duration >= minRedeemDuration && duration < mediumRedeemDuration) {
+            ratio = minRedeemRatio.add(
+                (mediumRedeemRatio.sub(minRedeemRatio)).mul(duration.sub(minRedeemDuration))
+                .div(mediumRedeemDuration.sub(minRedeemDuration))
+            );
+        }
+        else if(duration >= mediumRedeemDuration && duration < maxRedeemDuration) {
+            ratio = mediumRedeemRatio.add(
+                (maxRedeemRatio.sub(mediumRedeemRatio)).mul(duration.sub(mediumRedeemDuration))
+                .div(maxRedeemDuration.sub(mediumRedeemDuration))
+            );
+        }
         // capped to maxRedeemDuration
-        if (duration > maxRedeemDuration) {
-            return amount.mul(maxRedeemRatio).div(100);
+        else {
+            ratio = maxRedeemRatio;
         }
 
-        uint256 ratio = minRedeemRatio.add(
-            (duration.sub(minRedeemDuration)).mul(maxRedeemRatio.sub(minRedeemRatio))
-            .div(maxRedeemDuration.sub(minRedeemDuration))
-        );
-
-        return amount.mul(ratio).div(100);
+        return amount.mul(ratio).div(MAX_FIXED_RATIO);
     }
 
     /**
@@ -189,19 +199,21 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     *
     * Must only be called by owner
     */
-    function updateRedeemSettings(uint256 minRedeemRatio_, uint256 maxRedeemRatio_, uint256 minRedeemDuration_, uint256 maxRedeemDuration_, uint256 redeemDividendsAdjustment_) external onlyOwner {
-        require(minRedeemRatio_ <= maxRedeemRatio_, "updateRedeemSettings: wrong ratio values");
-        require(minRedeemDuration_ < maxRedeemDuration_, "updateRedeemSettings: wrong duration values");
+    function updateRedeemSettings(uint256 minRedeemRatio_, uint256 mediumRedeemRatio_, uint256 maxRedeemRatio_, uint256 minRedeemDuration_, uint256 mediumRedeemDuration_, uint256 maxRedeemDuration_, uint256 redeemDividendsAdjustment_) external onlyOwner {
+        require(minRedeemRatio_ <= mediumRedeemRatio_ || mediumRedeemRatio_ <= maxRedeemRatio_, "updateRedeemSettings: wrong ratio values");
+        require(minRedeemDuration_ < mediumRedeemDuration_ || mediumRedeemDuration_ < maxRedeemDuration_, "updateRedeemSettings: wrong duration values");
         // should never exceed 100%
         require(maxRedeemRatio_ <= MAX_FIXED_RATIO && redeemDividendsAdjustment_ <= MAX_FIXED_RATIO, "updateRedeemSettings: wrong ratio values");
 
         minRedeemRatio = minRedeemRatio_;
+        mediumRedeemRatio = mediumRedeemRatio_;
         maxRedeemRatio = maxRedeemRatio_;
         minRedeemDuration = minRedeemDuration_;
+        mediumRedeemDuration = mediumRedeemDuration_;
         maxRedeemDuration = maxRedeemDuration_;
         redeemDividendsAdjustment = redeemDividendsAdjustment_;
 
-        emit UpdateRedeemSettings(minRedeemRatio_, maxRedeemRatio_, minRedeemDuration_, maxRedeemDuration_, redeemDividendsAdjustment_);
+        emit UpdateRedeemSettings(minRedeemRatio_, mediumRedeemRatio_, maxRedeemRatio_, minRedeemDuration_, mediumRedeemDuration_, maxRedeemDuration_, redeemDividendsAdjustment_);
     }
 
     /**
@@ -292,7 +304,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
             balance.redeemingAmount = balance.redeemingAmount.add(xMozAmount);
 
             // handle dividends during the vesting process
-            uint256 dividendsAllocation = xMozAmount.mul(redeemDividendsAdjustment).div(100);
+            uint256 dividendsAllocation = xMozAmount.mul(redeemDividendsAdjustment).div(MAX_FIXED_RATIO);
             // only if compensation is active
             if(dividendsAllocation > 0) {
                 // allocate to dividends
