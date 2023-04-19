@@ -3,7 +3,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory} from '../../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
-import { getChainIdFromChainName } from './utils'
+import { getLzChainIdFromChainName, switchNetwork } from './utils'
 import exportData from '../constants';
 const hre = require('hardhat');
 
@@ -417,16 +417,7 @@ export const initMozaics = async (
     }
 
     for (const [chainIdLeft, mozLeft] of mozaicDeployments) {
-      // run the following code on the relevent network of chainId.
-      // LayerZero chain id ---> global chain id
-      const globalChainId = globalChainIdFromLzChainId(chainIdLeft);
-      if (globalChainId) {
-          // global chain id --> network name (by using hre.config.networks)
-          const networkName = networkNameFromGlobalChainId(globalChainId);
-          // switch to use the provider of the network
-          hre.changeNetwork(networkName);
-      }
-
+      switchNetwork(chainIdLeft);
       [owner] = await ethers.getSigners();
 
       let tx = await mozLeft.mozaicVault.connect(owner).registerVaults(chainIds, vaultAddressList);
@@ -444,9 +435,9 @@ export const initMozaics = async (
     // Set gasLookup
     // TODO:
     // - change to get chain id from chain name
-    const bscChainId = getChainIdFromChainName('bsctest');
+    const bscChainId = getLzChainIdFromChainName('bsctest');
     const bscBridge = mozaicDeployments.get(bscChainId)!.mozaicBridge;
-    const fantomChainId = getChainIdFromChainName('fantom');
+    const fantomChainId = getLzChainIdFromChainName('fantom');
     const fantomBridge = mozaicDeployments.get(fantomChainId)!.mozaicBridge;
     const PT_TAKE_SNAPSHOT = 11;
     const PT_SNAPSHOT_REPORT = 12;
@@ -470,18 +461,3 @@ export const initMozaics = async (
     console.log("Initialized mozaics");
 }
 
-export const globalChainIdFromLzChainId = (lzChainId: number) => {
-    let chainId = exportData.testnetTestConstants.lzToGlobalChainIds.get(lzChainId)!;
-    return chainId;
-}
-
-export const networkNameFromGlobalChainId = (globalChainId: number) => {
-    let networkName = "";
-    const networks = hre.config.networks;
-    for (const network in networks) {
-        if (networks[network].chainId == globalChainId) {
-            networkName = network;
-        }
-    }
-    return networkName;
-}
