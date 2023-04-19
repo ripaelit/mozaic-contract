@@ -6,7 +6,7 @@ import { ActionTypeEnum, ProtocolStatus } from '../constants/types';
 import { setTimeout } from 'timers/promises';
 import { BigNumber } from 'ethers';
 import exportData from '../constants';
-import { getChainIdFromChainName } from './utils'
+import { getLzChainIdFromChainName, switchNetwork } from './utils'
 const fs = require('fs');
 const hre = require('hardhat');
 
@@ -112,7 +112,7 @@ export const deposit = async (
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
-    let chainId = getChainIdFromChainName(chainName);
+    let chainId = getLzChainIdFromChainName(chainName);
 
     // check
     const totalDepositAmountBefore = await vault.getTotalDepositAmount(false);
@@ -163,7 +163,7 @@ export const withdraw = async (
     hre.changeNetwork(chainName);
     let signers = await ethers.getSigners();
     let signer = signers[signerIndex];
-    let chainId = getChainIdFromChainName(chainName);
+    let chainId = getLzChainIdFromChainName(chainName);
 
     // check
     const totalWithdrawAmountBefore = await vault.getTotalWithdrawAmount(false);
@@ -311,7 +311,7 @@ export const swapRemote = async(
     console.log("SwapRemote: %s %s %s -> %s %s", srcChainName, await srcToken.name(), amountLD.toString(), dstChainName, await dstToken.name());
 
     let owner: SignerWithAddress;
-    const dstChainId = getChainIdFromChainName(dstChainName);
+    const dstChainId = getLzChainIdFromChainName(dstChainName);
     const dstPoolId = exportData.testnetTestConstants.poolIds.get(await dstToken.name())!;
 
     // check token
@@ -362,25 +362,25 @@ export const swapRemote = async(
 }
 
 export const initOptimization = async (
-    vault: MozaicVault
+    mainVault: MozaicVault
 ) => {
     console.log("initOptimization:");
 
     let owner: SignerWithAddress;
     hre.changeNetwork('bsctest');
     [owner] = await ethers.getSigners();
-    let tx = await vault.connect(owner).initOptimizationSession();
+    let tx = await mainVault.connect(owner).initOptimizationSession();
     await tx.wait();
     console.log("Owner called initOptimizationSession");
 
     let timeDelayed = 0;
     let success = false;
     while (timeDelayed < TIME_DELAY_MAX) {
-        let protocolStatus = await vault.protocolStatus();
+        let protocolStatus = await mainVault.protocolStatus();
         if (protocolStatus == ProtocolStatus.OPTIMIZING) {
             success = true;
-            const totalMLP = await vault.totalMLP();
-            const totalCoinMD = await vault.totalCoinMD();
+            const totalMLP = await mainVault.totalMLP();
+            const totalCoinMD = await mainVault.totalCoinMD();
             console.log("initOptimization in %d seconds, totalMLP %s, totalCoinMD %s", timeDelayed / 1000, totalMLP.toString(), totalCoinMD.toString());
             break;
         } else {
@@ -395,31 +395,65 @@ export const initOptimization = async (
 }
 
 export const preSettleAllVaults = async (
-    vault: MozaicVault
+    mainVault: MozaicVault
 ) => {
-    console.log("settleRequests:");
+    console.log("preSettleAllVaults:");
     
     let owner: SignerWithAddress;
     hre.changeNetwork('bsctest');
     [owner] = await ethers.getSigners();
-    let tx = await vault.connect(owner).preSettleAllVaults();
+    let tx = await mainVault.connect(owner).preSettleAllVaults();
     await tx.wait();
+}
 
-    // let timeDelayed = 0;
-    // let success = false;
-    // while (timeDelayed < TIME_DELAY_MAX) {
-    //     let protocolStatus = await vault.protocolStatus();
-    //     if (protocolStatus == ProtocolStatus.IDLE) {
-    //         success = true;
-    //         console.log("settleRequestsAllVaults in %d seconds", timeDelayed / 1000);
-    //         break;
-    //     } else {
-    //         console.log("Waiting for lz_settle_report...");
-    //         await setTimeout(TIME_INTERVAL);
-    //         timeDelayed += TIME_INTERVAL;
-    //     }
-    // }
-    // if (!success) {
-    //     console.log("Timeout lz_settle_report");
-    // }
+export const settleRequestsAllVaults = async (
+    vaults: MozaicVault[]
+) => {
+    console.log("settleRequestsAllVaults:");
+
+    let owner: SignerWithAddress;
+
+    for (let i = 0; i < exportData.testnetTestConstants.chainIds.length; ++i) {
+        let timeDelayed = 0;
+        let success = false;
+        switchNetwork(exportData.testnetTestConstants.chainIds[i]);
+        [owner] = await ethers.getSigners();
+        while (timeDelayed < TIME_DELAY_MAX) {
+            let settleAllowed = await vaults[i].settleAllowed();
+            if (settleAllowed) {
+                let tx = await vaults[i].connect(owner).settleRequests();
+                await tx.wait();
+                success = true;
+                console.log("settleRequests in %d seconds", timeDelayed / 1000);
+                break;
+            } else {
+                console.log("Waiting for lz_pre_settle...");
+                await setTimeout(TIME_INTERVAL);
+                timeDelayed += TIME_INTERVAL;
+            }
+        }
+        if (!success) {
+            console.log("Timeout lz_pre_settle");
+        }
+    }
+
+    let timeDelayed = 0;
+    let success = false;
+    hre.changeNetwork('bsctest');
+    [owner] = await ethers.getSigners();
+    while (timeDelayed < TIME_DELAY_MAX) {
+        let protocolStatus = await vaults[0].protocolStatus();
+        if (protocolStatus == ProtocolStatus.IDLE) {
+            success = true;
+            console.log("settleRequestsAllVaults in %d seconds", timeDelayed / 1000);
+            break;
+        } else {
+            console.log("Waiting for lz_settle_report...");
+            await setTimeout(TIME_INTERVAL);
+            timeDelayed += TIME_INTERVAL;
+        }
+    }
+    if (!success) {
+        console.log("Timeout lz_settle_report");
+    }
 }
