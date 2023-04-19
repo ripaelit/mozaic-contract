@@ -1,5 +1,4 @@
-import { Contract } from 'ethers';
-import {Bridge, ERC20, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, SecondaryVault, ILayerZeroEndpoint, MockToken } from '../../types/typechain';
+import {Bridge, Factory, LPStaking, Pool, Router, StargateToken, LZEndpointMock, MozaicLP, MozaicVault, MozaicBridge } from '../../types/typechain';
 
 export type StargateChainPath = {
   sourceChainId: number,
@@ -21,7 +20,8 @@ export interface StargateDeploymentOnchain {
 
 export type MozaicDeployment = {
   mozaicLp: MozaicLP,
-  mozaicVault: SecondaryVault,
+  mozaicVault: MozaicVault,
+  mozaicBridge: MozaicBridge
 };
 
 export type StargateDeployments = Map<number, StargateDeploymentOnchain>; // Map<chainId, StargateDeploymentOnchain>
@@ -47,9 +47,4 @@ export enum ProtocolStatus {
   SNAPSHOTTING = 1,
   OPTIMIZING = 2,
   SETTLING = 3,
-}
-
-export enum VaultStatus {
-  IDLE = 0,
-  SNAPSHOTTED = 1,
 }
