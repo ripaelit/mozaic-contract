@@ -29,16 +29,21 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         uint256 redeemingAmount; // Total amount of xMOZ currently being redeemed
     }
 
+    // struct RedeemInfo {
+    //     uint256 mozAmount; // MOZ amount to receive when vesting has ended
+    //     uint256 xMozAmount; // xMOZ amount to redeem
+    //     uint256 endTime;
+    //     IXMozaicTokenUsage dividendsAddress;
+    //     uint256 dividendsAllocation; // Share of redeeming xMOZ to allocate to the Dividends Usage contract
+    // }
     struct RedeemInfo {
         uint256 mozAmount; // MOZ amount to receive when vesting has ended
         uint256 xMozAmount; // xMOZ amount to redeem
         uint256 endTime;
-        IXMozaicTokenUsage dividendsAddress;
-        uint256 dividendsAllocation; // Share of redeeming xMOZ to allocate to the Dividends Usage contract
     }
 
     IMozaicTokenV2 public immutable mozaicToken; // MOZ token to convert to/from
-    IXMozaicTokenUsage public dividendsAddress; // Mozaic dividends contract
+    // IXMozaicTokenUsage public dividendsAddress; // Mozaic dividends contract
 
     EnumerableSet.AddressSet private _transferWhitelist; // addresses allowed to send/receive xMOZ
 
@@ -58,7 +63,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     uint256 public mediumRedeemDuration = 30 days; // 2,592,000s
     uint256 public maxRedeemDuration = 45 days; // 3,888,000s
     // Adjusted dividends rewards for redeeming xMOZ
-    uint256 public redeemDividendsAdjustment = 50; // 50%
+    // uint256 public redeemDividendsAdjustment = 50; // 50%
 
     mapping(address => XMozBalance) public xMozBalances; // User's xMOZ balances
     mapping(address => RedeemInfo[]) public userRedeems; // User's redeeming instances
@@ -76,14 +81,15 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
 
     event ApproveUsage(address indexed userAddress, address indexed usageAddress, uint256 amount);
     event Convert(address indexed from, address to, uint256 amount);
-    event UpdateRedeemSettings(uint256 minRedeemRatio, uint256 mediumRedeemRatio, uint256 maxRedeemRatio, uint256 minRedeemDuration, uint256 mediumRedeemDuration, uint256 maxRedeemDuration, uint256 redeemDividendsAdjustment);
-    event UpdateDividendsAddress(address previousDividendsAddress, address newDividendsAddress);
+    // event UpdateRedeemSettings(uint256 minRedeemRatio, uint256 mediumRedeemRatio, uint256 maxRedeemRatio, uint256 minRedeemDuration, uint256 mediumRedeemDuration, uint256 maxRedeemDuration, uint256 redeemDividendsAdjustment);
+    event UpdateRedeemSettings(uint256 minRedeemRatio, uint256 mediumRedeemRatio, uint256 maxRedeemRatio, uint256 minRedeemDuration, uint256 mediumRedeemDuration, uint256 maxRedeemDuration);
+    // event UpdateDividendsAddress(address previousDividendsAddress, address newDividendsAddress);
     event UpdateDeallocationFee(address indexed usageAddress, uint256 fee);
     event SetTransferWhitelist(address account, bool add);
     event Redeem(address indexed userAddress, uint256 xMozAmount, uint256 mozAmount, uint256 duration);
     event FinalizeRedeem(address indexed userAddress, uint256 xMozAmount, uint256 mozAmount);
     event CancelRedeem(address indexed userAddress, uint256 xMozAmount);
-    event UpdateRedeemDividendsAddress(address indexed userAddress, uint256 redeemIndex, address previousDividendsAddress, address newDividendsAddress);
+    // event UpdateRedeemDividendsAddress(address indexed userAddress, uint256 redeemIndex, address previousDividendsAddress, address newDividendsAddress);
     event Allocate(address indexed userAddress, address indexed usageAddress, uint256 amount);
     event Deallocate(address indexed userAddress, address indexed usageAddress, uint256 amount, uint256 fee);
 
@@ -150,9 +156,13 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     /**
     * @dev returns "userAddress" info for a pending redeem identified by "redeemIndex"
     */
-    function getUserRedeem(address userAddress, uint256 redeemIndex) external view validateRedeem(userAddress, redeemIndex) returns (uint256 mozAmount, uint256 xMozAmount, uint256 endTime, address dividendsContract, uint256 dividendsAllocation) {
+    // function getUserRedeem(address userAddress, uint256 redeemIndex) external view validateRedeem(userAddress, redeemIndex) returns (uint256 mozAmount, uint256 xMozAmount, uint256 endTime, address dividendsContract, uint256 dividendsAllocation) {
+    //     RedeemInfo storage _redeem = userRedeems[userAddress][redeemIndex];
+    //     return (_redeem.mozAmount, _redeem.xMozAmount, _redeem.endTime, address(_redeem.dividendsAddress), _redeem.dividendsAllocation);
+    // }
+    function getUserRedeem(address userAddress, uint256 redeemIndex) external view validateRedeem(userAddress, redeemIndex) returns (uint256 mozAmount, uint256 xMozAmount, uint256 endTime) {
         RedeemInfo storage _redeem = userRedeems[userAddress][redeemIndex];
-        return (_redeem.mozAmount, _redeem.xMozAmount, _redeem.endTime, address(_redeem.dividendsAddress), _redeem.dividendsAllocation);
+        return (_redeem.mozAmount, _redeem.xMozAmount, _redeem.endTime);
     }
 
     /**
@@ -199,11 +209,27 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     *
     * Must only be called by owner
     */
-    function updateRedeemSettings(uint256 minRedeemRatio_, uint256 mediumRedeemRatio_, uint256 maxRedeemRatio_, uint256 minRedeemDuration_, uint256 mediumRedeemDuration_, uint256 maxRedeemDuration_, uint256 redeemDividendsAdjustment_) external onlyOwner {
+    // function updateRedeemSettings(uint256 minRedeemRatio_, uint256 mediumRedeemRatio_, uint256 maxRedeemRatio_, uint256 minRedeemDuration_, uint256 mediumRedeemDuration_, uint256 maxRedeemDuration_, uint256 redeemDividendsAdjustment_) external onlyOwner {
+    //     require(minRedeemRatio_ <= mediumRedeemRatio_ || mediumRedeemRatio_ <= maxRedeemRatio_, "updateRedeemSettings: wrong ratio values");
+    //     require(minRedeemDuration_ < mediumRedeemDuration_ || mediumRedeemDuration_ < maxRedeemDuration_, "updateRedeemSettings: wrong duration values");
+    //     // should never exceed 100%
+    //     require(maxRedeemRatio_ <= MAX_FIXED_RATIO && redeemDividendsAdjustment_ <= MAX_FIXED_RATIO, "updateRedeemSettings: wrong ratio values");
+
+    //     minRedeemRatio = minRedeemRatio_;
+    //     mediumRedeemRatio = mediumRedeemRatio_;
+    //     maxRedeemRatio = maxRedeemRatio_;
+    //     minRedeemDuration = minRedeemDuration_;
+    //     mediumRedeemDuration = mediumRedeemDuration_;
+    //     maxRedeemDuration = maxRedeemDuration_;
+    //     redeemDividendsAdjustment = redeemDividendsAdjustment_;
+
+    //     emit UpdateRedeemSettings(minRedeemRatio_, mediumRedeemRatio_, maxRedeemRatio_, minRedeemDuration_, mediumRedeemDuration_, maxRedeemDuration_, redeemDividendsAdjustment_);
+    // }
+    function updateRedeemSettings(uint256 minRedeemRatio_, uint256 mediumRedeemRatio_, uint256 maxRedeemRatio_, uint256 minRedeemDuration_, uint256 mediumRedeemDuration_, uint256 maxRedeemDuration_) external onlyOwner {
         require(minRedeemRatio_ <= mediumRedeemRatio_ || mediumRedeemRatio_ <= maxRedeemRatio_, "updateRedeemSettings: wrong ratio values");
         require(minRedeemDuration_ < mediumRedeemDuration_ || mediumRedeemDuration_ < maxRedeemDuration_, "updateRedeemSettings: wrong duration values");
         // should never exceed 100%
-        require(maxRedeemRatio_ <= MAX_FIXED_RATIO && redeemDividendsAdjustment_ <= MAX_FIXED_RATIO, "updateRedeemSettings: wrong ratio values");
+        require(maxRedeemRatio_ <= MAX_FIXED_RATIO, "updateRedeemSettings: wrong ratio values");
 
         minRedeemRatio = minRedeemRatio_;
         mediumRedeemRatio = mediumRedeemRatio_;
@@ -211,9 +237,8 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         minRedeemDuration = minRedeemDuration_;
         mediumRedeemDuration = mediumRedeemDuration_;
         maxRedeemDuration = maxRedeemDuration_;
-        redeemDividendsAdjustment = redeemDividendsAdjustment_;
 
-        emit UpdateRedeemSettings(minRedeemRatio_, mediumRedeemRatio_, maxRedeemRatio_, minRedeemDuration_, mediumRedeemDuration_, maxRedeemDuration_, redeemDividendsAdjustment_);
+        emit UpdateRedeemSettings(minRedeemRatio_, mediumRedeemRatio_, maxRedeemRatio_, minRedeemDuration_, mediumRedeemDuration_, maxRedeemDuration_);
     }
 
     /**
@@ -221,15 +246,15 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     *
     * Must only be called by owner
     */
-    function updateDividendsAddress(IXMozaicTokenUsage dividendsAddress_) external onlyOwner {
-        // if set to 0, also set divs earnings while redeeming to 0
-        if(address(dividendsAddress_) == address(0)) {
-            redeemDividendsAdjustment = 0;
-        }
+    // function updateDividendsAddress(IXMozaicTokenUsage dividendsAddress_) external onlyOwner {
+    //     // if set to 0, also set divs earnings while redeeming to 0
+    //     if(address(dividendsAddress_) == address(0)) {
+    //         redeemDividendsAdjustment = 0;
+    //     }
 
-        emit UpdateDividendsAddress(address(dividendsAddress), address(dividendsAddress_));
-        dividendsAddress = dividendsAddress_;
-    }
+    //     emit UpdateDividendsAddress(address(dividendsAddress), address(dividendsAddress_));
+    //     dividendsAddress = dividendsAddress_;
+    // }
 
     /**
     * @dev Updates fee paid by users when deallocating from "usageAddress"
@@ -287,6 +312,37 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     *
     * Handles dividends' compensation allocation during the vesting process if needed
     */
+    // function redeem(uint256 xMozAmount, uint256 duration) external nonReentrant {
+    //     require(xMozAmount > 0, "redeem: xMozAmount cannot be null");
+    //     require(duration >= minRedeemDuration, "redeem: duration too low");
+
+    //     _transfer(msg.sender, address(this), xMozAmount);
+    //     XMozBalance storage balance = xMozBalances[msg.sender];
+
+    //     // get corresponding MOZ amount
+    //     uint256 mozAmount = getMozByVestingDuration(xMozAmount, duration);
+    //     emit Redeem(msg.sender, xMozAmount, mozAmount, duration);
+
+    //     // if redeeming is not immediate, go through vesting process
+    //     if(duration > 0) {
+    //         // add to SBT total
+    //         balance.redeemingAmount = balance.redeemingAmount.add(xMozAmount);
+
+    //         // handle dividends during the vesting process
+    //         uint256 dividendsAllocation = xMozAmount.mul(redeemDividendsAdjustment).div(MAX_FIXED_RATIO);
+    //         // only if compensation is active
+    //         if(dividendsAllocation > 0) {
+    //             // allocate to dividends
+    //             dividendsAddress.allocate(msg.sender, dividendsAllocation, new bytes(0));
+    //         }
+
+    //         // add redeeming entry
+    //         userRedeems[msg.sender].push(RedeemInfo(mozAmount, xMozAmount, _currentBlockTimestamp().add(duration), dividendsAddress, dividendsAllocation));
+    //     } else {
+    //         // immediately redeem for MOZ
+    //         _finalizeRedeem(msg.sender, xMozAmount, mozAmount);
+    //     }
+    // }
     function redeem(uint256 xMozAmount, uint256 duration) external nonReentrant {
         require(xMozAmount > 0, "redeem: xMozAmount cannot be null");
         require(duration >= minRedeemDuration, "redeem: duration too low");
@@ -303,19 +359,11 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
             // add to SBT total
             balance.redeemingAmount = balance.redeemingAmount.add(xMozAmount);
 
-            // handle dividends during the vesting process
-            uint256 dividendsAllocation = xMozAmount.mul(redeemDividendsAdjustment).div(MAX_FIXED_RATIO);
-            // only if compensation is active
-            if(dividendsAllocation > 0) {
-                // allocate to dividends
-                dividendsAddress.allocate(msg.sender, dividendsAllocation, new bytes(0));
-            }
-
             // add redeeming entry
-            userRedeems[msg.sender].push(RedeemInfo(mozAmount, xMozAmount, _currentBlockTimestamp().add(duration), dividendsAddress, dividendsAllocation));
+            userRedeems[msg.sender].push(RedeemInfo(mozAmount, xMozAmount, _currentBlockTimestamp().add(duration)));
         } else {
-        // immediately redeem for MOZ
-        _finalizeRedeem(msg.sender, xMozAmount, mozAmount);
+            // immediately redeem for MOZ
+            _finalizeRedeem(msg.sender, xMozAmount, mozAmount);
         }
     }
 
@@ -324,6 +372,24 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     *
     * Can only be called by the redeem entry owner
     */
+    // function finalizeRedeem(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
+    //     XMozBalance storage balance = xMozBalances[msg.sender];
+    //     RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
+    //     require(_currentBlockTimestamp() >= _redeem.endTime, "finalizeRedeem: vesting duration has not ended yet");
+
+    //     // remove from SBT total
+    //     balance.redeemingAmount = balance.redeemingAmount.sub(_redeem.xMozAmount);
+    //     _finalizeRedeem(msg.sender, _redeem.xMozAmount, _redeem.mozAmount);
+
+    //     // handle dividends compensation if any was active
+    //     if(_redeem.dividendsAllocation > 0) {
+    //         // deallocate from dividends
+    //         IXMozaicTokenUsage(_redeem.dividendsAddress).deallocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
+    //     }
+
+    //     // remove redeem entry
+    //     _deleteRedeemEntry(redeemIndex);
+    // }
     function finalizeRedeem(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
         XMozBalance storage balance = xMozBalances[msg.sender];
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
@@ -332,12 +398,6 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         // remove from SBT total
         balance.redeemingAmount = balance.redeemingAmount.sub(_redeem.xMozAmount);
         _finalizeRedeem(msg.sender, _redeem.xMozAmount, _redeem.mozAmount);
-
-        // handle dividends compensation if any was active
-        if(_redeem.dividendsAllocation > 0) {
-            // deallocate from dividends
-            IXMozaicTokenUsage(_redeem.dividendsAddress).deallocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
-        }
 
         // remove redeem entry
         _deleteRedeemEntry(redeemIndex);
@@ -349,28 +409,47 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     * Can only be called by the involved user
     * Should only be used if dividends contract was to be migrated
     */
-    function updateRedeemDividendsAddress(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
-        RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
+    // function updateRedeemDividendsAddress(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
+    //     RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
 
-        // only if the active dividends contract is not the same anymore
-        if(dividendsAddress != _redeem.dividendsAddress && address(dividendsAddress) != address(0)) {
-            if(_redeem.dividendsAllocation > 0) {
-                // deallocate from old dividends contract
-                _redeem.dividendsAddress.deallocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
-                // allocate to new used dividends contract
-                dividendsAddress.allocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
-            }
+    //     // only if the active dividends contract is not the same anymore
+    //     if(dividendsAddress != _redeem.dividendsAddress && address(dividendsAddress) != address(0)) {
+    //         if(_redeem.dividendsAllocation > 0) {
+    //             // deallocate from old dividends contract
+    //             _redeem.dividendsAddress.deallocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
+    //             // allocate to new used dividends contract
+    //             dividendsAddress.allocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
+    //         }
 
-            emit UpdateRedeemDividendsAddress(msg.sender, redeemIndex, address(_redeem.dividendsAddress), address(dividendsAddress));
-            _redeem.dividendsAddress = dividendsAddress;
-        }
-    }
+    //         emit UpdateRedeemDividendsAddress(msg.sender, redeemIndex, address(_redeem.dividendsAddress), address(dividendsAddress));
+    //         _redeem.dividendsAddress = dividendsAddress;
+    //     }
+    // }
 
     /**
     * @dev Cancels an ongoing redeem entry
     *
     * Can only be called by its owner
     */
+    // function cancelRedeem(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
+    //     XMozBalance storage balance = xMozBalances[msg.sender];
+    //     RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
+
+    //     // make redeeming xMOZ available again
+    //     balance.redeemingAmount = balance.redeemingAmount.sub(_redeem.xMozAmount);
+    //     _transfer(address(this), msg.sender, _redeem.xMozAmount);
+
+    //     // handle dividends compensation if any was active
+    //     if(_redeem.dividendsAllocation > 0) {
+    //         // deallocate from dividends
+    //         IXMozaicTokenUsage(_redeem.dividendsAddress).deallocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
+    //     }
+
+    //     emit CancelRedeem(msg.sender, _redeem.xMozAmount);
+
+    //     // remove redeem entry
+    //     _deleteRedeemEntry(redeemIndex);
+    // }
     function cancelRedeem(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
         XMozBalance storage balance = xMozBalances[msg.sender];
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
@@ -378,12 +457,6 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         // make redeeming xMOZ available again
         balance.redeemingAmount = balance.redeemingAmount.sub(_redeem.xMozAmount);
         _transfer(address(this), msg.sender, _redeem.xMozAmount);
-
-        // handle dividends compensation if any was active
-        if(_redeem.dividendsAllocation > 0) {
-            // deallocate from dividends
-            IXMozaicTokenUsage(_redeem.dividendsAddress).deallocate(msg.sender, _redeem.dividendsAllocation, new bytes(0));
-        }
 
         emit CancelRedeem(msg.sender, _redeem.xMozAmount);
 
