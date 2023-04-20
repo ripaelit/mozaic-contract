@@ -4,7 +4,7 @@ const fs = require('fs');
 
 async function main() {
   let chainName = 'arbitrum';
-  const treasury = '';
+  const treasury = '0x5525631e49D781d5d6ee368c82B72ff7485C5B1F';
   const mozaicTokenV2 = await deployMozaicTokenV2(
     chainName, 
     treasury, 
