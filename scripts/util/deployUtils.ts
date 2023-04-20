@@ -1,11 +1,55 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory} from '../../types/typechain';
+import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory, MozaicTokenV2__factory, XMozaicToken__factory} from '../../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import { getLzChainIdFromChainName, switchNetwork } from './utils'
 import exportData from '../constants';
 const hre = require('hardhat');
+
+export const deployMozaicTokenV2 = async (
+  chainName: string,
+  lzEndpoint: string,
+  treasury: string
+) => {
+  let owner: SignerWithAddress;
+
+  hre.changeNetwork(chainName);
+  [owner] = await ethers.getSigners();
+
+  const contractFactory = await ethers.getContractFactory('MozaicTokenV2', owner) as MozaicTokenV2__factory;
+  const contract = await contractFactory.deploy(
+    lzEndpoint,
+    treasury,
+    ethers.utils.parseEther("1000000000"),
+    ethers.utils.parseEther("1000"),
+    ethers.utils.parseEther("0.01"),
+    18
+  );
+  await contract.deployed();
+  console.log("Deployed MozaicTokenV2", contract.address);
+}
+
+export const deployXMozaicToken = async (
+  chainName: string,
+  mozaicToken: string,
+  lzEndpoint: string
+) => {
+  let owner: SignerWithAddress;
+
+  hre.changeNetwork(chainName);
+  [owner] = await ethers.getSigners();
+
+  const contractFactory = await ethers.getContractFactory('XMozaicToken', owner) as XMozaicToken__factory;
+  const contract = await contractFactory.deploy(
+    mozaicToken,
+    lzEndpoint,
+    ethers.utils.parseEther("1000"),
+    18
+  );
+  await contract.deployed();
+  console.log("Deployed XMozaicToken", contract.address);
+}
 
 export const deployStablecoin = async (
   owner: SignerWithAddress, 
