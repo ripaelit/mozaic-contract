@@ -1,19 +1,18 @@
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MozaicLP__factory, PrimaryVault__factory, SecondaryVault__factory, MockToken__factory, PrimaryVault, SecondaryVault, MockToken, LPStaking, LPStaking__factory, MozaicLP } from '../../../types/typechain';
+import { MozaicLP__factory, MozaicVault__factory, MockToken__factory, MozaicVault, MockToken, MozaicLP } from '../../../types/typechain';
 import exportData from '../../constants/index';
 import { describe } from 'mocha';
-import { deposit, withdraw, withdrawWhole, mint, stake, unstake, swap, swapRemote, initOptimization, settleRequests } from '../../util/testUtils';
-import { BigNumber } from 'ethers';
+import { deposit, withdraw, withdrawWhole, mint, stake, unstake, swap, swapRemote, initOptimization, preSettleAllVaults, settleRequestsAllVaults } from '../../util/testUtils';
 
 const fs = require('fs');
 const hre = require('hardhat');
 
 describe('SecondaryVault.executeActions', () => {
     let owner: SignerWithAddress;
-    let primaryVault: PrimaryVault;
+    let primaryVault: MozaicVault;
     let primaryChainId: number;
-    let secondaryVault: SecondaryVault;
+    let secondaryVault: MozaicVault;
     let secondaryChainId: number;
     let tokenA: MockToken;
     let tokenB: MockToken;
@@ -30,7 +29,7 @@ describe('SecondaryVault.executeActions', () => {
         hre.changeNetwork('bsctest');
         [owner] = await ethers.getSigners();
         let json = JSON.parse(fs.readFileSync('deployBscResult.json', 'utf-8'));
-        let primaryvaultFactory = (await ethers.getContractFactory('PrimaryVault', owner)) as PrimaryVault__factory;
+        let primaryvaultFactory = (await ethers.getContractFactory('MozaicVault', owner)) as MozaicVault__factory;
         primaryVault = primaryvaultFactory.attach(json.mozaicVault);
         primaryChainId = exportData.testnetTestConstants.chainIds[0];
         let MockTokenFactory = await ethers.getContractFactory('MockToken', owner) as MockToken__factory;
@@ -49,7 +48,7 @@ describe('SecondaryVault.executeActions', () => {
         hre.changeNetwork('fantom');
         [owner] = await ethers.getSigners();
         json = JSON.parse(fs.readFileSync('deployFantomResult.json', 'utf-8'));
-        let secondaryVaultFactory = (await ethers.getContractFactory('SecondaryVault', owner)) as SecondaryVault__factory;
+        let secondaryVaultFactory = (await ethers.getContractFactory('MozaicVault', owner)) as MozaicVault__factory;
         let secondaryVaultAddr = json.mozaicVault;
         secondaryVault = secondaryVaultFactory.attach(secondaryVaultAddr);
         secondaryChainId = exportData.testnetTestConstants.chainIds[1];
@@ -133,7 +132,8 @@ describe('SecondaryVault.executeActions', () => {
         })
 
         it ('5. Settle Requests', async () => {
-            await settleRequests(primaryVault);
+            await preSettleAllVaults(primaryVault);
+            await settleRequestsAllVaults([primaryVault, secondaryVault]);
         })
         
     })

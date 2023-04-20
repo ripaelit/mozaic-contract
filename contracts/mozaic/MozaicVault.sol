@@ -39,6 +39,10 @@ contract MozaicVault is Ownable {
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
     uint8 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
+    uint16 internal constant PT_TAKE_SNAPSHOT = 11;
+    uint16 internal constant PT_SNAPSHOT_REPORT = 12;
+    uint16 internal constant PT_PRE_SETTLE = 13;
+    uint16 internal constant PT_SETTLED_REPORT = 14;
 
     bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
     bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
@@ -97,10 +101,8 @@ contract MozaicVault is Ownable {
     //---------------------------------------------------------------------------
     // VARIABLES
     mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    address public stargateLpStaking;
     address public stargateToken;
     MozaicLP public mozaicLp;
-    address public coordinator;
     uint16 public chainId;
     address[] public acceptingTokens;
     mapping(address => bool) tokenMap;
@@ -115,6 +117,7 @@ contract MozaicVault is Ownable {
     ProtocolStatus public protocolStatus;
     uint256 public numUnchecked;
     bool public settleAllowed;
+    uint16[] public chainIdsToSettle;
     MozaicBridge public bridge;
     uint16[] public chainIds;
 
@@ -178,6 +181,10 @@ contract MozaicVault is Ownable {
         return _requests(_staged).withdrawAmountPerToken[_token];
     }
 
+    function getChainIdsToSettleLength() public view returns (uint256) {
+        return chainIdsToSettle.length;
+    }
+
     function convertLDtoMD(address _token, uint256 _amountLD) public view returns (uint256) {
         uint8 _localDecimals = IERC20Metadata(_token).decimals();
         if (MOZAIC_DECIMALS >= _localDecimals) {
@@ -239,16 +246,14 @@ contract MozaicVault is Ownable {
     }
 
     function setContracts(
-        address _stargateLpStaking,
         address _stargateToken,
         address _mozaicLp,
-        address _coordinator
+        address _bridge
     ) external onlyOwner {
-        require(_stargateLpStaking != address(0x0) && _stargateToken != address(0x0) && _mozaicLp != address(0x0) && _coordinator != address(0x0), "Invalid addresses");
-        stargateLpStaking = _stargateLpStaking;
+        require(_stargateToken != address(0x0) && _mozaicLp != address(0x0) && _bridge != address(0x0), "Invalid addresses");
         stargateToken = _stargateToken;
         mozaicLp = MozaicLP(_mozaicLp);
-        coordinator = _coordinator;
+        bridge = MozaicBridge(_bridge);
     }
 
     function setChainId(uint16 _chainId) external onlyOwner {
@@ -261,7 +266,8 @@ contract MozaicVault is Ownable {
         mainChainId = _mainChainId;
     }
 
-    function registerVaults(uint16[] calldata _chainIds, address[] calldata _addrs) external onlyOwner {
+    function registerVaults(uint16[] memory _chainIds, address[] memory _addrs) external onlyOwner {
+        chainIds = _chainIds;
         ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
         (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVaults(uint16[],address[])", _chainIds, _addrs));
         require(success, "register vault failed");
@@ -295,15 +301,7 @@ contract MozaicVault is Ownable {
         
         numUnchecked = chainIds.length;
         for (uint i; i < chainIds.length; ++i) {
-            uint16 _chainId = chainIds[i];
-
-            if (_chainId == mainChainId) {
-                Snapshot memory snapshot = _takeSnapshot();
-                _receiveSnapshotReport(snapshot, _chainId);
-            } 
-            else {
-                bridge.requestSnapshot(_chainId);
-            }
+            _requestSnapshot(chainIds[i]);
         }
 
         protocolStatus = ProtocolStatus.SNAPSHOTTING;
@@ -312,15 +310,17 @@ contract MozaicVault is Ownable {
     function preSettleAllVaults() external onlyOwner onlyMain {
         require(protocolStatus == ProtocolStatus.OPTIMIZING, "Protocol must be optimizing");
 
-        numUnchecked = chainIds.length;
+        numUnchecked = 0;
+        delete chainIdsToSettle;
         for (uint i; i < chainIds.length; ++i) {
             uint16 _chainId = chainIds[i];
-
-            if (_chainId == mainChainId) {
-                _preSettle(totalCoinMD, totalMLP);
-            } 
+            if(snapshotReported[_chainId].depositRequestAmount == 0 && snapshotReported[_chainId].withdrawRequestAmountMLP == 0) {
+                continue;
+            }
             else {
-                bridge.requestPreSettle(_chainId, totalCoinMD, totalMLP);
+                _requestPreSettle(_chainId);
+                chainIdsToSettle.push(_chainId);
+                ++numUnchecked;
             }
         }
 
@@ -328,9 +328,7 @@ contract MozaicVault is Ownable {
     }
 
     function settleRequests() external onlyOwner {
-        if (settleAllowed == false) {
-            return;
-        }
+        require(settleAllowed == true, "Not allowed to settle");
 
         _settleRequests();
 
@@ -338,7 +336,7 @@ contract MozaicVault is Ownable {
             _receiveSettledReport(chainId);
         }
         else {
-            bridge.reportSettled(mainChainId);
+            _reportSettled();
         }
         settleAllowed = false;
     }
@@ -354,9 +352,9 @@ contract MozaicVault is Ownable {
 
     //---------------------------------------------------------------------------
     // Functions for bridge
-    function takeSnapshot() external onlyBridge {
+    function takeAndReportSnapshot() external onlyBridge {
         Snapshot memory snapshot = _takeSnapshot();
-        bridge.reportSnapshot(mainChainId, snapshot);
+        _reportSnapshot(snapshot);
     }
 
     function receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) external onlyBridge onlyMain {
@@ -558,16 +556,49 @@ contract MozaicVault is Ownable {
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
     }
 
+    function _requestSnapshot(uint16 _dstChainId) internal {
+        if (_dstChainId == mainChainId) {
+            Snapshot memory snapshot = _takeSnapshot();
+            _receiveSnapshotReport(snapshot, _dstChainId);
+        }
+        else {
+            (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_TAKE_SNAPSHOT, MozaicBridge.LzTxObj(0, 0, "0x"));
+            bridge.requestSnapshot{value: _nativeFee}(_dstChainId);
+        }
+    }
+
+    function _reportSnapshot(Snapshot memory snapshot) internal {
+        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(mainChainId, PT_SNAPSHOT_REPORT, MozaicBridge.LzTxObj(0, 0, "0x"));
+        bridge.reportSnapshot{value: _nativeFee}(mainChainId, snapshot);
+    }
+
+    function _requestPreSettle(uint16 _dstChainId) internal {
+        if (_dstChainId == mainChainId) {
+            _preSettle(totalCoinMD, totalMLP);
+        }
+        else {
+            (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(_dstChainId, PT_PRE_SETTLE, MozaicBridge.LzTxObj(0, 0, "0x"));
+            bridge.requestPreSettle{value: _nativeFee}(_dstChainId, totalCoinMD, totalMLP);
+        }
+    }
+
+    function _reportSettled() internal {
+        (uint256 _nativeFee, ) = bridge.quoteLayerZeroFee(mainChainId, PT_SETTLED_REPORT, MozaicBridge.LzTxObj(0, 0, "0x"));
+        bridge.reportSettled{value: _nativeFee}(mainChainId);
+    }
+
     function _receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) internal {
+        --numUnchecked;
         snapshotReported[_srcChainId] = snapshot;
-        if (--numUnchecked == 0) {
+        if (numUnchecked == 0) {
             _updateStats();
             protocolStatus = ProtocolStatus.OPTIMIZING;
         }
     }
 
     function _receiveSettledReport(uint16 _srcChainId) internal {
-        if (--numUnchecked == 0) {
+        --numUnchecked;
+        if (numUnchecked == 0) {
             protocolStatus = ProtocolStatus.IDLE;
         }
     }

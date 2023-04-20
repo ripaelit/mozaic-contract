@@ -11,10 +11,10 @@ contract MozaicBridge is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // CONSTANTS
-    uint16 internal constant PT_TAKE_SNAPSHOT = 1;
-    uint16 internal constant PT_SNAPSHOT_REPORT = 2;
-    uint16 internal constant PT_PRE_SETTLE = 3;
-    uint16 internal constant PT_SETTLED_REPORT = 4;
+    uint16 internal constant PT_TAKE_SNAPSHOT = 11;
+    uint16 internal constant PT_SNAPSHOT_REPORT = 12;
+    uint16 internal constant PT_PRE_SETTLE = 13;
+    uint16 internal constant PT_SETTLED_REPORT = 14;
 
     //--------------------------------------------------------------------------
     // EVENTS
@@ -81,32 +81,28 @@ contract MozaicBridge is NonblockingLzApp {
 
     //---------------------------------------------------------------------------
     // Functions for vault
-    function requestSnapshot(uint16 _dstChainId) external onlyVault {
+    function requestSnapshot(uint16 _dstChainId) external payable onlyVault {
         bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(_dstChainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_TAKE_SNAPSHOT, LzTxObj(0, 0, "0x"));
-        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
-    function reportSnapshot(uint16 _dstChainId, MozaicVault.Snapshot memory snapshot) external onlyVault {
+    function reportSnapshot(uint16 _dstChainId, MozaicVault.Snapshot memory snapshot) external payable onlyVault {
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(_dstChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
-        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
-    function requestPreSettle(uint16 _dstChainId, uint256 _totalCoinMD, uint256 _totalMLP) external onlyVault {
+    function requestPreSettle(uint16 _dstChainId, uint256 _totalCoinMD, uint256 _totalMLP) external payable onlyVault {
         bytes memory lzPayload = abi.encode(PT_PRE_SETTLE, _totalCoinMD, _totalMLP);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(_dstChainId, PT_PRE_SETTLE, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_PRE_SETTLE, LzTxObj(0, 0, "0x"));
-        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
-    function reportSettled(uint16 _dstChainId) external onlyVault {
+    function reportSettled(uint16 _dstChainId) external payable onlyVault {
         bytes memory lzPayload = abi.encode(PT_SETTLED_REPORT);
-        (uint256 _nativeFee, ) = quoteLayerZeroFee(_dstChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
         bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_SETTLED_REPORT, LzTxObj(0, 0, "0x"));
-        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, _nativeFee);
+        _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
     //---------------------------------------------------------------------------
@@ -161,7 +157,7 @@ contract MozaicBridge is NonblockingLzApp {
         }
 
         if (packetType == PT_TAKE_SNAPSHOT) {
-            vault.takeSnapshot();
+            vault.takeAndReportSnapshot();
         } 
         else if (packetType == PT_SNAPSHOT_REPORT) {
             (, MozaicVault.Snapshot memory snapshot) = abi.decode(_payload, (uint16, MozaicVault.Snapshot));

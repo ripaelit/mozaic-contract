@@ -1,7 +1,7 @@
 import { ethers, run } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { deployAllToTestNet } from '../util/deployUtils';
-import { getChainIdFromChainName } from '../util/utils'
+import { getLzChainIdFromChainName } from '../util/utils'
 const fs = require('fs');
 const hre = require('hardhat');
 
@@ -14,26 +14,20 @@ async function main() {
     console.log("Account balance:", (await owner.getBalance()).toString());
 
     // deploy
-    const chainId = getChainIdFromChainName('fantom');
+    const chainId = getLzChainIdFromChainName('fantom');
     const mozaicDeployment = await deployAllToTestNet(owner, chainId);
     console.log("Completed deploy");
 
     // write deploy result
     const mozaicVault = mozaicDeployment.mozaicVault.address;
-    const lzEndpoint = await mozaicDeployment.mozaicVault.lzEndpoint();
-    const primaryChainId = await mozaicDeployment.mozaicVault.primaryChainId();
-    const lpStaking = await mozaicDeployment.mozaicVault.stargateLpStaking();
-    const stgToken = await mozaicDeployment.mozaicVault.stargateToken();
+    const mozaicBridge = mozaicDeployment.mozaicBridge.address;
     const mozaicLP = mozaicDeployment.mozaicLp.address;
     const stargateDriver = await mozaicDeployment.mozaicVault.protocolDrivers(1);
     const pancakeSwapDriver = await mozaicDeployment.mozaicVault.protocolDrivers(2);
     let res = JSON.stringify({
-        mozaicVault: mozaicVault,
-        lzEndpoint: lzEndpoint,
         chainId: chainId,
-        primaryChainId: primaryChainId,
-        lpStaking: lpStaking,
-        stgToken: stgToken,
+        mozaicVault: mozaicVault,
+        mozaicBridge: mozaicBridge,
         mozaicLP: mozaicLP,
         stargateDriver: stargateDriver,
         pancakeSwapDriver: pancakeSwapDriver,
@@ -43,9 +37,17 @@ async function main() {
     // verify mozaicVault
     await run(`verify:verify`, {
         address: mozaicVault,
-        constructorArguments: [lzEndpoint, chainId, primaryChainId, lpStaking, stgToken, mozaicLP],
+        constructorArguments: [],
     });
     console.log("Completed verify mozaicVault");
+
+    // verify mozaicBridge
+    const lzEndpoint = await mozaicDeployment.mozaicBridge.lzEndpoint();
+    await run(`verify:verify`, {
+        address: mozaicBridge,
+        constructorArguments: [lzEndpoint],
+    });
+    console.log("Completed verify mozaicBridge");
 
     // verify mozaicLP
     const mozaicLPName = await mozaicDeployment.mozaicLp.name();
@@ -57,11 +59,11 @@ async function main() {
     });
     console.log("Completed verify mozaicLP");
 
-    // // verify stargateDriver
-    // await run(`verify:verify`, {
-    //     address: stargateDriver,
-    //     constructorArguments: [],
-    // });
+    // verify stargateDriver
+    await run(`verify:verify`, {
+        address: stargateDriver,
+        constructorArguments: [],
+    });
     console.log("Completed verify stargateDriver");
 }
   
