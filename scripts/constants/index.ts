@@ -88,6 +88,7 @@ const testnetTestConstants = {
     chains: new Map<number, string>([
         [10102, 'bsctest'],
         [10112, 'fantom'],
+        [10143, 'arbitrum']
     ]),
     stgMainChainId: 10121,  // Goerli
     mozaicMainChainId: 10102,   // BNB
@@ -95,16 +96,19 @@ const testnetTestConstants = {
         // [10121, "0x7612aE2a34E5A363E137De748801FB4c86499152"],
         [10102, "0xbB0f1be1E9CE9cB27EA5b0c3a85B7cc3381d8176"],
         [10112, "0xa73b0a56B29aD790595763e71505FCa2c1abb77f"],
+        [10143, "0xb850873f4c993Ac2405A1AdD71F6ca5D4d4d6b4f"]
     ]),
     bridges: new Map<number, string>([
         // [10121, "0xE6612eB143e4B350d55aA2E229c80b15CA336413"],
         [10102, "0xa1E105511416aEc3200CcE7069548cF332c6DCA2"],
         [10112, "0xb97948ad8805174e0CB27cAf0115e5eA5e02F3A7"],
+        [10143, "0xd43cbCC7642C1Df8e986255228174C2cca58d65b"]
     ]),
     factories: new Map<number, string>([
         // [10121, "0xB30300c11FF54f8F674a9AA0777D8D5e9fefd652"],
         [10102, "0x407210a67cDAe7Aa09E4426109329cd3E90aFe47"],
         [10112, "0xEa2aC81591de47ab33408D48c22b10D24AAD6F0F"],
+        [10143, "0x1dAC955a58f292b8d95c6EBc79d14D3E618971b2"]
     ]),
     stablecoins: new Map<number, Map<string, string>>([
         // [10121, new Map<string, string>([
@@ -118,6 +122,10 @@ const testnetTestConstants = {
         [10112, new Map<string, string>([
             ["USDC", "0x076488D244A73DA4Fa843f5A8Cd91F655CA81a1e"],
         ])],
+        [10143, new Map<string, string>([
+            ["USDC", "0x6aAd876244E7A1Ad44Ec4824Ce813729E5B6C291"],
+            ["USDT", "0x533046F316590C19d99c74eE661c6d541b64471C"],
+        ])],
     ]),
     poolIds: new Map<string, number>([
         ['USDC', 1],
@@ -128,6 +136,7 @@ const testnetTestConstants = {
         // [10121, 5],
         [10102, 97],
         [10112, 4002],
+        [10143, 421613]
     ]),
     signers: [
         '0x5525631e49D781d5d6ee368c82B72ff7485C5B1F',
