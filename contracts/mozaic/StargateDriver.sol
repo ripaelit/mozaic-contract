@@ -7,10 +7,10 @@ import "./ProtocolDriver.sol";
 import "@layerzerolabs/solidity-examples/contracts/interfaces/IStargateRouter.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+// import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract StargateDriver is ProtocolDriver{
-    using SafeMath for uint256;
+    // using SafeMath for uint256;
 
     // struct VaultInfo {
     //     uint16 chainId;
@@ -253,10 +253,10 @@ contract StargateDriver is ProtocolDriver{
             require(success, "amountLPtoLD failed");
             uint256 _amountLDStaked = abi.decode(response, (uint256));
 
-            _assetsLD = _assetsLD.add(_amountLDStaked);
+            _assetsLD = _assetsLD + _amountLDStaked;
 
             uint256 _assetsMD = convertLDtoMD(_token, _assetsLD);
-            _totalAssetsMD = _totalAssetsMD.add(_assetsMD);
+            _totalAssetsMD = _totalAssetsMD + _assetsMD;
         }
         result = abi.encode(_totalAssetsMD);
     }
@@ -312,7 +312,7 @@ contract StargateDriver is ProtocolDriver{
         require(success, "convertRate failed");
         uint256 _convertRate = abi.decode(response, (uint256));
 
-        return  _amountSD.mul(_convertRate); // pool.amountSDtoLD(_amountSD);
+        return  _amountSD * _convertRate; // pool.amountSDtoLD(_amountSD);
     }
 
     function convertLDtoSD(address _token, uint256 _amountLD) public returns (uint256) {
@@ -323,24 +323,24 @@ contract StargateDriver is ProtocolDriver{
         require(success, "convertRate failed");
         uint256 _convertRate = abi.decode(response, (uint256));
 
-        return  _amountLD.div(_convertRate); // pool.amountLDtoSD(_amountLD);
+        return  _amountLD / _convertRate; // pool.amountLDtoSD(_amountLD);
     }
 
     function convertLDtoMD(address _token, uint256 _amountLD) public view returns (uint256) {
         uint256 _localDecimals = IERC20Metadata(_token).decimals();
         if (MOZAIC_DECIMALS >= _localDecimals) {
-            return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
+            return _amountLD * (10**(MOZAIC_DECIMALS - _localDecimals));
         } else {
-            return _amountLD.div(10**(_localDecimals - MOZAIC_DECIMALS));
+            return _amountLD / (10**(_localDecimals - MOZAIC_DECIMALS));
         }
     }
 
     function convertMDtoLD(address _token, uint256 _amountMD) public view returns (uint256) {
         uint256 _localDecimals = IERC20Metadata(_token).decimals();
         if (MOZAIC_DECIMALS >= _localDecimals) {
-            return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
+            return _amountMD / (10**(MOZAIC_DECIMALS - _localDecimals));
         } else {
-            return _amountMD.mul(10**(_localDecimals - MOZAIC_DECIMALS));
+            return _amountMD * (10**(_localDecimals - MOZAIC_DECIMALS));
         }
     }
 
