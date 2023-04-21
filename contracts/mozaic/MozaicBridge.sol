@@ -7,8 +7,6 @@ import "@layerzerolabs/solidity-examples/contracts/lzApp/NonblockingLzApp.sol";
 import "./MozaicVault.sol";
 
 contract MozaicBridge is NonblockingLzApp {
-    using SafeMath for uint256;
-
     //---------------------------------------------------------------------------
     // CONSTANTS
     uint16 internal constant PT_TAKE_SNAPSHOT = 11;
@@ -135,7 +133,7 @@ contract MozaicBridge is NonblockingLzApp {
             }
         }
 
-        uint256 totalGas = minDstGasLookup[_chainId][_packetType].add(_lzTxParams.dstGasForCall);
+        uint256 totalGas = minDstGasLookup[_chainId][_packetType] + _lzTxParams.dstGasForCall;
         if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
             lzTxParam = _txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
         } else {

@@ -12,8 +12,6 @@ import "../interfaces/IMozaicTokenV2.sol";
  * It has an hard cap and manages its own emissions and allocations.
  */
 contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
-	// using SafeMath for uint256;
-
 	uint256 public constant MAX_EMISSION_RATE = 0.01 ether;
 	uint256 public constant MAX_SUPPLY_LIMIT = 1000000000 ether;    // 1,000,000,000
 	uint256 public elasticMaxSupply; // Once deployed, controlled through governance only

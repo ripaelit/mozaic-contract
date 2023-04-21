@@ -7,16 +7,8 @@ import "./ProtocolDriver.sol";
 import "@layerzerolabs/solidity-examples/contracts/interfaces/IStargateRouter.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-// import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract StargateDriver is ProtocolDriver{
-    // using SafeMath for uint256;
-
-    // struct VaultInfo {
-    //     uint16 chainId;
-    //     address vaultAddress;
-    // }
-
     struct StargateDriverConfig {
         address stgRouter;
         address stgLPStaking;
