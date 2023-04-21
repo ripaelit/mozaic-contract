@@ -142,7 +142,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 		lastEmissionTime = __currentBlockTimestamp;
 
 		// add master shares to its claimable reserve
-		// masterReserve += _masterShare;
 		masterReserve = masterReserve + _masterShare;
 		// mint shares
 		_mint(address(this), _masterShare);
@@ -169,7 +168,7 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 		}
 
 		// remove claimed rewards from reserve and transfer to master
-		masterReserve -= _effectiveAmount;
+		masterReserve = masterReserve - _effectiveAmount;
 		_transfer(address(this), masterAddress, _effectiveAmount);
 		emit ClaimMasterRewards(_effectiveAmount);
 	}

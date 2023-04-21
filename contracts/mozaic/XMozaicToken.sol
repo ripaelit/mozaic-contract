@@ -269,7 +269,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         // if redeeming is not immediate, go through vesting process
         if(duration > 0) {
             // add to SBT total
-            balance.redeemingAmount += xMozAmount;
+            balance.redeemingAmount = balance.redeemingAmount + xMozAmount;
 
             // add redeeming entry
             userRedeems[msg.sender].push(RedeemInfo(mozAmount, xMozAmount, _currentBlockTimestamp() + duration));
@@ -290,7 +290,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         require(_currentBlockTimestamp() >= _redeem.endTime, "finalizeRedeem: vesting duration has not ended yet");
 
         // remove from SBT total
-        balance.redeemingAmount -= _redeem.xMozAmount;
+        balance.redeemingAmount = balance.redeemingAmount - _redeem.xMozAmount;
         _finalizeRedeem(msg.sender, _redeem.xMozAmount, _redeem.mozAmount);
 
         // remove redeem entry
@@ -307,7 +307,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
 
         // make redeeming xMOZ available again
-        balance.redeemingAmount -= _redeem.xMozAmount;
+        balance.redeemingAmount = balance.redeemingAmount - _redeem.xMozAmount;
         _transfer(address(this), msg.sender, _redeem.xMozAmount);
 
         emit CancelRedeem(msg.sender, _redeem.xMozAmount);
@@ -415,7 +415,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         usageAllocations[userAddress][usageAddress] += amount;
 
         // adjust user's xMOZ balances
-        balance.allocatedAmount += amount;
+        balance.allocatedAmount = balance.allocatedAmount + amount;
         _transfer(userAddress, address(this), amount);
 
         emit Allocate(userAddress, usageAddress, amount);
@@ -440,7 +440,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
 
         // adjust user's xMOZ balances
         XMozBalance storage balance = xMozBalances[userAddress];
-        balance.allocatedAmount -= amount;
+        balance.allocatedAmount = balance.allocatedAmount - amount;
         _transfer(address(this), userAddress, amount - deallocationFeeAmount);
         // burn corresponding MOZ and XMOZ
         mozaicToken.burn(deallocationFeeAmount);
