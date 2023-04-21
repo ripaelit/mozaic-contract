@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-// import "@layerzerolabs/solidity-examples/contracts/token/oft/v2/OFTV2.sol";
 import "../interfaces/IMozaicTokenV2.sol";
 import "../interfaces/IXMozaicToken.sol";
 import "../interfaces/IXMozaicTokenUsage.sol";
@@ -61,6 +60,7 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     constructor(IMozaicTokenV2 mozaicToken_) {
         mozaicToken = mozaicToken_;
         _transferWhitelist.add(address(this));
+        _transferWhitelist.add(address(0)); // Add this to avoid revert in _beforeTokenTransfer() while burning
     }
 
     /********************************************/
