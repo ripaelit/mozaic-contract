@@ -3,10 +3,8 @@
 pragma solidity ^0.8.9;
 
 // imports
-import "../interfaces/IStargateRouter.sol";
 import "./ProtocolDriver.sol";
-
-// libraries
+import "@layerzerolabs/solidity-examples/contracts/interfaces/IStargateRouter.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";

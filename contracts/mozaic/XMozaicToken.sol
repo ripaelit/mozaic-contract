@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
-// pragma solidity =0.7.6;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
+import "@layerzerolabs/solidity-examples/contracts/token/oft/v2/OFTV2.sol";
 import "../interfaces/IMozaicTokenV2.sol";
 import "../interfaces/IXMozaicToken.sol";
 import "../interfaces/IXMozaicTokenUsage.sol";
-import "../libraries/token/oft/v2/OFTV2.sol";
 
 /*
  * xMOZ is Mozaic's escrowed governance token obtainable by converting MOZ to it

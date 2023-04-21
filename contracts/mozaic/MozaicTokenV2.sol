@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
-// pragma solidity =0.7.6;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-// import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@layerzerolabs/solidity-examples/contracts/token/oft/v2/OFTV2.sol";
 import "../interfaces/IMozaicTokenV2.sol";
-import "../libraries/token/oft/v2/OFTV2.sol";
 
 /// @title A LayerZero OmnichainFungibleToken example of BasedOFT
 /// @notice Use this contract only on the BASE CHAIN. It locks tokens on source, on outgoing send(), and unlocks tokens when receiving from other chains.

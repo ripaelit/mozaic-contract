@@ -3,7 +3,7 @@
 pragma solidity ^0.8.9;
 
 // imports
-import "../libraries/lzApp/NonblockingLzApp.sol";
+import "@layerzerolabs/solidity-examples/contracts/lzApp/NonblockingLzApp.sol";
 import "./MozaicVault.sol";
 
 contract MozaicBridge is NonblockingLzApp {
