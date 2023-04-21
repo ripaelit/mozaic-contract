@@ -9,11 +9,11 @@ import "./XMozaicToken.sol";
 contract XMozaicTokenBridge is BaseOFTV2 {
     using SafeERC20 for IERC20;
 
-    XMozaicToken internal immutable innerToken;
+    XMozaicToken internal immutable xMozaicToken;
     uint internal immutable ld2sdRate;
 
     constructor(address _token, uint8 _sharedDecimals, address _lzEndpoint) BaseOFTV2(_sharedDecimals, _lzEndpoint) {
-        innerToken = XMozaicToken(_token);
+        xMozaicToken = XMozaicToken(_token);
 
         (bool success, bytes memory data) = _token.staticcall(
             abi.encodeWithSignature("decimals()")
@@ -29,11 +29,11 @@ contract XMozaicTokenBridge is BaseOFTV2 {
     * public functions
     ************************************************************************/
     function circulatingSupply() public view virtual override returns (uint) {
-        return innerToken.totalSupply();
+        return xMozaicToken.totalSupply();
     }
 
     function token() public view virtual override returns (address) {
-        return address(innerToken);
+        return address(xMozaicToken);
     }
 
     /************************************************************************
@@ -41,26 +41,27 @@ contract XMozaicTokenBridge is BaseOFTV2 {
     ************************************************************************/
     function _debitFrom(address _from, uint16, bytes32, uint _amount) internal virtual override returns (uint) {
         require(_from == _msgSender(), "owner is not send caller");
+        
         uint cap = _sd2ld(type(uint64).max);
         require(_amount <= cap, "amount overflow");
 
-        innerToken.burn(_from, _amount);
+        xMozaicToken.burn(_from, _amount);
         return _amount;
     }
 
     function _creditTo(uint16, address _toAddress, uint _amount) internal virtual override returns (uint) {
-        innerToken.mint(_toAddress, _amount);
+        xMozaicToken.mint(_toAddress, _amount);
         return _amount;
     }
 
     function _transferFrom(address _from, address _to, uint _amount) internal virtual override returns (uint) {
-        uint before = innerToken.balanceOf(_to);
+        uint before = xMozaicToken.balanceOf(_to);
         if (_from == address(this)) {
-            IERC20(innerToken).safeTransfer(_to, _amount);
+            IERC20(xMozaicToken).safeTransfer(_to, _amount);
         } else {
-            IERC20(innerToken).safeTransferFrom(_from, _to, _amount);
+            IERC20(xMozaicToken).safeTransferFrom(_from, _to, _amount);
         }
-        return innerToken.balanceOf(_to) - before;
+        return xMozaicToken.balanceOf(_to) - before;
     }
 
     function _ld2sdRate() internal view virtual override returns (uint) {
