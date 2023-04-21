@@ -41,6 +41,7 @@
     "url": "https://github.com/erhant/contract-playground/issues"
   },
   "devDependencies": {
+    "@layerzerolabs/solidity-examples": "^0.0.10",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.3",
     "@nomiclabs/hardhat-ethers": "^2.1.0",
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
