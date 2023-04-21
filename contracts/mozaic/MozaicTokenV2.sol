@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 // pragma solidity =0.7.6;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+// import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/IMozaicTokenV2.sol";
 import "../libraries/token/oft/v2/OFTV2.sol";
 
@@ -14,7 +14,7 @@ import "../libraries/token/oft/v2/OFTV2.sol";
  * It has an hard cap and manages its own emissions and allocations.
  */
 contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
-	using SafeMath for uint256;
+	// using SafeMath for uint256;
 
 	uint256 public constant MAX_EMISSION_RATE = 0.01 ether;
 	uint256 public constant MAX_SUPPLY_LIMIT = 1000000000 ether;    // 1,000,000,000
@@ -81,21 +81,21 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	* @dev Returns total master allocation
 	*/
 	function masterAllocation() public view returns (uint256) {
-		return farmingAllocation.add(legacyAllocation);
+		return farmingAllocation + legacyAllocation;
 	}
 
 	/**
 	* @dev Returns master emission rate
 	*/
 	function masterEmissionRate() public view override returns (uint256) {
-		return emissionRate.mul(farmingAllocation.add(legacyAllocation)).div(ALLOCATION_PRECISION);
+		return emissionRate * masterAllocation() / ALLOCATION_PRECISION;
 	}
 
 	/**
 	* @dev Returns treasury allocation
 	*/
 	function treasuryAllocation() public view returns (uint256) {
-		return uint256(ALLOCATION_PRECISION).sub(masterAllocation());
+		return ALLOCATION_PRECISION - masterAllocation();
 	}
 
 
@@ -127,22 +127,22 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 			return;
 		}
 
-		uint256 _newEmissions = __currentBlockTimestamp.sub(_lastEmissionTime).mul(emissionRate);
+		uint256 _newEmissions = (__currentBlockTimestamp - _lastEmissionTime) * emissionRate;
 
 		// cap new emissions if exceeding max supply
-		if(_maxSupply < _circulatingSupply.add(_newEmissions)) {
-			_newEmissions = _maxSupply.sub(_circulatingSupply);
+		if(_maxSupply < _circulatingSupply + _newEmissions) {
+			_newEmissions = _maxSupply - _circulatingSupply;
 		}
 
 		// calculate master and treasury shares from new emissions
-		uint256 _masterShare = _newEmissions.mul(masterAllocation()).div(ALLOCATION_PRECISION);
+		uint256 _masterShare = _newEmissions * masterAllocation() / ALLOCATION_PRECISION;
 		// sub to avoid rounding errors
-		uint256 _treasuryShare = _newEmissions.sub(_masterShare);
+		uint256 _treasuryShare = _newEmissions - _masterShare;
 
 		lastEmissionTime = __currentBlockTimestamp;
 
 		// add master shares to its claimable reserve
-		masterReserve = masterReserve.add(_masterShare);
+		masterReserve = masterReserve + _masterShare;
 		// mint shares
 		_mint(address(this), _masterShare);
 		_mint(treasuryAddress, _treasuryShare);
@@ -168,7 +168,7 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 		}
 
 		// remove claimed rewards from reserve and transfer to master
-		masterReserve = masterReserve.sub(_effectiveAmount);
+		masterReserve = masterReserve - _effectiveAmount;
 		_transfer(address(this), masterAddress, _effectiveAmount);
 		emit ClaimMasterRewards(_effectiveAmount);
 	}
@@ -222,7 +222,7 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 		emitAllocations();
 
 		// total sum of allocations can't be > 100%
-		uint256 totalAllocationsSet = _farmingAllocation.add(_legacyAllocation);
+		uint256 totalAllocationsSet = _farmingAllocation + _legacyAllocation;
 		require(totalAllocationsSet <= 100, "updateAllocations: total allocation is too high");
 
 		// set new allocations

@@ -9,3 +9,4 @@ scripts/args/*.js
 deployBscResult.json
 deployFantomResult.json
 deployLocalResult.json
+yarn-error.log

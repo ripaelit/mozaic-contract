@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 // pragma solidity =0.7.6;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -20,7 +19,6 @@ import "../libraries/token/oft/v2/OFTV2.sol";
  */
 contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     using Address for address;
-    using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IMozaicTokenV2;
 
@@ -114,23 +112,17 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
             return 0;
         }
         else if(duration >= minRedeemDuration && duration < mediumRedeemDuration) {
-            ratio = minRedeemRatio.add(
-                (mediumRedeemRatio.sub(minRedeemRatio)).mul(duration.sub(minRedeemDuration))
-                .div(mediumRedeemDuration.sub(minRedeemDuration))
-            );
+            ratio = minRedeemRatio + (mediumRedeemRatio - minRedeemRatio) * (duration - minRedeemDuration) / (mediumRedeemDuration - minRedeemDuration);
         }
         else if(duration >= mediumRedeemDuration && duration < maxRedeemDuration) {
-            ratio = mediumRedeemRatio.add(
-                (maxRedeemRatio.sub(mediumRedeemRatio)).mul(duration.sub(mediumRedeemDuration))
-                .div(maxRedeemDuration.sub(mediumRedeemDuration))
-            );
+            ratio = mediumRedeemRatio + (maxRedeemRatio - mediumRedeemRatio) * (duration - mediumRedeemDuration) / (maxRedeemDuration - mediumRedeemDuration);
         }
         // capped to maxRedeemDuration
         else {
             ratio = maxRedeemRatio;
         }
 
-        return amount.mul(ratio).div(MAX_FIXED_RATIO);
+        return amount * ratio / MAX_FIXED_RATIO;
     }
 
     /**
@@ -277,10 +269,10 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         // if redeeming is not immediate, go through vesting process
         if(duration > 0) {
             // add to SBT total
-            balance.redeemingAmount = balance.redeemingAmount.add(xMozAmount);
+            balance.redeemingAmount = balance.redeemingAmount + xMozAmount;
 
             // add redeeming entry
-            userRedeems[msg.sender].push(RedeemInfo(mozAmount, xMozAmount, _currentBlockTimestamp().add(duration)));
+            userRedeems[msg.sender].push(RedeemInfo(mozAmount, xMozAmount, _currentBlockTimestamp() + duration));
         } else {
             // immediately redeem for MOZ
             _finalizeRedeem(msg.sender, xMozAmount, mozAmount);
@@ -298,7 +290,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         require(_currentBlockTimestamp() >= _redeem.endTime, "finalizeRedeem: vesting duration has not ended yet");
 
         // remove from SBT total
-        balance.redeemingAmount = balance.redeemingAmount.sub(_redeem.xMozAmount);
+        balance.redeemingAmount = balance.redeemingAmount - _redeem.xMozAmount;
         _finalizeRedeem(msg.sender, _redeem.xMozAmount, _redeem.mozAmount);
 
         // remove redeem entry
@@ -315,7 +307,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
 
         // make redeeming xMOZ available again
-        balance.redeemingAmount = balance.redeemingAmount.sub(_redeem.xMozAmount);
+        balance.redeemingAmount = balance.redeemingAmount - _redeem.xMozAmount;
         _transfer(address(this), msg.sender, _redeem.xMozAmount);
 
         emit CancelRedeem(msg.sender, _redeem.xMozAmount);
@@ -391,7 +383,7 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     * MOZ excess is automatically burnt
     */
     function _finalizeRedeem(address userAddress, uint256 xMozAmount, uint256 mozAmount) internal {
-        uint256 mozExcess = xMozAmount.sub(mozAmount);
+        uint256 mozExcess = xMozAmount - mozAmount;
 
         // sends due MOZ tokens
         mozaicToken.safeTransfer(userAddress, mozAmount);
@@ -417,13 +409,13 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         require(approvedXMoz >= amount, "allocate: non authorized amount");
 
         // remove allocated amount from usage's approved amount
-        usageApprovals[userAddress][usageAddress] = approvedXMoz.sub(amount);
+        usageApprovals[userAddress][usageAddress] = approvedXMoz - amount;
 
         // update usage's allocatedAmount for userAddress
-        usageAllocations[userAddress][usageAddress] = usageAllocations[userAddress][usageAddress].add(amount);
+        usageAllocations[userAddress][usageAddress] += amount;
 
         // adjust user's xMOZ balances
-        balance.allocatedAmount = balance.allocatedAmount.add(amount);
+        balance.allocatedAmount = balance.allocatedAmount + amount;
         _transfer(userAddress, address(this), amount);
 
         emit Allocate(userAddress, usageAddress, amount);
@@ -442,14 +434,14 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         require(allocatedAmount >= amount, "deallocate: non authorized amount");
 
         // remove deallocated amount from usage's allocation
-        usageAllocations[userAddress][usageAddress] = allocatedAmount.sub(amount);
+        usageAllocations[userAddress][usageAddress] = allocatedAmount - amount;
 
-        uint256 deallocationFeeAmount = amount.mul(usagesDeallocationFee[usageAddress]).div(10000);
+        uint256 deallocationFeeAmount = amount * usagesDeallocationFee[usageAddress] / 10000;
 
         // adjust user's xMOZ balances
         XMozBalance storage balance = xMozBalances[userAddress];
-        balance.allocatedAmount = balance.allocatedAmount.sub(amount);
-        _transfer(address(this), userAddress, amount.sub(deallocationFeeAmount));
+        balance.allocatedAmount = balance.allocatedAmount - amount;
+        _transfer(address(this), userAddress, amount - deallocationFeeAmount);
         // burn corresponding MOZ and XMOZ
         mozaicToken.burn(deallocationFeeAmount);
         _burn(address(this), deallocationFeeAmount);

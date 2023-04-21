@@ -1,11 +1,71 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory} from '../../types/typechain';
+import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory, MozaicTokenV2__factory, XMozaicToken__factory} from '../../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import { getLzChainIdFromChainName, switchNetwork } from './utils'
 import exportData from '../constants';
 const hre = require('hardhat');
+
+export const deployMozaicTokenV2 = async (
+  chainName: string,
+  treasury: string,
+  maxSupply: BigNumber,
+  initialSupply: BigNumber,
+  initialEmissionRate: BigNumber,
+  sharedDecimals: number
+) => {
+  let owner: SignerWithAddress;
+
+  hre.changeNetwork(chainName);
+  [owner] = await ethers.getSigners();
+
+  const chainId = getLzChainIdFromChainName(chainName);
+  const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
+  const bridge = bridgeFactory.attach(exportData.testnetTestConstants.bridges.get(chainId)!);
+  const lzEndpoint = await bridge.layerZeroEndpoint();
+  console.log("lzEndpoint", lzEndpoint);
+  const contractFactory = await ethers.getContractFactory('MozaicTokenV2', owner) as MozaicTokenV2__factory;
+  const contract = await contractFactory.deploy(
+    lzEndpoint,
+    treasury,
+    maxSupply,
+    initialSupply,
+    initialEmissionRate,
+    sharedDecimals
+  );
+  await contract.deployed();
+  console.log("Deployed MozaicTokenV2", contract.address);
+  return contract.address;
+}
+
+export const deployXMozaicToken = async (
+  chainName: string,
+  mozaicToken: string,
+  initialSupply: BigNumber,
+  sharedDecimals: number
+) => {
+  let owner: SignerWithAddress;
+
+  hre.changeNetwork(chainName);
+  [owner] = await ethers.getSigners();
+
+  const chainId = getLzChainIdFromChainName(chainName);
+  const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
+  const bridge = bridgeFactory.attach(exportData.testnetTestConstants.bridges.get(chainId)!);
+  const lzEndpoint = await bridge.layerZeroEndpoint();
+  console.log("lzEndpoint", lzEndpoint);
+  const contractFactory = await ethers.getContractFactory('XMozaicToken', owner) as XMozaicToken__factory;
+  const contract = await contractFactory.deploy(
+    mozaicToken,
+    lzEndpoint,
+    initialSupply,
+    sharedDecimals
+  );
+  await contract.deployed();
+  console.log("Deployed XMozaicToken", contract.address);
+  return contract.address;
+}
 
 export const deployStablecoin = async (
   owner: SignerWithAddress, 
@@ -138,7 +198,7 @@ export const deployMozaic = async (
   stgLPStaking: string,
   stgToken: string,
   protocols: Map<number, Map<string,string>>,
-  stablecoin: Map<string, string>,
+  stablecoin: Map<string, string>
 ) => {
   // Deploy MozaicLP
   const mozaicLpFactory = await ethers.getContractFactory('MozaicLP', owner) as MozaicLP__factory;
@@ -276,7 +336,7 @@ export const deployNew = async (contractName: string, params = []) => {
 
 export const deployAllToTestNet = async (
   owner: SignerWithAddress, 
-  chainId: number,
+  chainId: number
 ) => {
   let protocols = new Map<number, Map<string, string>>();
   
@@ -405,7 +465,7 @@ export const deployAllToLocalNets = async (
 
 // After deployed all vaults, register trustedRemote and secondaryVaults
 export const initMozaics = async (
-    mozaicDeployments: Map<number, MozaicDeployment>, 
+    mozaicDeployments: Map<number, MozaicDeployment>
 ) => {
     let owner: SignerWithAddress;
     let vaultAddressList = [];
