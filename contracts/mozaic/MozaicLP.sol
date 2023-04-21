@@ -3,15 +3,11 @@
 pragma solidity ^0.8.9;
 
 // imports
-import "../interfaces/IOFT.sol";
-import "../libraries/token/oft/OFTCore.sol";
-
-// libraries
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@layerzerolabs/solidity-examples/contracts/token/oft/OFTCore.sol";
+import "@layerzerolabs/solidity-examples/contracts/token/oft/IOFT.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-contract MozaicLP is Ownable, OFTCore, ERC20, IOFT {
+contract MozaicLP is OFTCore, ERC20, IOFT {
 
     address public _vault;
     constructor(

@@ -10,10 +10,8 @@ import "./MozaicBridge.sol";
 // libraries
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract MozaicVault is Ownable {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     //--------------------------------------------------------------------------
@@ -188,18 +186,18 @@ contract MozaicVault is Ownable {
     function convertLDtoMD(address _token, uint256 _amountLD) public view returns (uint256) {
         uint8 _localDecimals = IERC20Metadata(_token).decimals();
         if (MOZAIC_DECIMALS >= _localDecimals) {
-            return _amountLD.mul(10**(MOZAIC_DECIMALS - _localDecimals));
+            return _amountLD * (10**(MOZAIC_DECIMALS - _localDecimals));
         } else {
-            return _amountLD.div(10**(_localDecimals - MOZAIC_DECIMALS));
+            return _amountLD / (10**(_localDecimals - MOZAIC_DECIMALS));
         }
     }
 
     function convertMDtoLD(address _token, uint256 _amountMD) public view returns (uint256) {
         uint8 _localDecimals = IERC20Metadata(_token).decimals();
         if (MOZAIC_DECIMALS >= _localDecimals) {
-            return _amountMD.div(10**(MOZAIC_DECIMALS - _localDecimals));
+            return _amountMD / (10**(MOZAIC_DECIMALS - _localDecimals));
         } else {
-            return _amountMD.mul(10**(_localDecimals - MOZAIC_DECIMALS));
+            return _amountMD * (10**(_localDecimals - MOZAIC_DECIMALS));
         }
     }
 
@@ -207,7 +205,7 @@ contract MozaicVault is Ownable {
         if (totalCoinMD == 0) {
             return _amountMD;
         } else {
-            return _amountMD.mul(totalMLP).div(totalCoinMD);
+            return _amountMD * totalMLP / totalCoinMD;
         }
     }
 
@@ -215,7 +213,7 @@ contract MozaicVault is Ownable {
         if (totalMLP == 0) {
             return _amountMLP;
         } else {
-            return _amountMLP.mul(totalCoinMD).div(totalMLP);
+            return _amountMLP * totalCoinMD / totalMLP;
         }
     }
 
@@ -401,9 +399,9 @@ contract MozaicVault is Ownable {
             _pendingBuffer.depositRequestList.push(_req);
         }
         uint256 _amountMD = convertLDtoMD(_token, _amountLDAccept);
-        _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] = _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId].add(_amountMD);
-        _pendingBuffer.totalDepositAmount = _pendingBuffer.totalDepositAmount.add(_amountMD);
-        _pendingBuffer.depositAmountPerToken[_token] = _pendingBuffer.depositAmountPerToken[_token].add(_amountMD);
+        _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] = _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] + _amountMD;
+        _pendingBuffer.totalDepositAmount = _pendingBuffer.totalDepositAmount + _amountMD;
+        _pendingBuffer.depositAmountPerToken[_token] = _pendingBuffer.depositAmountPerToken[_token] + _amountMD;
 
         emit DepositRequestAdded(_depositor, _token, _chainId, _amountMD);
     }
@@ -418,10 +416,10 @@ contract MozaicVault is Ownable {
 
         // check amount MLP user has, if not enough, revert
         uint256 _bookedAmountMLP = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _stagedBuffer.withdrawAmountPerUser[_withdrawer];
-        require(_amountMLP.add(_bookedAmountMLP) <= mozaicLp.balanceOf(_withdrawer), "Withdraw amount > owned mLP");
+        require(_amountMLP + _bookedAmountMLP <= mozaicLp.balanceOf(_withdrawer), "Withdraw amount > owned mLP");
 
         // add new withdraw amount to pending buffer
-        _pendingBuffer.withdrawAmountPerUser[_withdrawer] = _pendingBuffer.withdrawAmountPerUser[_withdrawer].add(_amountMLP);
+        _pendingBuffer.withdrawAmountPerUser[_withdrawer] = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _amountMLP;
 
         // add withdraw request to pending buffer
         bool _exists = false;
@@ -440,9 +438,9 @@ contract MozaicVault is Ownable {
             _pendingBuffer.withdrawRequestList.push(_req);
         }
 
-        _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] = _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token].add(_amountMLP);
-        _pendingBuffer.totalWithdrawAmount = _pendingBuffer.totalWithdrawAmount.add(_amountMLP);
-        _pendingBuffer.withdrawAmountPerToken[_token] = _pendingBuffer.withdrawAmountPerToken[_token].add(_amountMLP);
+        _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] = _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] + _amountMLP;
+        _pendingBuffer.totalWithdrawAmount = _pendingBuffer.totalWithdrawAmount + _amountMLP;
+        _pendingBuffer.withdrawAmountPerToken[_token] = _pendingBuffer.withdrawAmountPerToken[_token] + _amountMLP;
 
         emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
     }
@@ -479,8 +477,8 @@ contract MozaicVault is Ownable {
         totalMLP = 0;
         for (uint i; i < chainIds.length ; ++i) {
             Snapshot storage report = snapshotReported[chainIds[i]];
-            totalCoinMD = totalCoinMD.add(report.totalStablecoin + (report.totalStargate).mul(_stargatePriceMil).div(1000000));
-            totalMLP = totalMLP.add(report.totalMozaicLp);
+            totalCoinMD = totalCoinMD + report.totalStablecoin + report.totalStargate * _stargatePriceMil / 1000000;
+            totalMLP = totalMLP + report.totalMozaicLp;
         }
     }
 
@@ -503,7 +501,7 @@ contract MozaicVault is Ownable {
         snapshot.totalStargate = IERC20(stargateToken).balanceOf(address(this));
 
         // Right now we don't consider that the vault keep stablecoin as staked asset before the session.
-        snapshot.totalStablecoin = _totalStablecoinMD.sub(_requests(true).totalDepositAmount);
+        snapshot.totalStablecoin = _totalStablecoinMD - _requests(true).totalDepositAmount;
         snapshot.depositRequestAmount = _requests(true).totalDepositAmount;
         snapshot.withdrawRequestAmountMLP = _requests(true).totalWithdrawAmount;
         snapshot.totalMozaicLp = mozaicLp.totalSupply();
@@ -522,9 +520,9 @@ contract MozaicVault is Ownable {
             uint256 _amountMLPToMint = amountMDtoMLP(_depositAmountMD);
             mozaicLp.mint(request.user, _amountMLPToMint);
             // Reduce Handled Amount from Buffer
-            _reqs.totalDepositAmount = _reqs.totalDepositAmount.sub(_depositAmountMD);
-            _reqs.depositAmountPerToken[request.token] = _reqs.depositAmountPerToken[request.token].sub(_depositAmountMD);
-            _reqs.depositRequestLookup[request.user][request.token][request.chainId] = _reqs.depositRequestLookup[request.user][request.token][request.chainId].sub(_depositAmountMD);
+            _reqs.totalDepositAmount = _reqs.totalDepositAmount - _depositAmountMD;
+            _reqs.depositAmountPerToken[request.token] = _reqs.depositAmountPerToken[request.token] - _depositAmountMD;
+            _reqs.depositRequestLookup[request.user][request.token][request.chainId] = _reqs.depositRequestLookup[request.user][request.token][request.chainId] - _depositAmountMD;
         }
         require(_reqs.totalDepositAmount == 0, "Has unsettled deposit amount.");
 
@@ -541,16 +539,16 @@ contract MozaicVault is Ownable {
             uint256 _mlpToBurn = _withdrawAmountMLP;
             if (_vaultBalanceLD < _coinAmountLDtoGive) {
                 // The vault does not have enough balance. Only give as much as it has.
-                _mlpToBurn = _withdrawAmountMLP.mul(_vaultBalanceLD).div(_coinAmountLDtoGive);
+                _mlpToBurn = _withdrawAmountMLP * _vaultBalanceLD / _coinAmountLDtoGive;
                 _coinAmountLDtoGive = _vaultBalanceLD;
             }
             mozaicLp.burn(request.user, _mlpToBurn);
             _safeTransfer(request.user, request.token, _coinAmountLDtoGive);
             // Reduce Handled Amount from Buffer
-            _reqs.totalWithdrawAmount = _reqs.totalWithdrawAmount.sub(_withdrawAmountMLP);
-            _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token].sub(_withdrawAmountMLP);
-            _reqs.withdrawAmountPerUser[request.user] = _reqs.withdrawAmountPerUser[request.user].sub(_withdrawAmountMLP);
-            _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token].sub(_withdrawAmountMLP);
+            _reqs.totalWithdrawAmount = _reqs.totalWithdrawAmount - _withdrawAmountMLP;
+            _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token] - _withdrawAmountMLP;
+            _reqs.withdrawAmountPerUser[request.user] = _reqs.withdrawAmountPerUser[request.user] - _withdrawAmountMLP;
+            _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] - _withdrawAmountMLP;
             
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");

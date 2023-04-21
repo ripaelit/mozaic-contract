@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
-// pragma solidity =0.7.6;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-// import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@layerzerolabs/solidity-examples/contracts/token/oft/v2/OFTV2.sol";
 import "../interfaces/IMozaicTokenV2.sol";
-import "../libraries/token/oft/v2/OFTV2.sol";
 
 /// @title A LayerZero OmnichainFungibleToken example of BasedOFT
 /// @notice Use this contract only on the BASE CHAIN. It locks tokens on source, on outgoing send(), and unlocks tokens when receiving from other chains.
@@ -14,8 +12,6 @@ import "../libraries/token/oft/v2/OFTV2.sol";
  * It has an hard cap and manages its own emissions and allocations.
  */
 contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
-	// using SafeMath for uint256;
-
 	uint256 public constant MAX_EMISSION_RATE = 0.01 ether;
 	uint256 public constant MAX_SUPPLY_LIMIT = 1000000000 ether;    // 1,000,000,000
 	uint256 public elasticMaxSupply; // Once deployed, controlled through governance only
