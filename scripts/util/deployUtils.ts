@@ -13,7 +13,7 @@ export const deployMozaicTokenV2 = async (
   maxSupply: BigNumber,
   initialSupply: BigNumber,
   initialEmissionRate: BigNumber,
-  sharedDecimals: number
+  sharedDecimals: BigNumber
 ) => {
   let owner: SignerWithAddress;
 
@@ -27,7 +27,7 @@ export const deployMozaicTokenV2 = async (
   console.log("lzEndpoint", lzEndpoint);
   const contractFactory = await ethers.getContractFactory('MozaicTokenV2', owner) as MozaicTokenV2__factory;
   const contract = await contractFactory.deploy(
-    lzEndpoint,
+    lzEndpoint.toString(),
     treasury,
     maxSupply,
     initialSupply,
@@ -65,7 +65,7 @@ export const deployXMozaicToken = async (
 export const deployXMozaicTokenBridge = async (
   chainName: string,
   xMozaicToken: string,
-  sharedDecimals: number
+  sharedDecimals: BigNumber
 ) => {
   let owner: SignerWithAddress;
 
