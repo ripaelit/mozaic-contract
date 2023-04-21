@@ -1,5 +1,5 @@
 import { ethers, run } from 'hardhat';
-import { deployMozaicTokenV2, deployXMozaicToken } from '../util/deployUtils';
+import { deployMozaicTokenV2, deployXMozaicToken, deployXMozaicTokenBridge } from '../util/deployUtils';
 const fs = require('fs');
 
 async function main() {
@@ -12,20 +12,25 @@ async function main() {
     ethers.utils.parseEther("1000000000"),
     ethers.utils.parseEther("1000"),
     ethers.utils.parseEther("0.01"),
-    18
+    6
   );
 
   const xMozaicToken = await deployXMozaicToken(
     chainName, 
-    mozaicTokenV2,
-    ethers.utils.parseEther("1000"),
-    18
+    mozaicTokenV2
+  );
+
+  const xMozaicTokenBridge = await deployXMozaicTokenBridge(
+    chainName, 
+    xMozaicToken,
+    6
   );
   
   let res = JSON.stringify({
       chainName: chainName,
       mozaicTokenV2: mozaicTokenV2,
       xMozaicToken: xMozaicToken,
+      xMozaicTokenBridge: xMozaicTokenBridge
   });
   fs.writeFileSync("deployTokensResult.json", res);
 
@@ -38,7 +43,7 @@ async function main() {
       ethers.utils.parseEther("1000000000"),
       ethers.utils.parseEther("1000"),
       ethers.utils.parseEther("0.01"),
-      18
+      6
     ],
   });
   console.log("Completed verify mozaicTokenV2");
@@ -47,15 +52,22 @@ async function main() {
   await run(`verify:verify`, {
     address: xMozaicToken,
     constructorArguments: [
-      chainName,
-      treasury,
-      ethers.utils.parseEther("1000000000"),
-      ethers.utils.parseEther("1000"),
-      ethers.utils.parseEther("0.01"),
-      18
+      chainName, 
+      mozaicTokenV2
     ],
   });
   console.log("Completed verify xMozaicToken");
+
+  // verify xMozaicTokenBridge
+  await run(`verify:verify`, {
+    address: xMozaicTokenBridge,
+    constructorArguments: [
+      chainName, 
+      xMozaicToken,
+      6
+    ],
+  });
+  console.log("Completed verify xMozaicTokenBridge");
 }
   
 main()
