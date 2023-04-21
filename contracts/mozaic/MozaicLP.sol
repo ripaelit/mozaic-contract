@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-
 pragma solidity ^0.8.9;
 
 // imports
 import "@layerzerolabs/solidity-examples/contracts/token/oft/OFT.sol";
 
 contract MozaicLP is OFT {
+    address public vault;
 
-    address public _vault;
     constructor(
         string memory _name,
         string memory _symbol,
@@ -16,16 +15,12 @@ contract MozaicLP is OFT {
     }
 
     modifier onlyVault() {
-        require(_vault == _msgSender(), "OnlyVault: caller is not the vault");
+        require(vault == _msgSender(), "OnlyVault: caller is not the vault");
         _;
     }
 
-    function _checkVault() internal view virtual {
-        require(_vault == _msgSender(), "OnlyVault: caller is not the vault");
-    }
-
-    function setVault(address _vault__) public onlyOwner {
-        _vault = _vault__;
+    function setVault(address _vault) public onlyOwner {
+        vault = _vault;
     }
 
     function decimals() public view virtual override returns (uint8) {
@@ -38,5 +33,9 @@ contract MozaicLP is OFT {
 
     function burn(address _account, uint256 _amount) public onlyVault {
         _burn(_account, _amount);
+    }
+
+    function _checkVault() internal view virtual {
+        require(vault == _msgSender(), "OnlyVault: caller is not the vault");
     }
 }

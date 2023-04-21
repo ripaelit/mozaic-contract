@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: UNLICENSED
-
 pragma solidity ^0.8.9;
 
 // imports
@@ -14,9 +13,9 @@ contract MozaicBridge is NonblockingLzApp {
     uint16 internal constant PT_PRE_SETTLE = 13;
     uint16 internal constant PT_SETTLED_REPORT = 14;
 
-    //--------------------------------------------------------------------------
-    // EVENTS
-    event UnexpectedLzMessage(uint16 packetType, bytes payload);
+    //---------------------------------------------------------------------------
+    // VARIABLES
+    MozaicVault public vault;
 
     //---------------------------------------------------------------------------
     // STRUCTS
@@ -27,8 +26,8 @@ contract MozaicBridge is NonblockingLzApp {
     }
 
     //---------------------------------------------------------------------------
-    // VARIABLES
-    MozaicVault public vault;
+    // EVENTS
+    event UnexpectedLzMessage(uint16 packetType, bytes payload);
 
     //---------------------------------------------------------------------------
     // MODIFIERS
@@ -38,46 +37,20 @@ contract MozaicBridge is NonblockingLzApp {
     }
 
     //---------------------------------------------------------------------------
-    // CONSTRUCTOR AND PUBLIC FUNCTIONS
+    // CONSTRUCTOR
     constructor(
         address _lzEndpoint
     ) NonblockingLzApp(_lzEndpoint) {
     }
 
-    function quoteLayerZeroFee(
-        uint16 _chainId,
-        uint16 _packetType,
-        LzTxObj memory _lzTxParams
-    ) public view returns (uint256 _nativeFee, uint256 _zroFee) {
-        bytes memory payload = "";
-        if (_packetType == PT_TAKE_SNAPSHOT) {
-            payload = abi.encode(PT_TAKE_SNAPSHOT);
-        } 
-        else if (_packetType == PT_SNAPSHOT_REPORT) {
-            payload = abi.encode(PT_SNAPSHOT_REPORT, MozaicVault.Snapshot(1, 1, 1, 1, 1));
-        } 
-        else if (_packetType == PT_PRE_SETTLE) {
-            payload = abi.encode(PT_PRE_SETTLE, 1, 1);
-        } 
-        else if (_packetType == PT_SETTLED_REPORT) {
-            payload = abi.encode(PT_SETTLED_REPORT);
-        } 
-        else {
-            revert("Unknown packet type");
-        }
-
-        bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
-        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
-    }
-
     //---------------------------------------------------------------------------
+    // EXTERNAL FUNCTIONS
     // Functions for configuration
     function setVault(address payable _vault) external onlyOwner {
         require(_vault != address(0x0), "Vault cannot be 0x0");
         vault = MozaicVault(_vault);
     }
 
-    //---------------------------------------------------------------------------
     // Functions for vault
     function requestSnapshot(uint16 _dstChainId) external payable onlyVault {
         bytes memory lzPayload = abi.encode(PT_TAKE_SNAPSHOT);
@@ -85,13 +58,20 @@ contract MozaicBridge is NonblockingLzApp {
         _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
-    function reportSnapshot(uint16 _dstChainId, MozaicVault.Snapshot memory snapshot) external payable onlyVault {
+    function reportSnapshot(
+        uint16 _dstChainId,
+        MozaicVault.Snapshot memory snapshot
+    ) external payable onlyVault {
         bytes memory lzPayload = abi.encode(PT_SNAPSHOT_REPORT, snapshot);
         bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_SNAPSHOT_REPORT, LzTxObj(0, 0, "0x"));
         _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
-    function requestPreSettle(uint16 _dstChainId, uint256 _totalCoinMD, uint256 _totalMLP) external payable onlyVault {
+    function requestPreSettle(
+        uint16 _dstChainId,
+        uint256 _totalCoinMD,
+        uint256 _totalMLP
+    ) external payable onlyVault {
         bytes memory lzPayload = abi.encode(PT_PRE_SETTLE, _totalCoinMD, _totalMLP);
         bytes memory _adapterParams = _txParamBuilder(_dstChainId, PT_PRE_SETTLE, LzTxObj(0, 0, "0x"));
         _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
@@ -104,7 +84,35 @@ contract MozaicBridge is NonblockingLzApp {
     }
 
     //---------------------------------------------------------------------------
-    // INTERNAL
+    // PUBLIC FUNCTIONS
+    function quoteLayerZeroFee(
+        uint16 _chainId,
+        uint16 _packetType,
+        LzTxObj memory _lzTxParams
+    ) public view returns (uint256 _nativeFee, uint256 _zroFee) {
+        bytes memory payload = "";
+        if (_packetType == PT_TAKE_SNAPSHOT) {
+            payload = abi.encode(PT_TAKE_SNAPSHOT);
+        }
+        else if (_packetType == PT_SNAPSHOT_REPORT) {
+            payload = abi.encode(PT_SNAPSHOT_REPORT, MozaicVault.Snapshot(1, 1, 1, 1, 1));
+        }
+        else if (_packetType == PT_PRE_SETTLE) {
+            payload = abi.encode(PT_PRE_SETTLE, 1, 1);
+        }
+        else if (_packetType == PT_SETTLED_REPORT) {
+            payload = abi.encode(PT_SETTLED_REPORT);
+        }
+        else {
+            revert("Unknown packet type");
+        }
+
+        bytes memory _adapterParams = _txParamBuilder(_chainId, _packetType, _lzTxParams);
+        return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
+    }
+
+    //---------------------------------------------------------------------------
+    // INTERNAL FUNCTIONS
     function _txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
         uint16 txType = 1;
         return abi.encodePacked(txType, _gasAmount);
@@ -144,9 +152,9 @@ contract MozaicBridge is NonblockingLzApp {
     }
 
     function _nonblockingLzReceive(
-        uint16 _srcChainId, 
-        bytes memory _srcAddress, 
-        uint64 _nonce, 
+        uint16 _srcChainId,
+        bytes memory _srcAddress,
+        uint64 _nonce,
         bytes memory _payload
     ) internal virtual override {
         uint16 packetType;
@@ -156,18 +164,18 @@ contract MozaicBridge is NonblockingLzApp {
 
         if (packetType == PT_TAKE_SNAPSHOT) {
             vault.takeAndReportSnapshot();
-        } 
+        }
         else if (packetType == PT_SNAPSHOT_REPORT) {
             (, MozaicVault.Snapshot memory snapshot) = abi.decode(_payload, (uint16, MozaicVault.Snapshot));
             vault.receiveSnapshotReport(snapshot, _srcChainId);
-        } 
+        }
         else if (packetType == PT_PRE_SETTLE) {
             (, uint256 _totalCoinMD, uint256 _totalMLP) = abi.decode(_payload, (uint16, uint256, uint256));
             vault.preSettle(_totalCoinMD, _totalMLP);
-        } 
+        }
         else if (packetType == PT_SETTLED_REPORT) {
             vault.receiveSettledReport(_srcChainId);
-        } 
+        }
         else {
             emit UnexpectedLzMessage(packetType, _payload);
         }
