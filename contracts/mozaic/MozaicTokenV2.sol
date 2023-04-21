@@ -30,7 +30,14 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 
 	address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
-  	constructor(address _layerZeroEndpoint, address _treasuryAddress, uint256 _maxSupply, uint256 _initialSupply, uint256 _initialEmissionRate, uint8 _sharedDecimals) OFTV2("Mozaic Token", "MOZ", _sharedDecimals, _layerZeroEndpoint) {
+  	constructor(
+        address _layerZeroEndpoint, 
+        address _treasuryAddress, 
+        uint256 _maxSupply, 
+        uint256 _initialSupply, 
+        uint256 _initialEmissionRate, 
+        uint8 _sharedDecimals
+    ) OFTV2("Mozaic Token", "MOZ", _sharedDecimals, _layerZeroEndpoint) {
 		require(_initialEmissionRate <= MAX_EMISSION_RATE, "invalid emission rate");
 		require(_maxSupply <= MAX_SUPPLY_LIMIT, "invalid initial maxSupply");
 		require(_initialSupply < _maxSupply, "invalid initial supply");
