@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory, MozaicTokenV2__factory, XMozaicToken__factory} from '../../types/typechain';
+import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory, MozaicTokenV2__factory, XMozaicToken__factory, XMozaicTokenBridge__factory} from '../../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import { getLzChainIdFromChainName, switchNetwork } from './utils'
@@ -41,9 +41,7 @@ export const deployMozaicTokenV2 = async (
 
 export const deployXMozaicToken = async (
   chainName: string,
-  mozaicToken: string,
-  initialSupply: BigNumber,
-  sharedDecimals: number
+  mozaicToken: string
 ) => {
   let owner: SignerWithAddress;
 
@@ -57,13 +55,36 @@ export const deployXMozaicToken = async (
   console.log("lzEndpoint", lzEndpoint);
   const contractFactory = await ethers.getContractFactory('XMozaicToken', owner) as XMozaicToken__factory;
   const contract = await contractFactory.deploy(
-    mozaicToken,
-    lzEndpoint,
-    initialSupply,
-    sharedDecimals
+    mozaicToken
   );
   await contract.deployed();
   console.log("Deployed XMozaicToken", contract.address);
+  return contract.address;
+}
+
+export const deployXMozaicTokenBridge = async (
+  chainName: string,
+  xMozaicToken: string,
+  sharedDecimals: number
+) => {
+  let owner: SignerWithAddress;
+
+  hre.changeNetwork(chainName);
+  [owner] = await ethers.getSigners();
+
+  const chainId = getLzChainIdFromChainName(chainName);
+  const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
+  const bridge = bridgeFactory.attach(exportData.testnetTestConstants.bridges.get(chainId)!);
+  const lzEndpoint = await bridge.layerZeroEndpoint();
+  console.log("lzEndpoint", lzEndpoint);
+  const contractFactory = await ethers.getContractFactory('XMozaicTokenBridge', owner) as XMozaicTokenBridge__factory;
+  const contract = await contractFactory.deploy(
+    xMozaicToken,
+    sharedDecimals,
+    lzEndpoint
+  );
+  await contract.deployed();
+  console.log("Deployed XMozaicTokenBridge", contract.address);
   return contract.address;
 }
 
