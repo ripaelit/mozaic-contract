@@ -6,45 +6,52 @@ import "@layerzerolabs/solidity-examples/contracts/lzApp/NonblockingLzApp.sol";
 import "./MozaicVault.sol";
 
 contract MozaicBridge is NonblockingLzApp {
-    //---------------------------------------------------------------------------
-    // CONSTANTS
+	/********************************************/
+	/**************** CONSTANTS *****************/
+	/********************************************/
     uint16 internal constant PT_TAKE_SNAPSHOT = 11;
     uint16 internal constant PT_SNAPSHOT_REPORT = 12;
     uint16 internal constant PT_PRE_SETTLE = 13;
     uint16 internal constant PT_SETTLED_REPORT = 14;
 
-    //---------------------------------------------------------------------------
-    // VARIABLES
+	/********************************************/
+	/**************** VARIABLES *****************/
+	/********************************************/
     MozaicVault public vault;
 
-    //---------------------------------------------------------------------------
-    // STRUCTS
+	/********************************************/
+	/***************** STRUCTS ******************/
+	/********************************************/
     struct LzTxObj {
         uint256 dstGasForCall;
         uint256 dstNativeAmount;
         bytes dstNativeAddr;
     }
 
-    //---------------------------------------------------------------------------
-    // EVENTS
+	/********************************************/
+	/***************** EVENTS *******************/
+	/********************************************/
     event UnexpectedLzMessage(uint16 packetType, bytes payload);
 
-    //---------------------------------------------------------------------------
-    // MODIFIERS
+	/********************************************/
+	/**************** MODIFIERS *****************/
+	/********************************************/
     modifier onlyVault() {
         require(msg.sender == address(vault), "Only vault");
         _;
     }
 
-    //---------------------------------------------------------------------------
-    // CONSTRUCTOR
+	/********************************************/
+	/*************** CONSTRUCTOR ****************/
+	/********************************************/
     constructor(
         address _lzEndpoint
     ) NonblockingLzApp(_lzEndpoint) {
     }
 
-    //---------------------------------------------------------------------------
-    // EXTERNAL FUNCTIONS
+	/********************************************/
+	/*********** EXTERNAL FUNCTIONS *************/
+	/********************************************/
     // Functions for configuration
     function setVault(address payable _vault) external onlyOwner {
         require(_vault != address(0x0), "Vault cannot be 0x0");
@@ -83,8 +90,9 @@ contract MozaicBridge is NonblockingLzApp {
         _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
-    //---------------------------------------------------------------------------
-    // PUBLIC FUNCTIONS
+	/********************************************/
+	/************ PUBLIC FUNCTIONS **************/
+	/********************************************/
     function quoteLayerZeroFee(
         uint16 _chainId,
         uint16 _packetType,
@@ -111,8 +119,9 @@ contract MozaicBridge is NonblockingLzApp {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
-    //---------------------------------------------------------------------------
-    // INTERNAL FUNCTIONS
+	/********************************************/
+	/*********** INTERNAL FUNCTIONS *************/
+	/********************************************/
     function _txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
         uint16 txType = 1;
         return abi.encodePacked(txType, _gasAmount);
