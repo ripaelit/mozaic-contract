@@ -18,8 +18,9 @@ contract StargateDriver is ProtocolDriver{
     uint8 internal constant TYPE_SWAP_REMOTE = 1;
     uint8 internal constant MOZAIC_DECIMALS = 6;
 
-    //---------------------------------------------------------------------------
-    // PUBLIC FUNCTIONS
+    /***********************************************/
+    /************** PUBLIC FUNCTIONS ***************/
+    /***********************************************/
     function configDriver(bytes calldata params) public override onlyOwner returns (bytes memory) {
         // Unpack into _getConfig().stgRouter, stgLPStaking
         (address _stgRouter, address _stgLPStaking) = abi.decode(params, (address, address));
@@ -101,8 +102,9 @@ contract StargateDriver is ProtocolDriver{
         }
     }
 
-    //---------------------------------------------------------------------------
-    // INTERNAL FUNCTIONS
+    /***********************************************/
+    /************* INTERNAL FUNCTIONS **************/
+    /***********************************************/
     function _getConfig() internal view returns (StargateDriverConfig storage _config) {
         // pure?
         bytes32 slotAddress = CONFIG_SLOT;
@@ -123,8 +125,9 @@ contract StargateDriver is ProtocolDriver{
         _pool = abi.decode(response, (address));
     }
 
-    //---------------------------------------------------------------------------
-    // PRIVATE FUNCTIONS
+    /***********************************************/
+    /************* PRIVATE FUNCTIONS ***************/
+    /***********************************************/
     function _stake(bytes calldata _payload) private returns (bytes memory) {
         (uint256 _amountLD, address _token) = abi.decode(_payload, (uint256, address));
         require (_amountLD > 0, "Cannot stake zero amount");
