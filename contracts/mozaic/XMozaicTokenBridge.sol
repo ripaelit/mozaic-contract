@@ -56,17 +56,19 @@ contract XMozaicTokenBridge is BaseOFTV2 {
     }
 
     function _transferFrom(address _from, address _to, uint _amount) internal virtual override returns (uint) {
-        uint resAmount = _amount;
-        if (_from == address(this)) {
-            xMozaicToken.mint(_to, _amount);
-        } else if (_to == address(this)) {
-            xMozaicToken.burn(_from, _amount);
-        } else {
-            uint before = xMozaicToken.balanceOf(_to);
-            IERC20(xMozaicToken).safeTransferFrom(_from, _to, _amount);
-            resAmount = xMozaicToken.balanceOf(_to) - before;
-        }
-        return resAmount;
+        // uint resAmount = _amount;
+        // if (_from == address(this)) {
+        //     xMozaicToken.mint(_to, _amount);
+        // } else if (_to == address(this)) {
+        //     xMozaicToken.burn(_from, _amount);
+        // } else {
+        //     uint before = xMozaicToken.balanceOf(_to);
+        //     xMozaicToken.safeTransferFrom(_from, _to, _amount);
+        //     resAmount = xMozaicToken.balanceOf(_to) - before;
+        // }
+        // return resAmount;
+
+        return 0;
     }
 
     function _ld2sdRate() internal view virtual override returns (uint) {
