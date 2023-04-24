@@ -1,15 +1,28 @@
 import { ethers, run } from 'hardhat';
+import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 import { deployMozaicTokenV2, deployXMozaicToken, deployXMozaicTokenBridge, getLzEndpoint } from '../util/deployUtils';
 import { BigNumber } from 'ethers';
+import { mozaic } from '../../types/typechain/contracts';
+import { getLzChainIdFromChainName } from '../util/utils';
 const fs = require('fs');
+const hre = require('hardhat');
 
 async function main() {
   let chainName = 'arbitrumGoerli';
   const treasury = '0x5525631e49D781d5d6ee368c82B72ff7485C5B1F';
 
+  let owner: SignerWithAddress;
+
+  hre.changeNetwork(chainName);
+  [owner] = await ethers.getSigners();
+
+  const chainId = getLzChainIdFromChainName(chainName);
+  const lzEndpoint = await getLzEndpoint(owner, chainId);
+
   const mozaicTokenV2 = await deployMozaicTokenV2(
-    chainName, 
+    owner,
     treasury, 
+    lzEndpoint,
     ethers.utils.parseEther("1000000000"),
     ethers.utils.parseEther("1000"),
     ethers.utils.parseEther("0.01"),
@@ -17,13 +30,14 @@ async function main() {
   );
 
   const xMozaicToken = await deployXMozaicToken(
-    chainName, 
-    mozaicTokenV2
+    owner, 
+    mozaicTokenV2.address
   );
 
   const xMozaicTokenBridge = await deployXMozaicTokenBridge(
-    chainName, 
-    xMozaicToken,
+    owner, 
+    xMozaicToken.address,
+    lzEndpoint,
     BigNumber.from("6")
   );
   
@@ -36,7 +50,6 @@ async function main() {
   fs.writeFileSync("deployTokensResult.json", res);
 
   // verify mozaicTokenV2
-  const lzEndpoint = await getLzEndpoint(chainName);
   // const mozaicTokenV2 = '0x2B4Ee4511d52b8e2b261f43d20695D2770816BB2';
   await run(`verify:verify`, {
     address: mozaicTokenV2,
