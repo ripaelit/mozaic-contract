@@ -96,7 +96,7 @@ const config: HardhatUserConfig = {
             gasPrice: 20000000000,
             accounts: {mnemonic: mnemonic},
         },
-        arbitrum: {
+        arbitrumGoerli: {
             url: `https://goerli-rollup.arbitrum.io/rpc`,
             chainId: 421613,
             gas: 50000000,
@@ -111,7 +111,11 @@ const config: HardhatUserConfig = {
         // apiKey: goerliApiKey,
         // apiKey: bscscanApiKey,
         // apiKey: fantomApiKey,
-        apiKey: arbitrumApiKey,
+        apiKey: {
+            bsctest: bscscanApiKey,
+            fantom: fantomApiKey,
+            arbitrumGoerli: arbitrumApiKey
+        },
     },
     paths: {
         sources: "./contracts",
