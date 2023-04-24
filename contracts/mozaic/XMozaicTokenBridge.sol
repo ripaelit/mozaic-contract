@@ -5,15 +5,16 @@ pragma solidity ^0.8.0;
 import "@layerzerolabs/solidity-examples/contracts/token/oft/v2/BaseOFTV2.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./XMozaicToken.sol";
+import "../interfaces/IXMozaicToken.sol";
 
 contract XMozaicTokenBridge is BaseOFTV2 {
-    using SafeERC20 for IERC20;
+    using SafeERC20 for IXMozaicToken;
 
-    XMozaicToken internal immutable xMozaicToken;
+    IXMozaicToken internal immutable xMozaicToken;
     uint internal immutable ld2sdRate;
 
     constructor(address _token, uint8 _sharedDecimals, address _lzEndpoint) BaseOFTV2(_sharedDecimals, _lzEndpoint) {
-        xMozaicToken = XMozaicToken(_token);
+        xMozaicToken = IXMozaicToken(_token);
 
         (bool success, bytes memory data) = _token.staticcall(
             abi.encodeWithSignature("decimals()")

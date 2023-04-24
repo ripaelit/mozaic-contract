@@ -242,14 +242,14 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev Only XMozaicTokenBridge mints XMozaicToken
     */
-    function mint(address _account, uint256 _amount) external onlyBridge {
+    function mint(address _account, uint256 _amount) external override onlyBridge {
         _mint(_account, _amount);
     }
 
     /**
     * @dev Only XMozaicTokenBridge burns XMozaicToken
     */
-    function burn(address _account, uint256 _amount) external onlyBridge {
+    function burn(address _account, uint256 _amount) external override onlyBridge {
         _burn(_account, _amount);
     }
 
