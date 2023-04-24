@@ -11,7 +11,7 @@ import '@nomiclabs/hardhat-ethers';
 import 'hardhat-contract-sizer';
 import "hardhat-change-network";
 
-const { mnemonic, bscscanApiKey, goerliApiKey, fantomApiKey, arbitrumApiKey } = require('./secrets.json');
+const { mnemonic, bscscanApiKey, goerliApiKey, fantomApiKey, arbitrumGoerliApiKey } = require('./secrets.json');
 
 // const ALCHEMY_API_KEY = "SdxE5xrDm_WJBQSMjcHb3qKh68T5ILxD";
 // const ALCHEMY_API_KEY = "N9yQH6XzETO5Mf5WIc9LRChcTvXdQNn_"; // App name: test
@@ -114,7 +114,7 @@ const config: HardhatUserConfig = {
         apiKey: {
             bsctest: bscscanApiKey,
             fantom: fantomApiKey,
-            arbitrumGoerli: arbitrumApiKey
+            arbitrumGoerli: arbitrumGoerliApiKey
         },
     },
     paths: {
