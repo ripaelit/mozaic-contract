@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@layerzerolabs/solidity-examples/contracts/token/oft/v2/OFTV2.sol";
 import "../interfaces/IMozaicTokenV2.sol";
 import "../interfaces/IXMozaicToken.sol";
 import "../interfaces/IXMozaicTokenUsage.sol";
@@ -15,7 +16,7 @@ import "../interfaces/IXMozaicTokenUsage.sol";
  * It can be converted back to MOZ through a vesting process
  * This contract is made to receive xMOZ deposits from users in order to allocate them to Usages (plugins) contracts
  */
-contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
+contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token", "xMOZ"), IXMozaicToken {
     using Address for address;
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IMozaicTokenV2;
@@ -54,11 +55,12 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     mapping(address => XMozBalance) public xMozBalances; // User's xMOZ balances
     mapping(address => RedeemInfo[]) public userRedeems; // User's redeeming instances
 
+    address public bridge;
 
-    constructor(IMozaicTokenV2 mozaicToken_, address _layerZeroEndpoint, uint256 _initialSupply, uint8 _sharedDecimals) OFTV2("Mozaic escrowed token", "xMOZ", _sharedDecimals, _layerZeroEndpoint) {
+    constructor(IMozaicTokenV2 mozaicToken_) {
         mozaicToken = mozaicToken_;
         _transferWhitelist.add(address(this));
-        _mint(msg.sender, _initialSupply);
+        _transferWhitelist.add(address(0)); // Add this to avoid revert in _beforeTokenTransfer() while burning
     }
 
     /********************************************/
@@ -85,6 +87,11 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
     */
     modifier validateRedeem(address userAddress, uint256 redeemIndex) {
         require(redeemIndex < userRedeems[userAddress].length, "validateRedeem: redeem entry does not exist");
+        _;
+    }
+
+    modifier onlyBridge() {
+        require(bridge == _msgSender(), "Only bridge");
         _;
     }
 
@@ -218,6 +225,32 @@ contract XMozaicToken is OFTV2, ReentrancyGuard, IXMozaicToken {
         else _transferWhitelist.remove(account);
 
         emit SetTransferWhitelist(account, add);
+    }
+
+    /**
+    * @dev Set XMozaicTokenBridge only once
+    */
+    function setBridge(address _bridge) external onlyOwner {
+        require(bridge == address(0), "Bridge is already set");
+        bridge = _bridge;
+    }
+
+    /*******************************************************/
+    /****************** BRIDGE FUNCTIONS ******************/
+    /*******************************************************/
+
+    /**
+    * @dev Only XMozaicTokenBridge mints XMozaicToken
+    */
+    function mint(address _account, uint256 _amount) external onlyBridge {
+        _mint(_account, _amount);
+    }
+
+    /**
+    * @dev Only XMozaicTokenBridge burns XMozaicToken
+    */
+    function burn(address _account, uint256 _amount) external onlyBridge {
+        _burn(_account, _amount);
     }
 
     /*****************************************************************/

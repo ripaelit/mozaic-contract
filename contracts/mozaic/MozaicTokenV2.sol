@@ -14,34 +14,18 @@ import "../interfaces/IMozaicTokenV2.sol";
 contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	uint256 public constant MAX_EMISSION_RATE = 0.01 ether;
 	uint256 public constant MAX_SUPPLY_LIMIT = 1000000000 ether;    // 1,000,000,000
+	uint256 public constant ALLOCATION_PRECISION = 100;
+	address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+
 	uint256 public elasticMaxSupply; // Once deployed, controlled through governance only
 	uint256 public emissionRate; // Token emission per second
-
 	uint256 public override lastEmissionTime;
 	uint256 public masterReserve; // Pending rewards for the master
-
-	uint256 public constant ALLOCATION_PRECISION = 100;
 	// Allocations emitted over time. When < 100%, the rest is minted into the treasury (default 15%)
 	uint256 public farmingAllocation = 50; // = 50%
 	uint256 public legacyAllocation; // V1 holders allocation
-
 	address public masterAddress;
 	address public treasuryAddress;
-
-	address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-
-  	constructor(address _layerZeroEndpoint, address _treasuryAddress, uint256 _maxSupply, uint256 _initialSupply, uint256 _initialEmissionRate, uint8 _sharedDecimals) OFTV2("Mozaic Token", "MOZ", _sharedDecimals, _layerZeroEndpoint) {
-		require(_initialEmissionRate <= MAX_EMISSION_RATE, "invalid emission rate");
-		require(_maxSupply <= MAX_SUPPLY_LIMIT, "invalid initial maxSupply");
-		require(_initialSupply < _maxSupply, "invalid initial supply");
-		require(_treasuryAddress != address(0), "invalid treasury address");
-
-		elasticMaxSupply = _maxSupply;
-		emissionRate = _initialEmissionRate;
-		treasuryAddress = _treasuryAddress;
-
-		_mint(msg.sender, _initialSupply);
-    }
 
 	/********************************************/
 	/****************** EVENTS ******************/
@@ -68,83 +52,33 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 		_;
 	}
 
+	/***********************************************/
+	/****************** CONSTRUCTOR ****************/
+	/***********************************************/
 
-	/**************************************************/
-	/****************** PUBLIC VIEWS ******************/
-	/**************************************************/
+  	constructor(
+		address _layerZeroEndpoint,
+		address _treasuryAddress,
+		uint256 _maxSupply,
+		uint256 _initialSupply,
+		uint256 _initialEmissionRate,
+		uint8 _sharedDecimals
+	) OFTV2("Mozaic Token", "MOZ", _sharedDecimals, _layerZeroEndpoint) {
+		require(_initialEmissionRate <= MAX_EMISSION_RATE, "invalid emission rate");
+		require(_maxSupply <= MAX_SUPPLY_LIMIT, "invalid initial maxSupply");
+		require(_initialSupply < _maxSupply, "invalid initial supply");
+		require(_treasuryAddress != address(0), "invalid treasury address");
 
-	/**
-	* @dev Returns total master allocation
-	*/
-	function masterAllocation() public view returns (uint256) {
-		return farmingAllocation + legacyAllocation;
-	}
+		elasticMaxSupply = _maxSupply;
+		emissionRate = _initialEmissionRate;
+		treasuryAddress = _treasuryAddress;
 
-	/**
-	* @dev Returns master emission rate
-	*/
-	function masterEmissionRate() public view override returns (uint256) {
-		return emissionRate * masterAllocation() / ALLOCATION_PRECISION;
-	}
-
-	/**
-	* @dev Returns treasury allocation
-	*/
-	function treasuryAllocation() public view returns (uint256) {
-		return ALLOCATION_PRECISION - masterAllocation();
-	}
-
+		_mint(msg.sender, _initialSupply);
+    }
 
 	/*****************************************************************/
-	/******************  EXTERNAL PUBLIC FUNCTIONS  ******************/
+	/******************  EXTERNAL FUNCTIONS  *************************/
 	/*****************************************************************/
-
-	/**
-	* @dev Mint rewards and distribute it between master and treasury
-	*
-	* Treasury share is directly minted to the treasury address
-	* Master incentives are minted into this contract and claimed later by the master contract
-	*/
-	function emitAllocations() public {
-		uint256 _circulatingSupply = totalSupply();
-		uint256 __currentBlockTimestamp = _currentBlockTimestamp();
-
-		uint256 _lastEmissionTime = lastEmissionTime; // gas saving
-		uint256 _maxSupply = elasticMaxSupply; // gas saving
-
-		// if already up to date or not started
-		if (__currentBlockTimestamp <= _lastEmissionTime || _lastEmissionTime == 0) {
-			return;
-		}
-
-		// if max supply is already reached or emissions deactivated
-		if (_maxSupply <= _circulatingSupply || emissionRate == 0) {
-			lastEmissionTime = __currentBlockTimestamp;
-			return;
-		}
-
-		uint256 _newEmissions = (__currentBlockTimestamp - _lastEmissionTime) * emissionRate;
-
-		// cap new emissions if exceeding max supply
-		if(_maxSupply < _circulatingSupply + _newEmissions) {
-			_newEmissions = _maxSupply - _circulatingSupply;
-		}
-
-		// calculate master and treasury shares from new emissions
-		uint256 _masterShare = _newEmissions * masterAllocation() / ALLOCATION_PRECISION;
-		// sub to avoid rounding errors
-		uint256 _treasuryShare = _newEmissions - _masterShare;
-
-		lastEmissionTime = __currentBlockTimestamp;
-
-		// add master shares to its claimable reserve
-		masterReserve = masterReserve + _masterShare;
-		// mint shares
-		_mint(address(this), _masterShare);
-		_mint(treasuryAddress, _treasuryShare);
-
-		emit AllocationsDistributed(_masterShare, _treasuryShare);
-	}
 
 	/**
 	* @dev Sends to Master contract the asked "amount" from masterReserve
@@ -175,10 +109,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	function burn(uint256 _amount) external override {
 		_transfer(msg.sender, BURN_ADDRESS, _amount);
 	}
-
-	/*****************************************************************/
-	/****************** EXTERNAL OWNABLE FUNCTIONS  ******************/
-	/*****************************************************************/
 
 	/**
 	* @dev Setup Master contract address
@@ -213,7 +143,10 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	*
 	* Must only be called by the owner
 	*/
-	function updateAllocations(uint256 _farmingAllocation, uint256 _legacyAllocation) external onlyOwner {
+	function updateAllocations(
+		uint256 _farmingAllocation,
+		uint256 _legacyAllocation
+	) external onlyOwner {
 		// apply emissions before changes
 		emitAllocations();
 
@@ -268,6 +201,77 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 		treasuryAddress = _treasuryAddress;
 	}
 
+	/**************************************************/
+	/****************** PUBLIC FUNCTIONS **************/
+	/**************************************************/
+
+	/**
+	* @dev Returns total master allocation
+	*/
+	function masterAllocation() public view returns (uint256) {
+		return farmingAllocation + legacyAllocation;
+	}
+
+	/**
+	* @dev Returns master emission rate
+	*/
+	function masterEmissionRate() public view override returns (uint256) {
+		return emissionRate * masterAllocation() / ALLOCATION_PRECISION;
+	}
+
+	/**
+	* @dev Returns treasury allocation
+	*/
+	function treasuryAllocation() public view returns (uint256) {
+		return ALLOCATION_PRECISION - masterAllocation();
+	}
+
+	/**
+	* @dev Mint rewards and distribute it between master and treasury
+	*
+	* Treasury share is directly minted to the treasury address
+	* Master incentives are minted into this contract and claimed later by the master contract
+	*/
+	function emitAllocations() public {
+		uint256 _circulatingSupply = totalSupply();
+		uint256 __currentBlockTimestamp = _currentBlockTimestamp();
+
+		uint256 _lastEmissionTime = lastEmissionTime; // gas saving
+		uint256 _maxSupply = elasticMaxSupply; // gas saving
+
+		// if already up to date or not started
+		if (__currentBlockTimestamp <= _lastEmissionTime || _lastEmissionTime == 0) {
+			return;
+		}
+
+		// if max supply is already reached or emissions deactivated
+		if (_maxSupply <= _circulatingSupply || emissionRate == 0) {
+			lastEmissionTime = __currentBlockTimestamp;
+			return;
+		}
+
+		uint256 _newEmissions = (__currentBlockTimestamp - _lastEmissionTime) * emissionRate;
+
+		// cap new emissions if exceeding max supply
+		if(_maxSupply < _circulatingSupply + _newEmissions) {
+			_newEmissions = _maxSupply - _circulatingSupply;
+		}
+
+		// calculate master and treasury shares from new emissions
+		uint256 _masterShare = _newEmissions * masterAllocation() / ALLOCATION_PRECISION;
+		// sub to avoid rounding errors
+		uint256 _treasuryShare = _newEmissions - _masterShare;
+
+		lastEmissionTime = __currentBlockTimestamp;
+
+		// add master shares to its claimable reserve
+		masterReserve = masterReserve + _masterShare;
+		// mint shares
+		_mint(address(this), _masterShare);
+		_mint(treasuryAddress, _treasuryShare);
+
+		emit AllocationsDistributed(_masterShare, _treasuryShare);
+	}
 
 	/********************************************************/
 	/****************** INTERNAL FUNCTIONS ******************/

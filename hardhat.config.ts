@@ -11,7 +11,7 @@ import '@nomiclabs/hardhat-ethers';
 import 'hardhat-contract-sizer';
 import "hardhat-change-network";
 
-const { mnemonic, bscscanApiKey, goerliApiKey, fantomApiKey, arbitrumApiKey } = require('./secrets.json');
+const { mnemonic, bscscanApiKey, goerliApiKey, fantomApiKey, arbitrumGoerliApiKey } = require('./secrets.json');
 
 // const ALCHEMY_API_KEY = "SdxE5xrDm_WJBQSMjcHb3qKh68T5ILxD";
 // const ALCHEMY_API_KEY = "N9yQH6XzETO5Mf5WIc9LRChcTvXdQNn_"; // App name: test
@@ -96,10 +96,11 @@ const config: HardhatUserConfig = {
             gasPrice: 20000000000,
             accounts: {mnemonic: mnemonic},
         },
-        arbitrum: {
+        arbitrumGoerli: {
             url: `https://goerli-rollup.arbitrum.io/rpc`,
             chainId: 421613,
-            gasPrice: 20000000000,
+            gas: 50000000,
+            gasPrice: 8000000000,
             accounts: {mnemonic: mnemonic},
         },
     },
@@ -110,7 +111,11 @@ const config: HardhatUserConfig = {
         // apiKey: goerliApiKey,
         // apiKey: bscscanApiKey,
         // apiKey: fantomApiKey,
-        apiKey: arbitrumApiKey,
+        apiKey: {
+            bsctest: bscscanApiKey,
+            fantom: fantomApiKey,
+            arbitrumGoerli: arbitrumGoerliApiKey
+        },
     },
     paths: {
         sources: "./contracts",
