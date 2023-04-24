@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: UNLICENSED
-
 pragma solidity ^0.8.9;
 
 // imports
@@ -15,35 +14,16 @@ contract MozaicVault is Ownable {
     using SafeERC20 for IERC20;
 
     //--------------------------------------------------------------------------
-    // EVENTS
-    event UnexpectedLzMessage(uint16 packetType, bytes payload);
-
-    event DepositRequestAdded (
-        address indexed depositor,
-        address indexed token,
-        uint16 indexed chainId,
-        uint256 amountLD
-    );
-
-    event WithdrawRequestAdded (
-        address indexed withdrawer,
-        address indexed token,
-        uint16 indexed chainId,
-        uint256 amountMLP
-    );
-
-    //--------------------------------------------------------------------------
     // CONSTANTS
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
     uint8 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
+    bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
+    bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
     uint16 internal constant PT_TAKE_SNAPSHOT = 11;
     uint16 internal constant PT_SNAPSHOT_REPORT = 12;
     uint16 internal constant PT_PRE_SETTLE = 13;
     uint16 internal constant PT_SETTLED_REPORT = 14;
-
-    bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
-    bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
 
     //--------------------------------------------------------------------------
     // ENUMS
@@ -53,8 +33,8 @@ contract MozaicVault is Ownable {
         OPTIMIZING,
         SETTLING
     }
-    
-    //---------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
     // STRUCTS
     struct Action {
         uint256 driverId;
@@ -96,14 +76,14 @@ contract MozaicVault is Ownable {
         uint256 totalMozaicLp; // Mozaic "LP"
     }
 
-    //---------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     // VARIABLES
-    mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    address public stargateToken;
-    MozaicLP public mozaicLp;
     uint16 public chainId;
+    address public stargateToken;
     address[] public acceptingTokens;
-    mapping(address => bool) tokenMap;
+    MozaicLP public mozaicLp;
+    mapping(address => bool) public tokenMap;
+    mapping (uint256=>ProtocolDriver) public protocolDrivers;
 
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
@@ -119,7 +99,25 @@ contract MozaicVault is Ownable {
     MozaicBridge public bridge;
     uint16[] public chainIds;
 
-    //---------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // EVENTS
+    event UnexpectedLzMessage(uint16 packetType, bytes payload);
+
+    event DepositRequestAdded (
+        address indexed depositor,
+        address indexed token,
+        uint16 indexed chainId,
+        uint256 amountLD
+    );
+
+    event WithdrawRequestAdded (
+        address indexed withdrawer,
+        address indexed token,
+        uint16 indexed chainId,
+        uint256 amountMLP
+    );
+
+    //--------------------------------------------------------------------------
     // MODIFIERS
     modifier onlyMain() {
         require(chainId == mainChainId, "Only main chain");
@@ -131,14 +129,229 @@ contract MozaicVault is Ownable {
         _;
     }
 
-    //---------------------------------------------------------------------------
-    // Constructor and Public Functions
+    //--------------------------------------------------------------------------
+    // Constructor
     constructor() {}
 
-    function _requests(bool staged) internal view returns (RequestBuffer storage) {
-        return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
+    // Use this function to receive an amount of native token equals to msg.value from msg.sender
+    receive() external payable {}
+
+    //--------------------------------------------------------------------------
+    // EXTERNAL FUNCTIONS
+    // Functions for configuration
+    function setProtocolDriver(
+        uint256 _driverId,
+        ProtocolDriver _driver,
+        bytes calldata _config
+    ) external onlyOwner {
+        protocolDrivers[_driverId] = _driver;
+        // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
+        require(success, "set driver failed");
     }
 
+    function setContracts(
+        address _stargateToken,
+        address _mozaicLp,
+        address _bridge
+    ) external onlyOwner {
+        require(_stargateToken != address(0x0) && _mozaicLp != address(0x0) && _bridge != address(0x0), "Invalid addresses");
+        stargateToken = _stargateToken;
+        mozaicLp = MozaicLP(_mozaicLp);
+        bridge = MozaicBridge(_bridge);
+    }
+
+    function setChainId(uint16 _chainId) external onlyOwner {
+        require(_chainId > 0, "Invalid chainId");
+        chainId = _chainId;
+    }
+
+    function setMainChainId(uint16 _mainChainId) external onlyOwner {
+        require(_mainChainId > 0, "Invalid main chainId");
+        mainChainId = _mainChainId;
+    }
+
+    function registerVaults(
+        uint16[] memory _chainIds,
+        address[] memory _addrs
+    ) external onlyOwner {
+        chainIds = _chainIds;
+        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
+        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVaults(uint16[],address[])", _chainIds, _addrs));
+        require(success, "register vault failed");
+
+    }
+
+    function addToken(address _token) external onlyOwner {
+        if (tokenMap[_token] == false) {
+            tokenMap[_token] = true;
+            acceptingTokens.push(_token);
+        }
+    }
+
+    function removeToken(address _token) external onlyOwner {
+        if (tokenMap[_token] == true) {
+            tokenMap[_token] = false;
+            for (uint i; i < acceptingTokens.length; ++i) {
+                if (acceptingTokens[i] == _token) {
+                    acceptingTokens[i] = acceptingTokens[acceptingTokens.length - 1];
+                    acceptingTokens.pop();
+                    return;
+                }
+            }
+        }
+    }
+
+    // Functions for control center
+    function initOptimizationSession() external onlyOwner onlyMain {
+        require(protocolStatus == ProtocolStatus.IDLE, "Protocol must be idle");
+        numUnchecked = chainIds.length;
+        for (uint i; i < chainIds.length; ++i) {
+            _requestSnapshot(chainIds[i]);
+        }
+
+        protocolStatus = ProtocolStatus.SNAPSHOTTING;
+    }
+
+    function preSettleAllVaults() external onlyOwner onlyMain {
+        require(protocolStatus == ProtocolStatus.OPTIMIZING, "Protocol must be optimizing");
+        numUnchecked = 0;
+        delete chainIdsToSettle;
+        for (uint i; i < chainIds.length; ++i) {
+            uint16 _chainId = chainIds[i];
+            if(snapshotReported[_chainId].depositRequestAmount == 0 && snapshotReported[_chainId].withdrawRequestAmountMLP == 0) {
+                continue;
+            }
+            else {
+                _requestPreSettle(_chainId);
+                chainIdsToSettle.push(_chainId);
+                ++numUnchecked;
+            }
+        }
+
+        protocolStatus = ProtocolStatus.SETTLING;
+    }
+
+    function settleRequests() external onlyOwner {
+        require(settleAllowed == true, "Not allowed to settle");
+
+        _settleRequests();
+
+        if (chainId == mainChainId) {
+            _receiveSettledReport(chainId);
+        }
+        else {
+            _reportSettled();
+        }
+        settleAllowed = false;
+    }
+
+    function executeActions(Action[] calldata _actions) external onlyOwner {
+        for (uint i; i < _actions.length ; ++i) {
+            Action calldata _action = _actions[i];
+            ProtocolDriver _driver = protocolDrivers[_action.driverId];
+            (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
+            require(success, "delegatecall failed");
+        }
+    }
+
+    // Functions for bridge
+    function takeAndReportSnapshot() external onlyBridge {
+        Snapshot memory snapshot = _takeSnapshot();
+        _reportSnapshot(snapshot);
+    }
+
+    function receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) external onlyBridge onlyMain {
+        _receiveSnapshotReport(snapshot, _srcChainId);
+    }
+
+    function preSettle(uint256 _totalCoinMD, uint256 _totalMLP) external onlyBridge {
+        _preSettle(_totalCoinMD, _totalMLP);
+    }
+
+    function receiveSettledReport(uint16 _srcChainId) external onlyBridge onlyMain {
+        _receiveSettledReport(_srcChainId);
+    }
+
+    // Functions for users
+    function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) external {
+        require(_chainId == chainId, "only onchain mint in PoC");
+        require(isAcceptingToken(_token), "should be accepting token");
+
+        address _depositor = msg.sender;
+        // Minimum unit of acceptance 1 USD - to easy the following staking
+        // uint256 _amountLDAccept = _amountLD.div(IERC20Metadata(_token).decimals()).mul(IERC20Metadata(_token).decimals());
+        uint256 _amountLDAccept = _amountLD;
+
+        // transfer stablecoin from depositor to this vault
+        _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
+
+        // add deposit request to pending buffer
+        RequestBuffer storage _pendingBuffer = _requests(false);
+        bool exists = false;
+        for (uint i; i < _pendingBuffer.depositRequestList.length; ++i) {
+            DepositRequest storage _req = _pendingBuffer.depositRequestList[i];
+            if (_req.user == _depositor && _req.token == _token) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            DepositRequest memory _req;
+            _req.user = _depositor;
+            _req.token = _token;
+            _req.chainId = _chainId;
+            _pendingBuffer.depositRequestList.push(_req);
+        }
+        uint256 _amountMD = convertLDtoMD(_token, _amountLDAccept);
+        _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] = _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] + _amountMD;
+        _pendingBuffer.totalDepositAmount = _pendingBuffer.totalDepositAmount + _amountMD;
+        _pendingBuffer.depositAmountPerToken[_token] = _pendingBuffer.depositAmountPerToken[_token] + _amountMD;
+
+        emit DepositRequestAdded(_depositor, _token, _chainId, _amountMD);
+    }
+
+    function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) external {
+        require(_chainId == chainId, "withdraw onchain on PoC");
+        require(isAcceptingToken(_token), "should be accepting token");
+
+        address _withdrawer = msg.sender;
+        RequestBuffer storage _pendingBuffer = _requests(false);
+        RequestBuffer storage _stagedBuffer = _requests(true);
+
+        // check amount MLP user has, if not enough, revert
+        uint256 _bookedAmountMLP = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _stagedBuffer.withdrawAmountPerUser[_withdrawer];
+        require(_amountMLP + _bookedAmountMLP <= mozaicLp.balanceOf(_withdrawer), "Withdraw amount > owned mLP");
+
+        // add new withdraw amount to pending buffer
+        _pendingBuffer.withdrawAmountPerUser[_withdrawer] = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _amountMLP;
+
+        // add withdraw request to pending buffer
+        bool _exists = false;
+        for (uint i; i < _pendingBuffer.withdrawRequestList.length; ++i) {
+            WithdrawRequest storage _req = _pendingBuffer.withdrawRequestList[i];
+            if (_req.user == _withdrawer && _req.token == _token && _req.chainId == _chainId) {
+                _exists = true;
+                break;
+            }
+        }
+        if (!_exists) {
+            WithdrawRequest memory _req;
+            _req.user = _withdrawer;
+            _req.token = _token;
+            _req.chainId = _chainId;
+            _pendingBuffer.withdrawRequestList.push(_req);
+        }
+
+        _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] = _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] + _amountMLP;
+        _pendingBuffer.totalWithdrawAmount = _pendingBuffer.totalWithdrawAmount + _amountMLP;
+        _pendingBuffer.withdrawAmountPerToken[_token] = _pendingBuffer.withdrawAmountPerToken[_token] + _amountMLP;
+
+        emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
+    }
+
+    //--------------------------------------------------------------------------
+    // PUBLIC FUNCTIONS
     function getDepositAmount(bool _staged, address _user, address _token, uint16 _chainId) public view returns (uint256) {
         return _requests(_staged).depositRequestLookup[_user][_token][_chainId];
     }
@@ -221,9 +434,6 @@ contract MozaicVault is Ownable {
         return tokenMap[_token];
     }
 
-    // Use this function to receive an amount of native token equals to msg.value from msg.sender
-    receive () external payable {}
-
     // Use this function to return balance to msg.sender
     function returnBalance() public onlyOwner {
         uint256 amount = address(this).balance;
@@ -234,219 +444,12 @@ contract MozaicVault is Ownable {
         require(success, "Return balance failed");
     }
 
-    //---------------------------------------------------------------------------
-    // Functions for configuration
-    function setProtocolDriver(uint256 _driverId, ProtocolDriver _driver, bytes calldata _config) external onlyOwner {
-        protocolDrivers[_driverId] = _driver;
-        // 0x0db03cba = bytes4(keccak256(bytes('configDriver(bytes)')));
-        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSelector(0x0db03cba, _config));
-        require(success, "set driver failed");
+    //--------------------------------------------------------------------------
+    // INTERNAL FUNCTIONS
+    function _requests(bool staged) internal view returns (RequestBuffer storage) {
+        return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
     }
 
-    function setContracts(
-        address _stargateToken,
-        address _mozaicLp,
-        address _bridge
-    ) external onlyOwner {
-        require(_stargateToken != address(0x0) && _mozaicLp != address(0x0) && _bridge != address(0x0), "Invalid addresses");
-        stargateToken = _stargateToken;
-        mozaicLp = MozaicLP(_mozaicLp);
-        bridge = MozaicBridge(_bridge);
-    }
-
-    function setChainId(uint16 _chainId) external onlyOwner {
-        require(_chainId > 0, "Invalid chainId");
-        chainId = _chainId;
-    }
-
-    function setMainChainId(uint16 _mainChainId) external onlyOwner {
-        require(_mainChainId > 0, "Invalid main chainId");
-        mainChainId = _mainChainId;
-    }
-
-    function registerVaults(uint16[] memory _chainIds, address[] memory _addrs) external onlyOwner {
-        chainIds = _chainIds;
-        ProtocolDriver _driver = protocolDrivers[STG_DRIVER_ID];
-        (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("registerVaults(uint16[],address[])", _chainIds, _addrs));
-        require(success, "register vault failed");
-
-    }
-
-    function addToken(address _token) external onlyOwner {
-        if (tokenMap[_token] == false) {
-            tokenMap[_token] = true;
-            acceptingTokens.push(_token);
-        }
-    }
-
-    function removeToken(address _token) external onlyOwner {
-        if (tokenMap[_token] == true) {
-            tokenMap[_token] = false;
-            for (uint i; i < acceptingTokens.length; ++i) {
-                if (acceptingTokens[i] == _token) {
-                    acceptingTokens[i] = acceptingTokens[acceptingTokens.length - 1];
-                    acceptingTokens.pop();
-                    return;
-                }
-            }
-        }
-    }
-
-    //---------------------------------------------------------------------------
-    // Functions for control center
-    function initOptimizationSession() external onlyOwner onlyMain {
-        require(protocolStatus == ProtocolStatus.IDLE, "Protocol must be idle");
-        
-        numUnchecked = chainIds.length;
-        for (uint i; i < chainIds.length; ++i) {
-            _requestSnapshot(chainIds[i]);
-        }
-
-        protocolStatus = ProtocolStatus.SNAPSHOTTING;
-    }
-
-    function preSettleAllVaults() external onlyOwner onlyMain {
-        require(protocolStatus == ProtocolStatus.OPTIMIZING, "Protocol must be optimizing");
-
-        numUnchecked = 0;
-        delete chainIdsToSettle;
-        for (uint i; i < chainIds.length; ++i) {
-            uint16 _chainId = chainIds[i];
-            if(snapshotReported[_chainId].depositRequestAmount == 0 && snapshotReported[_chainId].withdrawRequestAmountMLP == 0) {
-                continue;
-            }
-            else {
-                _requestPreSettle(_chainId);
-                chainIdsToSettle.push(_chainId);
-                ++numUnchecked;
-            }
-        }
-
-        protocolStatus = ProtocolStatus.SETTLING;
-    }
-
-    function settleRequests() external onlyOwner {
-        require(settleAllowed == true, "Not allowed to settle");
-
-        _settleRequests();
-
-        if (chainId == mainChainId) {
-            _receiveSettledReport(chainId);
-        }
-        else {
-            _reportSettled();
-        }
-        settleAllowed = false;
-    }
-
-    function executeActions(Action[] calldata _actions) external onlyOwner {
-        for (uint i; i < _actions.length ; ++i) {
-            Action calldata _action = _actions[i];
-            ProtocolDriver _driver = protocolDrivers[_action.driverId];
-            (bool success, ) = address(_driver).delegatecall(abi.encodeWithSignature("execute(uint8,bytes)", uint8(_action.actionType), _action.payload));
-            require(success, "delegatecall failed");
-        }
-    }
-
-    //---------------------------------------------------------------------------
-    // Functions for bridge
-    function takeAndReportSnapshot() external onlyBridge {
-        Snapshot memory snapshot = _takeSnapshot();
-        _reportSnapshot(snapshot);
-    }
-
-    function receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) external onlyBridge onlyMain {
-        _receiveSnapshotReport(snapshot, _srcChainId);
-    }
-
-    function preSettle(uint256 _totalCoinMD, uint256 _totalMLP) external onlyBridge {
-        _preSettle(_totalCoinMD, _totalMLP);
-    }
-
-    function receiveSettledReport(uint16 _srcChainId) external onlyBridge onlyMain {
-        _receiveSettledReport(_srcChainId);
-    }
-
-    //---------------------------------------------------------------------------
-    // Functions for users
-    function addDepositRequest(uint256 _amountLD, address _token, uint16 _chainId) external {
-        require(_chainId == chainId, "only onchain mint in PoC");
-        require(isAcceptingToken(_token), "should be accepting token");
-
-        address _depositor = msg.sender;
-        // Minimum unit of acceptance 1 USD - to easy the following staking
-        // uint256 _amountLDAccept = _amountLD.div(IERC20Metadata(_token).decimals()).mul(IERC20Metadata(_token).decimals());
-        uint256 _amountLDAccept = _amountLD;
-
-        // transfer stablecoin from depositor to this vault
-        _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
-
-        // add deposit request to pending buffer
-        RequestBuffer storage _pendingBuffer = _requests(false);
-        bool exists = false;
-        for (uint i; i < _pendingBuffer.depositRequestList.length; ++i) {
-            DepositRequest storage _req = _pendingBuffer.depositRequestList[i];
-            if (_req.user == _depositor && _req.token == _token) {
-                exists = true;
-                break;
-            }
-        }
-        if (!exists) {
-            DepositRequest memory _req;
-            _req.user = _depositor;
-            _req.token = _token;
-            _req.chainId = _chainId;
-            _pendingBuffer.depositRequestList.push(_req);
-        }
-        uint256 _amountMD = convertLDtoMD(_token, _amountLDAccept);
-        _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] = _pendingBuffer.depositRequestLookup[_depositor][_token][_chainId] + _amountMD;
-        _pendingBuffer.totalDepositAmount = _pendingBuffer.totalDepositAmount + _amountMD;
-        _pendingBuffer.depositAmountPerToken[_token] = _pendingBuffer.depositAmountPerToken[_token] + _amountMD;
-
-        emit DepositRequestAdded(_depositor, _token, _chainId, _amountMD);
-    }
-
-    function addWithdrawRequest(uint256 _amountMLP, address _token, uint16 _chainId) external {
-        require(_chainId == chainId, "withdraw onchain on PoC");
-        require(isAcceptingToken(_token), "should be accepting token");
-
-        address _withdrawer = msg.sender;
-        RequestBuffer storage _pendingBuffer = _requests(false);
-        RequestBuffer storage _stagedBuffer = _requests(true);
-
-        // check amount MLP user has, if not enough, revert
-        uint256 _bookedAmountMLP = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _stagedBuffer.withdrawAmountPerUser[_withdrawer];
-        require(_amountMLP + _bookedAmountMLP <= mozaicLp.balanceOf(_withdrawer), "Withdraw amount > owned mLP");
-
-        // add new withdraw amount to pending buffer
-        _pendingBuffer.withdrawAmountPerUser[_withdrawer] = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _amountMLP;
-
-        // add withdraw request to pending buffer
-        bool _exists = false;
-        for (uint i; i < _pendingBuffer.withdrawRequestList.length; ++i) {
-            WithdrawRequest storage _req = _pendingBuffer.withdrawRequestList[i];
-            if (_req.user == _withdrawer && _req.token == _token && _req.chainId == _chainId) {
-                _exists = true;
-                break;
-            }
-        }
-        if (!_exists) {
-            WithdrawRequest memory _req;
-            _req.user = _withdrawer;
-            _req.token = _token;
-            _req.chainId = _chainId;
-            _pendingBuffer.withdrawRequestList.push(_req);
-        }
-
-        _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] = _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] + _amountMLP;
-        _pendingBuffer.totalWithdrawAmount = _pendingBuffer.totalWithdrawAmount + _amountMLP;
-        _pendingBuffer.withdrawAmountPerToken[_token] = _pendingBuffer.withdrawAmountPerToken[_token] + _amountMLP;
-
-        emit WithdrawRequestAdded(_withdrawer, _token, _chainId, _amountMLP);
-    }
-
-    //---------------------------------------------------------------------------
-    // INTERNAL
     function _safeTransferFrom(
         address _token,
         address _from,
@@ -549,7 +552,6 @@ contract MozaicVault is Ownable {
             _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token] - _withdrawAmountMLP;
             _reqs.withdrawAmountPerUser[request.user] = _reqs.withdrawAmountPerUser[request.user] - _withdrawAmountMLP;
             _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] - _withdrawAmountMLP;
-            
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
     }
@@ -586,7 +588,7 @@ contract MozaicVault is Ownable {
     }
 
     function _receiveSnapshotReport(Snapshot memory snapshot, uint16 _srcChainId) internal {
-        --numUnchecked;
+        numUnchecked = numUnchecked - 1;
         snapshotReported[_srcChainId] = snapshot;
         if (numUnchecked == 0) {
             _updateStats();
@@ -595,7 +597,7 @@ contract MozaicVault is Ownable {
     }
 
     function _receiveSettledReport(uint16 _srcChainId) internal {
-        --numUnchecked;
+        numUnchecked = numUnchecked - 1;
         if (numUnchecked == 0) {
             protocolStatus = ProtocolStatus.IDLE;
         }
