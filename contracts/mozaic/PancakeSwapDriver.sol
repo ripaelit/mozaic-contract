@@ -8,15 +8,17 @@ import "./ProtocolDriver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract PancakeSwapDriver is ProtocolDriver {
-    //---------------------------------------------------------------------------
-    // VARIABLES
+    /***********************************************/
+    /****************** VARIABLES ******************/
+    /***********************************************/
     bytes32 public constant CONFIG_SLOT = keccak256("PancakeSwapDriver.config");
     struct PancakeSwapDriverConfig {
         address pancakeSwapSmartRouter;
     }
 
-    //---------------------------------------------------------------------------
-    // PUBLIC FUNCTIONS
+    /***********************************************/
+    /************** PUBLIC FUNCTIONS ***************/
+    /***********************************************/
     function configDriver(bytes calldata params) public virtual override onlyOwner returns (bytes memory) {
         // Unpack into _getConfig().stgRouter, stgLpStaking, stgToken
         (address _pancakeSwapSmartRouter) = abi.decode(params, (address));
@@ -36,8 +38,9 @@ contract PancakeSwapDriver is ProtocolDriver {
         }
     }
 
-    //---------------------------------------------------------------------------
-    // INTERNAL FUNCTIONS
+    /***********************************************/
+    /************* INTERNAL FUNCTIONS **************/
+    /***********************************************/
     function _getConfig() internal view returns (PancakeSwapDriverConfig storage _config) {
         bytes32 slotAddress = CONFIG_SLOT;
         assembly {
@@ -52,8 +55,9 @@ contract PancakeSwapDriver is ProtocolDriver {
         return returnData;
     }
 
-    //---------------------------------------------------------------------------
-    // PRIVATE FUNCTIONS
+    /***********************************************/
+    /************** PRIVATE FUNCTIONS **************/
+    /***********************************************/
     function _swap(bytes calldata payload) private returns (bytes memory) {
         (uint256 _amountLD, address _srcToken, address _dstToken) = abi.decode(payload, (uint256, address, address));
         // Approve
