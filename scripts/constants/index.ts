@@ -88,7 +88,7 @@ const testnetTestConstants = {
     chains: new Map<number, string>([
         [10102, 'bsctest'],
         [10112, 'fantom'],
-        [10143, 'arbitrum']
+        [10143, 'arbitrumGoerli']
     ]),
     stgMainChainId: 10121,  // Goerli
     mozaicMainChainId: 10102,   // BNB
