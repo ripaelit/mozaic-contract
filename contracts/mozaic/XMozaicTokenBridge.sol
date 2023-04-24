@@ -28,9 +28,9 @@ contract XMozaicTokenBridge is BaseOFTV2 {
         ld2sdRate = 10 ** (_decimals - _sharedDecimals);
     }
 
-    /************************************************************************
-    * public functions
-    ************************************************************************/
+    /***********************************************/
+    /************** PUBLIC FUNCTIONS ***************/
+    /***********************************************/
     function circulatingSupply() public view virtual override returns (uint) {
         return xMozaicToken.totalSupply();
     }
@@ -39,9 +39,9 @@ contract XMozaicTokenBridge is BaseOFTV2 {
         return address(xMozaicToken);
     }
 
-    /************************************************************************
-    * internal functions
-    ************************************************************************/
+    /***********************************************/
+    /************* INTERNAL FUNCTIONS **************/
+    /***********************************************/
     function _debitFrom(
         address _from,
         uint16,
