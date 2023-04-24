@@ -57,12 +57,6 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
 
     address public bridge;
 
-    constructor(IMozaicTokenV2 mozaicToken_) {
-        mozaicToken = mozaicToken_;
-        _transferWhitelist.add(address(this));
-        _transferWhitelist.add(address(0)); // Add this to avoid revert in _beforeTokenTransfer() while burning
-    }
-
     /********************************************/
     /****************** EVENTS ******************/
     /********************************************/
@@ -95,39 +89,27 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         _;
     }
 
-    /**************************************************/
-    /****************** PUBLIC VIEWS ******************/
-    /**************************************************/
+    /***********************************************/
+    /***************** CONSTRUCTOR *****************/
+    /***********************************************/
 
+    constructor(IMozaicTokenV2 mozaicToken_) {
+        mozaicToken = mozaicToken_;
+        _transferWhitelist.add(address(this));
+        _transferWhitelist.add(address(0)); // Add this to avoid revert in _beforeTokenTransfer() while burning
+    }
+
+    /***********************************************/
+    /************** EXTERNAL FUNCTIONS *************/
+    /***********************************************/
+
+    // view functions
     /*
     * @dev Returns user's xMOZ balances
     */
     function getXMozBalance(address userAddress) external view returns (uint256 allocatedAmount, uint256 redeemingAmount) {
         XMozBalance storage balance = xMozBalances[userAddress];
         return (balance.allocatedAmount, balance.redeemingAmount);
-    }
-
-    /*
-    * @dev returns redeemable MOZ for "amount" of xMOZ vested for "duration" seconds
-    */
-    function getMozByVestingDuration(uint256 amount, uint256 duration) public view returns (uint256) {
-        uint256 ratio;
-        
-        if(duration < minRedeemDuration) {
-            return 0;
-        }
-        else if(duration >= minRedeemDuration && duration < mediumRedeemDuration) {
-            ratio = minRedeemRatio + (mediumRedeemRatio - minRedeemRatio) * (duration - minRedeemDuration) / (mediumRedeemDuration - minRedeemDuration);
-        }
-        else if(duration >= mediumRedeemDuration && duration < maxRedeemDuration) {
-            ratio = mediumRedeemRatio + (maxRedeemRatio - mediumRedeemRatio) * (duration - mediumRedeemDuration) / (maxRedeemDuration - mediumRedeemDuration);
-        }
-        // capped to maxRedeemDuration
-        else {
-            ratio = maxRedeemRatio;
-        }
-
-        return amount * ratio / MAX_FIXED_RATIO;
     }
 
     /**
@@ -180,16 +162,20 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         return _transferWhitelist.contains(account);
     }
 
-    /*******************************************************/
-    /****************** OWNABLE FUNCTIONS ******************/
-    /*******************************************************/
-
+    // OWNABLE FUNCTIONS
     /**
     * @dev Updates all redeem ratios and durations
     *
     * Must only be called by owner
     */
-    function updateRedeemSettings(uint256 minRedeemRatio_, uint256 mediumRedeemRatio_, uint256 maxRedeemRatio_, uint256 minRedeemDuration_, uint256 mediumRedeemDuration_, uint256 maxRedeemDuration_) external onlyOwner {
+    function updateRedeemSettings(
+        uint256 minRedeemRatio_,
+        uint256 mediumRedeemRatio_,
+        uint256 maxRedeemRatio_,
+        uint256 minRedeemDuration_,
+        uint256 mediumRedeemDuration_,
+        uint256 maxRedeemDuration_
+    ) external onlyOwner {
         require(minRedeemRatio_ <= mediumRedeemRatio_ || mediumRedeemRatio_ <= maxRedeemRatio_, "updateRedeemSettings: wrong ratio values");
         require(minRedeemDuration_ < mediumRedeemDuration_ || mediumRedeemDuration_ < maxRedeemDuration_, "updateRedeemSettings: wrong duration values");
         // should never exceed 100%
@@ -235,10 +221,7 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         bridge = _bridge;
     }
 
-    /*******************************************************/
-    /****************** BRIDGE FUNCTIONS ******************/
-    /*******************************************************/
-
+    // BRIDGE FUNCTIONS
     /**
     * @dev Only XMozaicTokenBridge mints XMozaicToken
     */
@@ -252,10 +235,6 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     function burn(address _account, uint256 _amount) external override onlyBridge {
         _burn(_account, _amount);
     }
-
-    /*****************************************************************/
-    /******************  EXTERNAL PUBLIC FUNCTIONS  ******************/
-    /*****************************************************************/
 
     /**
     * @dev Approves "usage" address to get allocations up to "amount" of xMOZ from msg.sender
@@ -347,7 +326,6 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         _deleteRedeemEntry(redeemIndex);
     }
 
-
     /**
     * @dev Allocates caller's "amount" of available xMOZ to "usageAddress" contract
     *
@@ -390,6 +368,33 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         _deallocate(userAddress, msg.sender, amount);
     }
 
+    /**************************************************/
+    /**************** PUBLIC FUNCTIONS ****************/
+    /**************************************************/
+
+    /*
+    * @dev returns redeemable MOZ for "amount" of xMOZ vested for "duration" seconds
+    */
+    function getMozByVestingDuration(uint256 amount, uint256 duration) public view returns (uint256) {
+        uint256 ratio;
+
+        if(duration < minRedeemDuration) {
+            return 0;
+        }
+        else if(duration >= minRedeemDuration && duration < mediumRedeemDuration) {
+            ratio = minRedeemRatio + (mediumRedeemRatio - minRedeemRatio) * (duration - minRedeemDuration) / (mediumRedeemDuration - minRedeemDuration);
+        }
+        else if(duration >= mediumRedeemDuration && duration < maxRedeemDuration) {
+            ratio = mediumRedeemRatio + (maxRedeemRatio - mediumRedeemRatio) * (duration - mediumRedeemDuration) / (maxRedeemDuration - mediumRedeemDuration);
+        }
+        // capped to maxRedeemDuration
+        else {
+            ratio = maxRedeemRatio;
+        }
+
+        return amount * ratio / MAX_FIXED_RATIO;
+    }
+
     /********************************************************/
     /****************** INTERNAL FUNCTIONS ******************/
     /********************************************************/
@@ -413,7 +418,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     * Any vesting check should be ran before calling this
     * MOZ excess is automatically burnt
     */
-    function _finalizeRedeem(address userAddress, uint256 xMozAmount, uint256 mozAmount) internal {
+    function _finalizeRedeem(
+        address userAddress,
+        uint256 xMozAmount,
+        uint256 mozAmount
+    ) internal {
         uint256 mozExcess = xMozAmount - mozAmount;
 
         // sends due MOZ tokens
@@ -430,7 +439,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     * @dev Allocates "userAddress" user's "amount" of available xMOZ to "usageAddress" contract
     *
     */
-    function _allocate(address userAddress, address usageAddress, uint256 amount) internal {
+    function _allocate(
+        address userAddress,
+        address usageAddress,
+        uint256 amount
+    ) internal {
         require(amount > 0, "allocate: amount cannot be null");
 
         XMozBalance storage balance = xMozBalances[userAddress];
@@ -457,7 +470,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     *
     * args specific to usage contract must be passed into "usageData"
     */
-    function _deallocate(address userAddress, address usageAddress, uint256 amount) internal {
+    function _deallocate(
+        address userAddress,
+        address usageAddress,
+        uint256 amount
+    ) internal {
         require(amount > 0, "deallocate: amount cannot be null");
 
         // check if there is enough allocated xMOZ to this usage to deallocate
@@ -499,5 +516,4 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         /* solhint-disable not-rely-on-time */
         return block.timestamp;
     }
-
 }
