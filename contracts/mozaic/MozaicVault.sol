@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: UNLICENSED
-
 pragma solidity ^0.8.9;
 
 // imports
@@ -15,35 +14,16 @@ contract MozaicVault is Ownable {
     using SafeERC20 for IERC20;
 
     //--------------------------------------------------------------------------
-    // EVENTS
-    event UnexpectedLzMessage(uint16 packetType, bytes payload);
-
-    event DepositRequestAdded (
-        address indexed depositor,
-        address indexed token,
-        uint16 indexed chainId,
-        uint256 amountLD
-    );
-
-    event WithdrawRequestAdded (
-        address indexed withdrawer,
-        address indexed token,
-        uint16 indexed chainId,
-        uint256 amountMLP
-    );
-
-    //--------------------------------------------------------------------------
     // CONSTANTS
     uint16 public constant STG_DRIVER_ID = 1;
     uint16 public constant PANCAKE_DRIVER_ID = 2;
     uint8 public constant MOZAIC_DECIMALS = 6;    // set to shared decimals
+    bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
+    bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
     uint16 internal constant PT_TAKE_SNAPSHOT = 11;
     uint16 internal constant PT_SNAPSHOT_REPORT = 12;
     uint16 internal constant PT_PRE_SETTLE = 13;
     uint16 internal constant PT_SETTLED_REPORT = 14;
-
-    bytes4 public constant SELECTOR_CONVERTSDTOLD = 0xdef46aa8;
-    bytes4 public constant SELECTOR_CONVERTLDTOSD = 0xb53cf239;
 
     //--------------------------------------------------------------------------
     // ENUMS
@@ -53,7 +33,7 @@ contract MozaicVault is Ownable {
         OPTIMIZING,
         SETTLING
     }
-    
+
     //---------------------------------------------------------------------------
     // STRUCTS
     struct Action {
@@ -98,12 +78,12 @@ contract MozaicVault is Ownable {
 
     //---------------------------------------------------------------------------
     // VARIABLES
-    mapping (uint256=>ProtocolDriver) public protocolDrivers;
-    address public stargateToken;
-    MozaicLP public mozaicLp;
     uint16 public chainId;
+    address public stargateToken;
     address[] public acceptingTokens;
-    mapping(address => bool) tokenMap;
+    MozaicLP public mozaicLp;
+    mapping(address => bool) public tokenMap;
+    mapping (uint256=>ProtocolDriver) public protocolDrivers;
 
     bool public bufferFlag = false; // false ==> Left=pending Right=staged; true ==> Left=staged Right=pending
     RequestBuffer public leftBuffer;
@@ -118,6 +98,24 @@ contract MozaicVault is Ownable {
     uint16[] public chainIdsToSettle;
     MozaicBridge public bridge;
     uint16[] public chainIds;
+
+    //--------------------------------------------------------------------------
+    // EVENTS
+    event UnexpectedLzMessage(uint16 packetType, bytes payload);
+
+    event DepositRequestAdded (
+        address indexed depositor,
+        address indexed token,
+        uint16 indexed chainId,
+        uint256 amountLD
+    );
+
+    event WithdrawRequestAdded (
+        address indexed withdrawer,
+        address indexed token,
+        uint16 indexed chainId,
+        uint256 amountMLP
+    );
 
     //---------------------------------------------------------------------------
     // MODIFIERS
@@ -135,9 +133,8 @@ contract MozaicVault is Ownable {
     // Constructor and Public Functions
     constructor() {}
 
-    function _requests(bool staged) internal view returns (RequestBuffer storage) {
-        return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
-    }
+    // Use this function to receive an amount of native token equals to msg.value from msg.sender
+    receive () external payable {}
 
     function getDepositAmount(bool _staged, address _user, address _token, uint16 _chainId) public view returns (uint256) {
         return _requests(_staged).depositRequestLookup[_user][_token][_chainId];
@@ -221,8 +218,6 @@ contract MozaicVault is Ownable {
         return tokenMap[_token];
     }
 
-    // Use this function to receive an amount of native token equals to msg.value from msg.sender
-    receive () external payable {}
 
     // Use this function to return balance to msg.sender
     function returnBalance() public onlyOwner {
@@ -296,7 +291,6 @@ contract MozaicVault is Ownable {
     // Functions for control center
     function initOptimizationSession() external onlyOwner onlyMain {
         require(protocolStatus == ProtocolStatus.IDLE, "Protocol must be idle");
-        
         numUnchecked = chainIds.length;
         for (uint i; i < chainIds.length; ++i) {
             _requestSnapshot(chainIds[i]);
@@ -307,7 +301,6 @@ contract MozaicVault is Ownable {
 
     function preSettleAllVaults() external onlyOwner onlyMain {
         require(protocolStatus == ProtocolStatus.OPTIMIZING, "Protocol must be optimizing");
-
         numUnchecked = 0;
         delete chainIdsToSettle;
         for (uint i; i < chainIds.length; ++i) {
@@ -447,6 +440,11 @@ contract MozaicVault is Ownable {
 
     //---------------------------------------------------------------------------
     // INTERNAL
+
+    function _requests(bool staged) internal view returns (RequestBuffer storage) {
+        return staged ? (bufferFlag ? rightBuffer : leftBuffer) : (bufferFlag ? leftBuffer : rightBuffer);
+    }
+
     function _safeTransferFrom(
         address _token,
         address _from,
@@ -549,7 +547,6 @@ contract MozaicVault is Ownable {
             _reqs.withdrawAmountPerToken[request.token] = _reqs.withdrawAmountPerToken[request.token] - _withdrawAmountMLP;
             _reqs.withdrawAmountPerUser[request.user] = _reqs.withdrawAmountPerUser[request.user] - _withdrawAmountMLP;
             _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] = _reqs.withdrawRequestLookup[request.user][request.chainId][request.token] - _withdrawAmountMLP;
-            
         }
         require(_reqs.totalWithdrawAmount == 0, "Has unsettled withdrawal amount.");
     }
