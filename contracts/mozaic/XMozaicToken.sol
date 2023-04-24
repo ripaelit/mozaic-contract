@@ -107,7 +107,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /*
     * @dev Returns user's xMOZ balances
     */
-    function getXMozBalance(address userAddress) external view returns (uint256 allocatedAmount, uint256 redeemingAmount) {
+    function getXMozBalance(address userAddress) external view returns (
+        uint256 allocatedAmount,
+        uint256 redeemingAmount
+    ) {
         XMozBalance storage balance = xMozBalances[userAddress];
         return (balance.allocatedAmount, balance.redeemingAmount);
     }
@@ -122,7 +125,17 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev returns "userAddress" info for a pending redeem identified by "redeemIndex"
     */
-    function getUserRedeem(address userAddress, uint256 redeemIndex) external view validateRedeem(userAddress, redeemIndex) returns (uint256 mozAmount, uint256 xMozAmount, uint256 endTime) {
+    function getUserRedeem(
+        address userAddress,
+        uint256 redeemIndex
+    ) external view validateRedeem(
+        userAddress,
+        redeemIndex
+    ) returns (
+        uint256 mozAmount,
+        uint256 xMozAmount,
+        uint256 endTime
+    ) {
         RedeemInfo storage _redeem = userRedeems[userAddress][redeemIndex];
         return (_redeem.mozAmount, _redeem.xMozAmount, _redeem.endTime);
     }
@@ -130,14 +143,20 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev returns approved xMoz to allocate from "userAddress" to "usageAddress"
     */
-    function getUsageApproval(address userAddress, address usageAddress) external view returns (uint256) {
+    function getUsageApproval(
+        address userAddress,
+        address usageAddress
+    ) external view returns (uint256) {
         return usageApprovals[userAddress][usageAddress];
     }
 
     /**
     * @dev returns allocated xMoz from "userAddress" to "usageAddress"
     */
-    function getUsageAllocation(address userAddress, address usageAddress) external view returns (uint256) {
+    function getUsageAllocation(
+        address userAddress,
+        address usageAddress
+    ) external view returns (uint256) {
         return usageAllocations[userAddress][usageAddress];
     }
 
@@ -194,7 +213,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev Updates fee paid by users when deallocating from "usageAddress"
     */
-    function updateDeallocationFee(address usageAddress, uint256 fee) external onlyOwner {
+    function updateDeallocationFee(
+        address usageAddress,
+        uint256 fee
+    ) external onlyOwner {
         require(fee <= MAX_DEALLOCATION_FEE, "updateDeallocationFee: too high");
 
         usagesDeallocationFee[usageAddress] = fee;
@@ -204,7 +226,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev Adds or removes addresses from the transferWhitelist
     */
-    function updateTransferWhitelist(address account, bool add) external onlyOwner {
+    function updateTransferWhitelist(
+        address account,
+        bool add
+    ) external onlyOwner {
         require(account != address(this), "updateTransferWhitelist: Cannot remove xMoz from whitelist");
 
         if(add) _transferWhitelist.add(account);
@@ -225,21 +250,30 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev Only XMozaicTokenBridge mints XMozaicToken
     */
-    function mint(address _account, uint256 _amount) external override onlyBridge {
+    function mint(
+        address _account,
+        uint256 _amount
+    ) external override onlyBridge {
         _mint(_account, _amount);
     }
 
     /**
     * @dev Only XMozaicTokenBridge burns XMozaicToken
     */
-    function burn(address _account, uint256 _amount) external override onlyBridge {
+    function burn(
+        address _account,
+        uint256 _amount
+    ) external override onlyBridge {
         _burn(_account, _amount);
     }
 
     /**
     * @dev Approves "usage" address to get allocations up to "amount" of xMOZ from msg.sender
     */
-    function approveUsage(IXMozaicTokenUsage usage, uint256 amount) external nonReentrant {
+    function approveUsage(
+        IXMozaicTokenUsage usage,
+        uint256 amount
+    ) external nonReentrant {
         require(address(usage) != address(0), "approveUsage: approve to the zero address");
 
         usageApprovals[msg.sender][address(usage)] = amount;
@@ -256,7 +290,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev Convert caller's "amount" of MOZ to xMOZ to "to" address
     */
-    function convertTo(uint256 amount, address to) external override nonReentrant {
+    function convertTo(
+        uint256 amount,
+        address to
+    ) external override nonReentrant {
         require(address(msg.sender).isContract(), "convertTo: not allowed");
         _convert(amount, to);
     }
@@ -265,7 +302,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     * @dev Initiates redeem process (xMOZ to MOZ)
     *
     */
-    function redeem(uint256 xMozAmount, uint256 duration) external nonReentrant {
+    function redeem(
+        uint256 xMozAmount,
+        uint256 duration
+    ) external nonReentrant {
         require(xMozAmount > 0, "redeem: xMozAmount cannot be null");
         require(duration >= minRedeemDuration, "redeem: duration too low");
 
@@ -282,7 +322,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
             balance.redeemingAmount = balance.redeemingAmount + xMozAmount;
 
             // add redeeming entry
-            userRedeems[msg.sender].push(RedeemInfo(mozAmount, xMozAmount, _currentBlockTimestamp() + duration));
+            userRedeems[msg.sender].push(RedeemInfo(
+                mozAmount,
+                xMozAmount,
+                _currentBlockTimestamp() + duration
+            ));
         } else {
             // immediately redeem for MOZ
             _finalizeRedeem(msg.sender, xMozAmount, mozAmount);
@@ -294,7 +338,9 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     *
     * Can only be called by the redeem entry owner
     */
-    function finalizeRedeem(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
+    function finalizeRedeem(uint256 redeemIndex)
+        external
+        nonReentrant validateRedeem(msg.sender, redeemIndex) {
         XMozBalance storage balance = xMozBalances[msg.sender];
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
         require(_currentBlockTimestamp() >= _redeem.endTime, "finalizeRedeem: vesting duration has not ended yet");
@@ -312,7 +358,9 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     *
     * Can only be called by its owner
     */
-    function cancelRedeem(uint256 redeemIndex) external nonReentrant validateRedeem(msg.sender, redeemIndex) {
+    function cancelRedeem(uint256 redeemIndex)
+        external
+        nonReentrant validateRedeem(msg.sender, redeemIndex) {
         XMozBalance storage balance = xMozBalances[msg.sender];
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
 
@@ -331,7 +379,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     *
     * args specific to usage contract must be passed into "usageData"
     */
-    function allocate(address usageAddress, uint256 amount, bytes calldata usageData) external nonReentrant {
+    function allocate(
+        address usageAddress,
+        uint256 amount,
+        bytes calldata usageData
+    ) external nonReentrant {
         _allocate(msg.sender, usageAddress, amount);
 
         // allocates xMOZ to usageContract
@@ -343,7 +395,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     *
     * Caller must have an allocation approval for the required xMOZ from "userAddress"
     */
-    function allocateFromUsage(address userAddress, uint256 amount) external override nonReentrant {
+    function allocateFromUsage(
+        address userAddress,
+        uint256 amount
+    ) external override nonReentrant {
         _allocate(userAddress, msg.sender, amount);
     }
 
@@ -352,7 +407,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     *
     * args specific to usage contract must be passed into "usageData"
     */
-    function deallocate(address usageAddress, uint256 amount, bytes calldata usageData) external nonReentrant {
+    function deallocate(
+        address usageAddress,
+        uint256 amount,
+        bytes calldata usageData
+    ) external nonReentrant {
         _deallocate(msg.sender, usageAddress, amount);
 
         // deallocate xMOZ into usageContract
@@ -364,7 +423,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     *
     * Caller can only deallocate xMOZ from itself
     */
-    function deallocateFromUsage(address userAddress, uint256 amount) external override nonReentrant {
+    function deallocateFromUsage(
+        address userAddress,
+        uint256 amount
+    ) external override nonReentrant {
         _deallocate(userAddress, msg.sender, amount);
     }
 
@@ -375,7 +437,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /*
     * @dev returns redeemable MOZ for "amount" of xMOZ vested for "duration" seconds
     */
-    function getMozByVestingDuration(uint256 amount, uint256 duration) public view returns (uint256) {
+    function getMozByVestingDuration(
+        uint256 amount,
+        uint256 duration
+    ) public view returns (uint256) {
         uint256 ratio;
 
         if(duration < minRedeemDuration) {
@@ -505,7 +570,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     /**
     * @dev Hook override to forbid transfers except from whitelisted addresses and minting
     */
-    function _beforeTokenTransfer(address from, address to, uint256 /*amount*/) internal view override {
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 /*amount*/
+    ) internal view override {
         require(from == address(0) || _transferWhitelist.contains(from) || _transferWhitelist.contains(to), "transfer: not allowed");
     }
 
