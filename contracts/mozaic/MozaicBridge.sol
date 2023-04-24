@@ -140,14 +140,12 @@ contract MozaicBridge is NonblockingLzApp {
                 dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
             }
         }
-
         uint256 totalGas = minDstGasLookup[_chainId][_packetType] + _lzTxParams.dstGasForCall;
         if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
             lzTxParam = _txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
         } else {
             lzTxParam = _txParamBuilderType1(totalGas);
         }
-
         return lzTxParam;
     }
 
