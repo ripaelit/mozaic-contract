@@ -17,7 +17,7 @@
     "deploy-goerli": "npx hardhat run --network goerli ./scripts/deploy/deployGoerli.ts",
     "deploy-bsctest": "npx hardhat run --network bsctest ./scripts/deploy/deployBsc.ts",
     "deploy-fantom": "npx hardhat run --network fantom ./scripts/deploy/deployFantom.ts",
-    "deploy-tokens": "npx hardhat run --network arbitrum ./scripts/deploy/deployTokens.ts",
+    "deploy-tokens": "npx hardhat run --network arbitrumGoerli ./scripts/deploy/deployTokens.ts",
     "init-mozaic": "npx hardhat run ./scripts/deploy/initMozaic.ts",
     "mytest": "npx hardhat run ./scripts/test/mytest.ts",
     "verify-bsctest": "npx hardhat verify --network bsctest",
