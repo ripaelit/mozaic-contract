@@ -99,7 +99,8 @@ const config: HardhatUserConfig = {
         arbitrum: {
             url: `https://goerli-rollup.arbitrum.io/rpc`,
             chainId: 421613,
-            gasPrice: 20000000000,
+            gas: 50000000,
+            gasPrice: 8000000000,
             accounts: {mnemonic: mnemonic},
         },
     },
