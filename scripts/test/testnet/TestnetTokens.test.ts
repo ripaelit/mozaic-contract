@@ -7,6 +7,7 @@ import { describe } from 'mocha';
 import { deposit, withdraw, withdrawWhole, mint, stake, unstake, swap, swapRemote, initOptimization, preSettleAllVaults, settleRequestsAllVaults } from '../../util/testUtils';
 import { BigNumber } from 'ethers';
 import { exec } from 'child_process';
+import { sign } from 'crypto';
 
 const { expectRevert } = require('@openzeppelin/test-helpers');
 const fs = require('fs');
@@ -120,6 +121,143 @@ describe('MozaicTokens', () => {
       await tx.wait();
       const treasuryAfter = await mozToken.treasuryAddress();
       expect(treasuryAfter).to.eq(treasury);
+    })
+  })
+  describe('XMozaicToken', () => {
+    it ('updateRedeemSettings()', async () => {
+      const minRatio = await xMozToken.minRedeemRatio();
+      const medRatio = await xMozToken.mediumRedeemRatio();
+      const maxRatio = await xMozToken.maxRedeemRatio();
+      const minDur = await xMozToken.minRedeemDuration();
+      const medDur = await xMozToken.mediumRedeemDuration();
+      const maxDur = await xMozToken.maxRedeemDuration();
+      const tx = await xMozToken.connect(owner).updateRedeemSettings(
+        minRatio,
+        medRatio,
+        maxRatio,
+        minDur,
+        medDur,
+        maxDur
+      );
+      await tx.wait();
+      expect(await xMozToken.minRedeemRatio()).to.eq(minRatio);
+      expect(await xMozToken.mediumRedeemRatio()).to.eq(medRatio);
+      expect(await xMozToken.maxRedeemRatio()).to.eq(maxRatio);
+      expect(await xMozToken.minRedeemDuration()).to.eq(minDur);
+      expect(await xMozToken.mediumRedeemDuration()).to.eq(medDur);
+      expect(await xMozToken.maxRedeemDuration()).to.eq(maxDur);
+    })
+    it ('updateDeallocationFee()', async () => {
+      const fee = 200;  // MAX_DEALLOCATION_FEE
+      const tx = await xMozToken.connect(owner).updateDeallocationFee(owner.address, fee);
+      await tx.wait();
+      expect(await xMozToken.usagesDeallocationFee(owner.address)).to.eq(fee);
+    })
+    it ('updateTransferWhitelist()', async () => {
+      const newAccount = signer.address;
+      const add = true;
+      const tx = await xMozToken.connect(owner).updateTransferWhitelist(newAccount, add);
+      await tx.wait();
+      expect(await xMozToken.isTransferWhitelisted(newAccount)).to.eq(add);
+    })
+    it ('approveUsage()', async () => {
+      const usage = signer.address;
+      const amount = ethers.utils.parseEther("0.1");
+      const tx = await xMozToken.connect(owner).approveUsage(usage, amount);
+      await tx.wait();
+      expect(await xMozToken.usageApprovals(owner.address, usage)).to.eq(amount);
+    })
+    it ('convert()', async () => {
+      const xMozBalanceBefore = await xMozToken.balanceOf(owner.address);
+      const mozBalanceBefore = await mozToken.balanceOf(xMozToken.address);
+      const amount = ethers.utils.parseEther("0.1");
+      const tx = await xMozToken.connect(owner).convert(amount);
+      await tx.wait();
+      expect((await xMozToken.balanceOf(owner.address)).sub(xMozBalanceBefore)).to.eq(amount);
+      expect((await mozToken.balanceOf(xMozToken.address)).sub(mozBalanceBefore)).to.eq(amount);
+    })
+    it ('convertTo()', async () => {
+      const to = signer.address;
+      const xMozBalanceBefore = await xMozToken.balanceOf(to);
+      const mozBalanceBefore = await mozToken.balanceOf(xMozToken.address);
+      const amount = ethers.utils.parseEther("0.1");
+      const tx = await xMozToken.connect(owner).convertTo(amount, to);
+      await tx.wait();
+      expect((await xMozToken.balanceOf(to)).sub(xMozBalanceBefore)).to.eq(amount);
+      expect((await mozToken.balanceOf(xMozToken.address)).sub(mozBalanceBefore)).to.eq(amount);
+    })
+    it ('redeem()', async () => {
+      const xMozBalanceBefore = await xMozToken.xMozBalances(owner.address);
+      const redeemingAmountBefore = xMozBalanceBefore.redeemingAmount;
+      const xMozAmount = ethers.utils.parseEther("0.02");
+      const duration = 3;
+      const tx = await xMozToken.connect(owner).redeem(xMozAmount, duration);
+      await tx.wait();
+      const xMozBalanceAfter = await xMozToken.xMozBalances(owner.address);
+      const redeemingAmountAfter = xMozBalanceAfter.redeemingAmount;
+      expect(redeemingAmountAfter.sub(redeemingAmountBefore)).to.eq(xMozAmount);
+    })
+    it ('cancelRedeem()', async () => {
+      const xMozBalanceBefore = await xMozToken.balanceOf(owner.address);
+      const redeem = await xMozToken.userRedeems(owner.address, 0);
+      const xMozAmount = redeem.xMozAmount;
+      const tx = await xMozToken.connect(owner).cancelRedeem(0);
+      await tx.wait();
+      expect((await xMozToken.balanceOf(owner.address)).sub(xMozBalanceBefore)).to.eq(xMozAmount);
+    })
+    it ('redeem()', async () => {
+      const xMozBalancesBefore = await xMozToken.xMozBalances(owner.address);
+      const redeemingAmountBefore = xMozBalancesBefore.redeemingAmount;
+      const xMozAmount = ethers.utils.parseEther("0.02");
+      const duration = 3;
+      const tx = await xMozToken.connect(owner).redeem(xMozAmount, duration);
+      await tx.wait();
+      const xMozBalanceAfter = await xMozToken.xMozBalances(owner.address);
+      const redeemingAmountAfter = xMozBalanceAfter.redeemingAmount;
+      expect(redeemingAmountAfter.sub(redeemingAmountBefore)).to.eq(xMozAmount);
+    })
+    it ('finalizeRedeem()', async () => {
+      const xMozAmount = ethers.utils.parseEther("0.02");
+      const duration = 3;
+      const mozAmount = await xMozToken.getMozByVestingDuration(xMozAmount, duration);
+      const mozBalanceBefore = await mozToken.balanceOf(owner.address);
+      const tx = await xMozToken.connect(owner).finalizeRedeem(0);
+      await tx.wait();
+      expect((await mozToken.balanceOf(owner.address)).sub(mozBalanceBefore)).to.eq(mozAmount);
+    })
+    it ('allocate()', async () => {
+      const usage = signer.address;
+      const amount = ethers.utils.parseEther("0.03");
+      const xMozBalanceBefore = await xMozToken.balanceOf(owner.address);
+      const tx = await xMozToken.connect(owner).allocate(usage, amount, "");
+      await tx.wait();
+      expect(xMozBalanceBefore.sub(await xMozToken.balanceOf(owner.address))).to.eq(amount);
+    })
+    it ('allocateFromUsage()', async () => {
+      const usage = signer.address;
+      const amount = ethers.utils.parseEther("0.03");
+      const user = owner.address;
+      const xMozBalanceBefore = await xMozToken.balanceOf(owner.address);
+      const tx = await xMozToken.connect(usage).allocateFromUsage(user, amount);
+      await tx.wait();
+      expect(xMozBalanceBefore.sub(await xMozToken.balanceOf(owner.address))).to.eq(amount);
+    })
+    it ('deallocate()', async () => {
+      const usage = signer.address;
+      const amount = ethers.utils.parseEther("0.03");
+      const xMozBalanceBefore = await xMozToken.balanceOf(owner.address);
+      const tx = await xMozToken.connect(owner).deallocate(usage, amount, "");
+      await tx.wait();
+      expect(await xMozToken.balanceOf(owner.address)).gt(xMozBalanceBefore);
+    })
+    it ('deallocateFromUsage()', async () => {
+      const usage = signer.address;
+      const amount = ethers.utils.parseEther("0.03");
+      const user = owner.address;
+      const xMozBalanceBefore = await xMozToken.balanceOf(owner.address);
+      const tx = await xMozToken.connect(usage).deallocateFromUsage(user, amount);
+      await tx.wait();
+      expect(await xMozToken.balanceOf(owner.address)).gt(xMozBalanceBefore);
     })
   })
 })
