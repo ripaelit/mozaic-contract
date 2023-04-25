@@ -1,53 +1,58 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// imports
-import "@layerzerolabs/solidity-examples/contracts/lzApp/NonblockingLzApp.sol";
 import "./MozaicVault.sol";
+import "@layerzerolabs/solidity-examples/contracts/lzApp/NonblockingLzApp.sol";
 
 contract MozaicBridge is NonblockingLzApp {
-    //---------------------------------------------------------------------------
-    // CONSTANTS
+	/********************************************/
+	/**************** CONSTANTS *****************/
+	/********************************************/
     uint16 internal constant PT_TAKE_SNAPSHOT = 11;
     uint16 internal constant PT_SNAPSHOT_REPORT = 12;
     uint16 internal constant PT_PRE_SETTLE = 13;
     uint16 internal constant PT_SETTLED_REPORT = 14;
 
-    //---------------------------------------------------------------------------
-    // VARIABLES
+	/********************************************/
+	/**************** VARIABLES *****************/
+	/********************************************/
     MozaicVault public vault;
 
-    //---------------------------------------------------------------------------
-    // STRUCTS
+	/********************************************/
+	/***************** STRUCTS ******************/
+	/********************************************/
     struct LzTxObj {
         uint256 dstGasForCall;
         uint256 dstNativeAmount;
         bytes dstNativeAddr;
     }
 
-    //---------------------------------------------------------------------------
-    // EVENTS
+
+	/********************************************/
+	/***************** EVENTS *******************/
+	/********************************************/
     event UnexpectedLzMessage(uint16 packetType, bytes payload);
 
-    //---------------------------------------------------------------------------
-    // MODIFIERS
+	/********************************************/
+	/**************** MODIFIERS *****************/
+	/********************************************/
     modifier onlyVault() {
         require(msg.sender == address(vault), "Only vault");
         _;
     }
 
-    //---------------------------------------------------------------------------
-    // CONSTRUCTOR
-    constructor(
-        address _lzEndpoint
-    ) NonblockingLzApp(_lzEndpoint) {
+	/********************************************/
+	/*************** CONSTRUCTOR ****************/
+	/********************************************/
+    constructor(address _lzEndpoint) NonblockingLzApp(_lzEndpoint) {
     }
 
-    //---------------------------------------------------------------------------
-    // EXTERNAL FUNCTIONS
+	/********************************************/
+	/*********** EXTERNAL FUNCTIONS *************/
+	/********************************************/
     // Functions for configuration
     function setVault(address payable _vault) external onlyOwner {
-        require(_vault != address(0x0), "Vault cannot be 0x0");
+        require(_vault != address(0x0), "Vault cannot be zero address");
         vault = MozaicVault(_vault);
     }
 
@@ -83,8 +88,9 @@ contract MozaicBridge is NonblockingLzApp {
         _lzSend(_dstChainId, lzPayload, payable(address(this)), address(0x0), _adapterParams, msg.value);
     }
 
-    //---------------------------------------------------------------------------
-    // PUBLIC FUNCTIONS
+	/********************************************/
+	/************ PUBLIC FUNCTIONS **************/
+	/********************************************/
     function quoteLayerZeroFee(
         uint16 _chainId,
         uint16 _packetType,
@@ -111,8 +117,9 @@ contract MozaicBridge is NonblockingLzApp {
         return lzEndpoint.estimateFees(_chainId, address(this), payload, false, _adapterParams);
     }
 
-    //---------------------------------------------------------------------------
-    // INTERNAL FUNCTIONS
+	/********************************************/
+	/*********** INTERNAL FUNCTIONS *************/
+	/********************************************/
     function _txParamBuilderType1(uint256 _gasAmount) internal pure returns (bytes memory) {
         uint16 txType = 1;
         return abi.encodePacked(txType, _gasAmount);
@@ -140,14 +147,12 @@ contract MozaicBridge is NonblockingLzApp {
                 dstNativeAddr := mload(add(dstNativeAddrBytes, 20))
             }
         }
-
         uint256 totalGas = minDstGasLookup[_chainId][_packetType] + _lzTxParams.dstGasForCall;
         if (_lzTxParams.dstNativeAmount > 0 && dstNativeAddr != address(0x0)) {
             lzTxParam = _txParamBuilderType2(totalGas, _lzTxParams.dstNativeAmount, _lzTxParams.dstNativeAddr);
         } else {
             lzTxParam = _txParamBuilderType1(totalGas);
         }
-
         return lzTxParam;
     }
 

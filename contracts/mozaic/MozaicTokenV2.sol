@@ -30,7 +30,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	/********************************************/
 	/****************** EVENTS ******************/
 	/********************************************/
-
 	event ClaimMasterRewards(uint256 amount);
 	event AllocationsDistributed(uint256 masterShare, uint256 treasuryShare);
 	event InitializeMasterAddress(address masterAddress);
@@ -43,7 +42,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	/***********************************************/
 	/****************** MODIFIERS ******************/
 	/***********************************************/
-
 	/*
 	* @dev Throws error if called by any account other than the master
 	*/
@@ -55,7 +53,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	/***********************************************/
 	/****************** CONSTRUCTOR ****************/
 	/***********************************************/
-
   	constructor(
 		address _layerZeroEndpoint,
 		address _treasuryAddress,
@@ -79,7 +76,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	/*****************************************************************/
 	/******************  EXTERNAL FUNCTIONS  *************************/
 	/*****************************************************************/
-
 	/**
 	* @dev Sends to Master contract the asked "amount" from masterReserve
 	*
@@ -204,7 +200,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	/**************************************************/
 	/****************** PUBLIC FUNCTIONS **************/
 	/**************************************************/
-
 	/**
 	* @dev Returns total master allocation
 	*/
@@ -276,7 +271,6 @@ contract MozaicTokenV2 is OFTV2, IMozaicTokenV2 {
 	/********************************************************/
 	/****************** INTERNAL FUNCTIONS ******************/
 	/********************************************************/
-
 	/**
 	* @dev Utility function to get the current block timestamp
 	*/
