@@ -37,108 +37,89 @@ describe('MozaicTokens', () => {
   // after(async () => {
   // })
   describe('MozaicTokenV2', () => {
-    it('initializeMasterAddress() - reverts for zero master', async () => {
-      // const newMaster = owner.address;
-      // await expect(mozToken.connect(signer).initializeMasterAddress(newMaster)).to.be.revertedWith("Ownable: caller is not the owner");
-
-      // try {
-      //   const txresult = await mozToken.connect(signer).initializeMasterAddress(newMaster);
-      //   console.log(txresult)
-      //   const txreceipt = await txresult.wait()
-      // } catch (error) {
-      //   console.log(error);
-      // }
-    })
     it ('initializeMasterAddress()', async () => {
-      // const oldMaster = await mozToken.masterAddress();
-      // const newMaster = owner.address;
-      // if (oldMaster == ethers.constants.AddressZero) {
-      //   await mozToken.connect(owner).initializeMasterAddress(newMaster);
-      //   expect(await mozToken.masterAddress()).to.equal(newMaster);
-      // } else {
-      //   // await expect(
-      //   //   await mozToken
-      //   //     .connect(owner)
-      //   //     .initializeMasterAddress(newMaster)
-      //   // ).to.revertedWith("initializeMasterAddress: master already initialized");
-
-      //   await expect(
-      //     mozToken
-      //       .connect(owner)
-      //       .initializeMasterAddress(newMaster)
-      //   ).to.reverted;
-      // }
-      
-    })
-    it ('initializeEmissionStart() - reverts for invalid start time', async () => {
-      // const timestamp = await time.latest();
-      // await expect(
-      //   mozToken
-      //     .connect(owner)
-      //     .initializeEmissionStart(timestamp)
-      // ).to.be.reverted;
+      const oldMaster = await mozToken.masterAddress();
+      const newMaster = owner.address;
+      if (oldMaster == ethers.constants.AddressZero) {
+        const tx = await mozToken.connect(owner).initializeMasterAddress(newMaster);
+        await tx.wait();
+        expect(await mozToken.masterAddress()).to.equal(newMaster);
+      } else {
+        await expect(mozToken.connect(owner).initializeMasterAddress(newMaster)).to.reverted;
+      }
     })
     it ('initializeEmissionStart()', async () => {
-      // const blockNumBefore = await ethers.provider.getBlockNumber();
-      // const blockBefore = await ethers.provider.getBlock(blockNumBefore);
-      // const newEmissionTime = blockBefore.timestamp + 100;
-      // const lastEmissionTime = await mozToken.lastEmissionTime();
-      // console.log({lastEmissionTime});
-      // if (lastEmissionTime.eq(0)) {
-      //   const tx = await mozToken.connect(owner).initializeEmissionStart(newEmissionTime);
-      //   await tx.wait();
-      //   expect(await mozToken.lastEmissionTime()).to.equal(newEmissionTime);
-      // } else {
-      //   await expect(
-      //     mozToken
-      //       .connect(owner)
-      //       .initializeEmissionStart(blockBefore.timestamp)
-      //   ).to.be.reverted;
-      // }
+      const blockNumBefore = await ethers.provider.getBlockNumber();
+      const blockBefore = await ethers.provider.getBlock(blockNumBefore);
+      const newEmissionTime = blockBefore.timestamp + 100;
+      const lastEmissionTime = await mozToken.lastEmissionTime();
+      if (lastEmissionTime.eq(0)) {
+        const tx = await mozToken.connect(owner).initializeEmissionStart(newEmissionTime);
+        await tx.wait();
+        expect(await mozToken.lastEmissionTime()).to.equal(newEmissionTime);
+      } else {
+        await expect(mozToken.connect(owner).initializeEmissionStart(blockBefore.timestamp)).to.be.reverted;
+      }
     })
-    it ('emitAllocations', async () => {
-      // const treasury = await mozToken.treasuryAddress();
-      // const treasuryBalanceBefore = await mozToken.balanceOf(treasury);
-      // const master = await mozToken.masterAddress();
-      // const masterBalanceBefore = await mozToken.balanceOf(master);
-      // const tx = await mozToken.emitAllocations();
-      // await tx.wait();
-      // const treasuryBalanceAfter = await mozToken.balanceOf(treasury);
-      // const masterBalanceAfter = await mozToken.balanceOf(mozToken.address);
-      // expect(treasuryBalanceAfter).gt(treasuryBalanceBefore);
-      // expect(masterBalanceAfter).gt(masterBalanceBefore);
+    it ('emitAllocations()', async () => {
+      const treasury = await mozToken.treasuryAddress();
+      const treasuryBalanceBefore = await mozToken.balanceOf(treasury);
+      const mozBalanceBefore = await mozToken.balanceOf(mozToken.address);
+      const tx = await mozToken.emitAllocations();
+      await tx.wait();
+      const treasuryBalanceAfter = await mozToken.balanceOf(treasury);
+      const mozBalanceAfter = await mozToken.balanceOf(mozToken.address);
+      expect(treasuryBalanceAfter).gt(treasuryBalanceBefore);
+      expect(mozBalanceAfter).gt(mozBalanceBefore);
     })
-    it ('claimMasterRewards', async () => {
-      // const master = await mozToken.masterAddress();
-      // const masterBalanceBefore = await mozToken.balanceOf(master);
-      // const amount = ethers.utils.parseEther("0.1");
-      // const tx = await mozToken.connect(owner).claimMasterRewards(amount);
-      // await tx.wait();
-      // const masterBalanceAfter = await mozToken.balanceOf(master);
-      // console.log({masterBalanceBefore}, {masterBalanceAfter})
-      // expect(masterBalanceAfter.sub(masterBalanceBefore)).to.eq(amount);
-    })
-    it ('burn', async () => {
+    it ('claimMasterRewards()', async () => {
+      const master = await mozToken.masterAddress();
+      const masterBalanceBefore = await mozToken.balanceOf(master);
       const amount = ethers.utils.parseEther("0.1");
+      const tx = await mozToken.connect(owner).claimMasterRewards(amount);
+      await tx.wait();
+      const masterBalanceAfter = await mozToken.balanceOf(master);
+      console.log({masterBalanceBefore}, {masterBalanceAfter})
+      expect(masterBalanceAfter.sub(masterBalanceBefore)).to.eq(amount);
+    })
+    it ('burn()', async () => {
+      const amount = ethers.utils.parseEther("0.1");
+      const balanceBefore = await mozToken.balanceOf(owner.address);
       const tx = await mozToken.connect(owner).burn(amount);
       await tx.wait();
+      const balanceAfter = await mozToken.balanceOf(owner.address);
+      expect(balanceBefore.sub(balanceAfter)).to.eq(amount);
     })
-    it ('updateAllocations', async () => {
+    it ('updateAllocations()', async () => {
+      const farmingAllocation = await mozToken.farmingAllocation();
+      const legacyAllocation = await mozToken.legacyAllocation();
+      const tx = await mozToken.updateAllocations(farmingAllocation, legacyAllocation);
+      await tx.wait();
+      const farmingAllocationAfter = await mozToken.farmingAllocation();
+      const legacyAllocationAfter = await mozToken.legacyAllocation();
+      expect(farmingAllocationAfter).to.eq(farmingAllocation);
+      expect(legacyAllocationAfter).to.eq(legacyAllocation);
     })
-    it ('updateEmissionRate', async () => {
+    it ('updateEmissionRate()', async () => {
+      const emissionRate = await mozToken.emissionRate();
+      const tx = await mozToken.updateEmissionRate(emissionRate);
+      await tx.wait();
+      const emissionRateAfter = await mozToken.emissionRate();
+      expect(emissionRateAfter).to.eq(emissionRate);
     })
-    it ('updateMaxSupply', async () => {
+    it ('updateMaxSupply()', async () => {
+      const maxSupply = await mozToken.elasticMaxSupply();
+      const tx = await mozToken.updateMaxSupply(maxSupply);
+      await tx.wait();
+      const maxSupplyAfter = await mozToken.elasticMaxSupply();
+      expect(maxSupplyAfter).to.eq(maxSupply);
     })
-    it ('updateTreasuryAddress', async () => {
-      // const treasury = '0xBc1bE99E95593169C80C475D114d385c0940b573';
-      // const tx = await mozToken.connect(owner).updateTreasuryAddress(treasury);
-      // await tx.wait();
-    })
-    it ('masterAllocation', async () => {
-    })
-    it ('masterEmissionRate', async () => {
-    })
-    it ('treasuryAllocation', async () => {
+    it ('updateTreasuryAddress()', async () => {
+      const treasury = await mozToken.treasuryAddress();
+      const tx = await mozToken.connect(owner).updateTreasuryAddress(treasury);
+      await tx.wait();
+      const treasuryAfter = await mozToken.treasuryAddress();
+      expect(treasuryAfter).to.eq(treasury);
     })
   })
 })
