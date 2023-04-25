@@ -97,7 +97,8 @@ const config: HardhatUserConfig = {
             accounts: {mnemonic: mnemonic},
         },
         arbitrumGoerli: {
-            url: `https://goerli-rollup.arbitrum.io/rpc`,
+            // url: `https://goerli-rollup.arbitrum.io/rpc`,
+            url: `https://endpoints.omniatech.io/v1/arbitrum/goerli/public`,
             chainId: 421613,
             gas: 50000000,
             gasPrice: 8000000000,
