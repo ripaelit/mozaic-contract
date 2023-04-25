@@ -163,7 +163,8 @@ contract MozaicVault is Ownable {
         address _mozaicLp,
         address _bridge
     ) external onlyOwner {
-        require(_stargateToken != address(0x0) &&
+        require(
+            _stargateToken != address(0x0) &&
             _mozaicLp != address(0x0) &&
             _bridge != address(0x0),
             "Invalid addresses"
@@ -303,10 +304,8 @@ contract MozaicVault is Ownable {
         // Minimum unit of acceptance 1 USD - to easy the following staking
         // uint256 _amountLDAccept = _amountLD.div(IERC20Metadata(_token).decimals()).mul(IERC20Metadata(_token).decimals());
         uint256 _amountLDAccept = _amountLD;
-
         // transfer stablecoin from depositor to this vault
         _safeTransferFrom(_token, _depositor, address(this), _amountLDAccept);
-
         // add deposit request to pending buffer
         RequestBuffer storage _pendingBuffer = _requests(false);
         bool exists = false;
@@ -347,10 +346,8 @@ contract MozaicVault is Ownable {
         // check amount MLP user has, if not enough, revert
         uint256 _bookedAmountMLP = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _stagedBuffer.withdrawAmountPerUser[_withdrawer];
         require(_amountMLP + _bookedAmountMLP <= mozaicLp.balanceOf(_withdrawer), "Withdraw amount > owned mLP");
-
         // add new withdraw amount to pending buffer
         _pendingBuffer.withdrawAmountPerUser[_withdrawer] = _pendingBuffer.withdrawAmountPerUser[_withdrawer] + _amountMLP;
-
         // add withdraw request to pending buffer
         bool _exists = false;
         for (uint i; i < _pendingBuffer.withdrawRequestList.length; ++i) {
@@ -367,7 +364,6 @@ contract MozaicVault is Ownable {
             _req.chainId = _chainId;
             _pendingBuffer.withdrawRequestList.push(_req);
         }
-
         _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] = _pendingBuffer.withdrawRequestLookup[_withdrawer][_chainId][_token] + _amountMLP;
         _pendingBuffer.totalWithdrawAmount = _pendingBuffer.totalWithdrawAmount + _amountMLP;
         _pendingBuffer.withdrawAmountPerToken[_token] = _pendingBuffer.withdrawAmountPerToken[_token] + _amountMLP;
