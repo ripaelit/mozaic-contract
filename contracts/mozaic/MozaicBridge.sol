@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// imports
-import "@layerzerolabs/solidity-examples/contracts/lzApp/NonblockingLzApp.sol";
 import "./MozaicVault.sol";
+import "@layerzerolabs/solidity-examples/contracts/lzApp/NonblockingLzApp.sol";
 
 contract MozaicBridge is NonblockingLzApp {
 	/********************************************/
@@ -28,6 +27,7 @@ contract MozaicBridge is NonblockingLzApp {
         bytes dstNativeAddr;
     }
 
+
 	/********************************************/
 	/***************** EVENTS *******************/
 	/********************************************/
@@ -44,9 +44,7 @@ contract MozaicBridge is NonblockingLzApp {
 	/********************************************/
 	/*************** CONSTRUCTOR ****************/
 	/********************************************/
-    constructor(
-        address _lzEndpoint
-    ) NonblockingLzApp(_lzEndpoint) {
+    constructor(address _lzEndpoint) NonblockingLzApp(_lzEndpoint) {
     }
 
 	/********************************************/
@@ -54,7 +52,7 @@ contract MozaicBridge is NonblockingLzApp {
 	/********************************************/
     // Functions for configuration
     function setVault(address payable _vault) external onlyOwner {
-        require(_vault != address(0x0), "Vault cannot be 0x0");
+        require(_vault != address(0x0), "Vault cannot be zero address");
         vault = MozaicVault(_vault);
     }
 
