@@ -12,7 +12,4 @@ interface IXMozaicToken is IERC20 {
     function deallocateFromUsage(address userAddress, uint256 amount) external;
 
     function isTransferWhitelisted(address account) external view returns (bool);
-
-    function burn(address account, uint256 amount) external;
-    function mint(address account, uint256 amount) external;
 }
