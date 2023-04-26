@@ -1,6 +1,6 @@
 import {ethers} from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicVault, MozaicBridge__factory, MozaicBridge, StargateFeeLibraryV02__factory, MozaicTokenV2__factory, XMozaicToken__factory, XMozaicTokenBridge__factory} from '../../types/typechain';
+import { Bridge__factory, Factory__factory, LPStaking__factory, Pool, Pool__factory, Router__factory, StargateToken__factory, LZEndpointMock, LZEndpointMock__factory, MozaicLP__factory, MozaicVault__factory, MockDex__factory, PancakeSwapDriver__factory, MockToken__factory, StargateDriver__factory, MozaicBridge__factory, StargateFeeLibraryV02__factory, MozaicTokenV2__factory, XMozaicToken__factory} from '../../types/typechain';
 import { StargateChainPath, StargateDeploymentOnchain, StargateDeployments, LayerZeroDeployments, StableCoinDeployments, MozaicDeployment, MozaicDeployments } from '../constants/types';
 import { BigNumber } from 'ethers';
 import { getLzChainIdFromChainName, switchNetwork } from './utils'
@@ -14,7 +14,6 @@ export const getLzEndpoint = async (
   const bridgeFactory = (await ethers.getContractFactory('Bridge', owner)) as Bridge__factory;
   const bridge = bridgeFactory.attach(exportData.testnetTestConstants.bridges.get(chainId)!);
   const lzEndpoint = await bridge.layerZeroEndpoint();
-  console.log("lzEndpoint", lzEndpoint);
   return lzEndpoint;
 }
 
@@ -55,22 +54,22 @@ export const deployXMozaicToken = async (
   return contract;
 }
 
-export const deployXMozaicTokenBridge = async (
-  owner: SignerWithAddress,
-  xMozaicToken: string,
-  lzEndpoint: string,
-  sharedDecimals: BigNumber
-) => {
-  const contractFactory = await ethers.getContractFactory('XMozaicTokenBridge', owner) as XMozaicTokenBridge__factory;
-  const contract = await contractFactory.deploy(
-    xMozaicToken,
-    sharedDecimals,
-    lzEndpoint
-  );
-  await contract.deployed();
-  console.log("Deployed XMozaicTokenBridge", contract.address);
-  return contract;
-}
+// export const deployXMozaicTokenBridge = async (
+//   owner: SignerWithAddress,
+//   xMozaicToken: string,
+//   lzEndpoint: string,
+//   sharedDecimals: BigNumber
+// ) => {
+//   const contractFactory = await ethers.getContractFactory('XMozaicTokenBridge', owner) as XMozaicTokenBridge__factory;
+//   const contract = await contractFactory.deploy(
+//     xMozaicToken,
+//     sharedDecimals,
+//     lzEndpoint
+//   );
+//   await contract.deployed();
+//   console.log("Deployed XMozaicTokenBridge", contract.address);
+//   return contract;
+// }
 
 export const deployStablecoin = async (
   owner: SignerWithAddress, 

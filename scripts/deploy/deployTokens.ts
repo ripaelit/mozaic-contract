@@ -1,15 +1,14 @@
 import { ethers, run } from 'hardhat';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
-import { deployMozaicTokenV2, deployXMozaicToken, deployXMozaicTokenBridge, getLzEndpoint } from '../util/deployUtils';
+import { deployMozaicTokenV2, deployXMozaicToken, getLzEndpoint } from '../util/deployUtils';
 import { BigNumber } from 'ethers';
-import { mozaic } from '../../types/typechain/contracts';
 import { getLzChainIdFromChainName } from '../util/utils';
 const fs = require('fs');
 const hre = require('hardhat');
 
 async function main() {
   let chainName = 'arbitrumGoerli';
-  const treasury = '0x5525631e49D781d5d6ee368c82B72ff7485C5B1F';
+  const treasury = '0xBc1bE99E95593169C80C475D114d385c0940b573';
 
   let owner: SignerWithAddress;
 
@@ -34,25 +33,26 @@ async function main() {
     mozaicTokenV2.address
   );
 
-  const xMozaicTokenBridge = await deployXMozaicTokenBridge(
-    owner, 
-    xMozaicToken.address,
-    lzEndpoint,
-    BigNumber.from("6")
-  );
+//   const xMozaicTokenBridge = await deployXMozaicTokenBridge(
+//     owner, 
+//     xMozaicToken.address,
+//     lzEndpoint,
+//     BigNumber.from("6")
+//   );
   
   let res = JSON.stringify({
       chainName: chainName,
-      mozaicTokenV2: mozaicTokenV2,
-      xMozaicToken: xMozaicToken,
-      xMozaicTokenBridge: xMozaicTokenBridge
+      mozaicTokenV2: mozaicTokenV2.address,
+      xMozaicToken: xMozaicToken.address,
+      lzEndpoint: lzEndpoint
+    //   xMozaicTokenBridge: xMozaicTokenBridge
   });
   fs.writeFileSync("deployTokensResult.json", res);
 
   // verify mozaicTokenV2
   // const mozaicTokenV2 = '0x2B4Ee4511d52b8e2b261f43d20695D2770816BB2';
   await run(`verify:verify`, {
-    address: mozaicTokenV2,
+    address: mozaicTokenV2.address,
     constructorArguments: [
       lzEndpoint,
       treasury,
@@ -67,24 +67,24 @@ async function main() {
   // verify xMozaicToken
   // const xMozaicToken = '0xD5AA6Fe4C9002468bFbDB19951b13f396007D0C9';
   await run(`verify:verify`, {
-    address: xMozaicToken,
+    address: xMozaicToken.address,
     constructorArguments: [
-      mozaicTokenV2
+      mozaicTokenV2.address
     ],
   });
   console.log("Completed verify xMozaicToken");
 
   // verify xMozaicTokenBridge
   // const xMozaicTokenBridge = '0xF5aE203eA31fc91539e04D449E70A80F65C9043c';
-  await run(`verify:verify`, {
-    address: xMozaicTokenBridge,
-    constructorArguments: [
-      xMozaicToken,
-      BigNumber.from("6"),
-      lzEndpoint
-    ],
-  });
-  console.log("Completed verify xMozaicTokenBridge");
+//   await run(`verify:verify`, {
+//     address: xMozaicTokenBridge,
+//     constructorArguments: [
+//       xMozaicToken,
+//       BigNumber.from("6"),
+//       lzEndpoint
+//     ],
+//   });
+//   console.log("Completed verify xMozaicTokenBridge");
 }
   
 main()
