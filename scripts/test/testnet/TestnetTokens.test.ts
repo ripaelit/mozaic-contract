@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { MozaicTokenV2, MozaicTokenV2__factory, XMozaicToken, XMozaicToken__factory, XMozaicTokenBridge, XMozaicTokenBridge__factory } from '../../../types/typechain';
+import { MozaicTokenV2, MozaicTokenV2__factory, XMozaicToken, XMozaicToken__factory } from '../../../types/typechain';
 import { describe } from 'mocha';
 
 const fs = require('fs');
@@ -12,7 +12,7 @@ describe('MozaicTokens', () => {
   let signer: SignerWithAddress;
   let mozToken: MozaicTokenV2;
   let xMozToken: XMozaicToken;
-  let xMozTokenBridge: XMozaicTokenBridge;
+  // let xMozTokenBridge: XMozaicTokenBridge;
   let masterAddress: string;
 
   before(async () => {
@@ -23,11 +23,24 @@ describe('MozaicTokens', () => {
     mozToken = mozTokenfactory.attach(json.mozaicTokenV2);
     const xMozTokenfactory = (await ethers.getContractFactory('XMozaicToken', owner)) as XMozaicToken__factory;
     xMozToken = xMozTokenfactory.attach(json.xMozaicToken);
-    const xMozTokenBridgefactory = (await ethers.getContractFactory('XMozaicTokenBridge', owner)) as XMozaicTokenBridge__factory;
-    xMozTokenBridge = xMozTokenBridgefactory.attach(json.xMozaicTokenBridge);
+    // const xMozTokenBridgefactory = (await ethers.getContractFactory('XMozaicTokenBridge', owner)) as XMozaicTokenBridge__factory;
+    // xMozTokenBridge = xMozTokenBridgefactory.attach(json.xMozaicTokenBridge);
     masterAddress = await mozToken.masterAddress();
   })
   describe('MozaicTokenV2', () => {
+    it ('initializeEmissionStart()', async () => {
+      const blockNumBefore = await ethers.provider.getBlockNumber();
+      const blockBefore = await ethers.provider.getBlock(blockNumBefore);
+      const newEmissionTime = blockBefore.timestamp + 10;
+      const lastEmissionTime = await mozToken.lastEmissionTime();
+      if (lastEmissionTime.eq(0)) {
+        let tx = await mozToken.connect(owner).initializeEmissionStart(newEmissionTime);
+        await tx.wait();
+        expect(await mozToken.lastEmissionTime()).to.equal(newEmissionTime);
+      } else {
+        await expect(mozToken.connect(owner).initializeEmissionStart(blockBefore.timestamp)).to.be.reverted;
+      }
+    })
     it ('initializeMasterAddress()', async () => {
       const oldMaster = await mozToken.masterAddress();
       const newMaster = owner.address;
@@ -39,20 +52,7 @@ describe('MozaicTokens', () => {
         await expect(mozToken.connect(owner).initializeMasterAddress(newMaster)).to.reverted;
       }
     })
-    it ('initializeEmissionStart()', async () => {
-      const blockNumBefore = await ethers.provider.getBlockNumber();
-      const blockBefore = await ethers.provider.getBlock(blockNumBefore);
-      const newEmissionTime = blockBefore.timestamp + 100;
-      const lastEmissionTime = await mozToken.lastEmissionTime();
-      if (lastEmissionTime.eq(0)) {
-        let tx = await mozToken.connect(owner).initializeEmissionStart(newEmissionTime);
-        await tx.wait();
-        expect(await mozToken.lastEmissionTime()).to.equal(newEmissionTime);
-      } else {
-        await expect(mozToken.connect(owner).initializeEmissionStart(blockBefore.timestamp)).to.be.reverted;
-      }
-    })
-    it ('emitAllocations()', async () => {
+    it.only ('emitAllocations()', async () => {
       const treasury = await mozToken.treasuryAddress();
       const treasuryBalanceBefore = await mozToken.balanceOf(treasury);
       const mozBalanceBefore = await mozToken.balanceOf(mozToken.address);
@@ -63,14 +63,12 @@ describe('MozaicTokens', () => {
       expect(treasuryBalanceAfter).gt(treasuryBalanceBefore);
       expect(mozBalanceAfter).gt(mozBalanceBefore);
     })
-    it ('claimMasterRewards()', async () => {
-      const master = await mozToken.masterAddress();
-      const masterBalanceBefore = await mozToken.balanceOf(master);
+    it.only ('claimMasterRewards()', async () => {
+      const masterBalanceBefore = await mozToken.balanceOf(masterAddress);
       const amount = ethers.utils.parseEther("0.1");
       let tx = await mozToken.connect(owner).claimMasterRewards(amount);
       await tx.wait();
-      const masterBalanceAfter = await mozToken.balanceOf(master);
-      console.log({masterBalanceBefore}, {masterBalanceAfter})
+      const masterBalanceAfter = await mozToken.balanceOf(masterAddress);
       expect(masterBalanceAfter.sub(masterBalanceBefore)).to.eq(amount);
     })
     it ('burn()', async () => {
@@ -114,32 +112,6 @@ describe('MozaicTokens', () => {
     })
   })
   describe('XMozaicToken', () => {
-    it ('updateRedeemSettings()', async () => {
-      const minRatio = await xMozToken.minRedeemRatio();
-      const medRatio = await xMozToken.mediumRedeemRatio();
-      const maxRatio = await xMozToken.maxRedeemRatio();
-      // const minDur = await xMozToken.minRedeemDuration();
-      // const medDur = await xMozToken.mediumRedeemDuration();
-      // const maxDur = await xMozToken.maxRedeemDuration();
-      const minDur = 1;
-      const medDur = 2;
-      const maxDur = 3;
-      let tx = await xMozToken.connect(owner).updateRedeemSettings(
-        minRatio,
-        medRatio,
-        maxRatio,
-        minDur,
-        medDur,
-        maxDur
-      );
-      await tx.wait();
-      expect(await xMozToken.minRedeemRatio()).to.eq(minRatio);
-      expect(await xMozToken.mediumRedeemRatio()).to.eq(medRatio);
-      expect(await xMozToken.maxRedeemRatio()).to.eq(maxRatio);
-      expect(await xMozToken.minRedeemDuration()).to.eq(minDur);
-      expect(await xMozToken.mediumRedeemDuration()).to.eq(medDur);
-      expect(await xMozToken.maxRedeemDuration()).to.eq(maxDur);
-    })
     it ('updateDeallocationFee()', async () => {
       const fee = 200;  // MAX_DEALLOCATION_FEE
       let tx = await xMozToken.connect(owner).updateDeallocationFee(owner.address, fee);
@@ -182,6 +154,29 @@ describe('MozaicTokens', () => {
       await tx.wait();
       expect((await xMozToken.balanceOf(to)).sub(xMozBalanceBefore)).to.eq(amount);
       expect((await mozToken.balanceOf(xMozToken.address)).sub(mozBalanceBefore)).to.eq(amount);
+    })
+    it ('updateRedeemSettings()', async () => {
+      const minRatio = await xMozToken.minRedeemRatio();
+      const medRatio = await xMozToken.mediumRedeemRatio();
+      const maxRatio = await xMozToken.maxRedeemRatio();
+      const minDur = 1;
+      const medDur = 2;
+      const maxDur = 3;
+      let tx = await xMozToken.connect(owner).updateRedeemSettings(
+        minRatio,
+        medRatio,
+        maxRatio,
+        minDur,
+        medDur,
+        maxDur
+      );
+      await tx.wait();
+      expect(await xMozToken.minRedeemRatio()).to.eq(minRatio);
+      expect(await xMozToken.mediumRedeemRatio()).to.eq(medRatio);
+      expect(await xMozToken.maxRedeemRatio()).to.eq(maxRatio);
+      expect(await xMozToken.minRedeemDuration()).to.eq(minDur);
+      expect(await xMozToken.mediumRedeemDuration()).to.eq(medDur);
+      expect(await xMozToken.maxRedeemDuration()).to.eq(maxDur);
     })
     it ('redeem()', async () => {
       const xMozBalancesBefore = await xMozToken.xMozBalances(owner.address);
