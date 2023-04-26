@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 import "../interfaces/IMozaicTokenV2.sol";
 import "../interfaces/IXMozaicToken.sol";
 import "../interfaces/IXMozaicTokenUsage.sol";
@@ -56,8 +57,6 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     mapping(address => XMozBalance) public xMozBalances; // User's xMOZ balances
     mapping(address => RedeemInfo[]) public userRedeems; // User's redeeming instances
 
-    address public bridge;
-
     /********************************************/
     /****************** EVENTS ******************/
     /********************************************/
@@ -83,18 +82,12 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         _;
     }
 
-    modifier onlyBridge() {
-        require(bridge == _msgSender(), "Only bridge");
-        _;
-    }
-
     /***********************************************/
     /***************** CONSTRUCTOR *****************/
     /***********************************************/
     constructor(IMozaicTokenV2 mozaicToken_) {
         mozaicToken = mozaicToken_;
         _transferWhitelist.add(address(this));
-        _transferWhitelist.add(address(0)); // Add this to avoid revert in _beforeTokenTransfer() while burning
     }
 
     /***********************************************/
@@ -234,35 +227,6 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     }
 
     /**
-    * @dev Set XMozaicTokenBridge only once
-    */
-    function setBridge(address _bridge) external onlyOwner {
-        require(bridge == address(0), "Bridge is already set");
-        bridge = _bridge;
-    }
-
-    // BRIDGE FUNCTIONS
-    /**
-    * @dev Only XMozaicTokenBridge mints XMozaicToken
-    */
-    function mint(
-        address _account,
-        uint256 _amount
-    ) external override onlyBridge {
-        _mint(_account, _amount);
-    }
-
-    /**
-    * @dev Only XMozaicTokenBridge burns XMozaicToken
-    */
-    function burn(
-        address _account,
-        uint256 _amount
-    ) external override onlyBridge {
-        _burn(_account, _amount);
-    }
-
-    /**
     * @dev Approves "usage" address to get allocations up to "amount" of xMOZ from msg.sender
     */
     function approveUsage(
@@ -270,6 +234,7 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         uint256 amount
     ) external nonReentrant {
         require(address(usage) != address(0), "approveUsage: approve to the zero address");
+        
         usageApprovals[msg.sender][address(usage)] = amount;
         emit ApproveUsage(msg.sender, address(usage), amount);
     }
@@ -304,13 +269,16 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         require(duration >= minRedeemDuration, "redeem: duration too low");
         _transfer(msg.sender, address(this), xMozAmount);
         XMozBalance storage balance = xMozBalances[msg.sender];
+        
         // get corresponding MOZ amount
         uint256 mozAmount = getMozByVestingDuration(xMozAmount, duration);
         emit Redeem(msg.sender, xMozAmount, mozAmount, duration);
+        
         // if redeeming is not immediate, go through vesting process
         if(duration > 0) {
             // add to SBT total
             balance.redeemingAmount = balance.redeemingAmount + xMozAmount;
+            
             // add redeeming entry
             userRedeems[msg.sender].push(RedeemInfo(
                 mozAmount,
@@ -334,9 +302,11 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         XMozBalance storage balance = xMozBalances[msg.sender];
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
         require(_currentBlockTimestamp() >= _redeem.endTime, "finalizeRedeem: vesting duration has not ended yet");
+        
         // remove from SBT total
         balance.redeemingAmount = balance.redeemingAmount - _redeem.xMozAmount;
         _finalizeRedeem(msg.sender, _redeem.xMozAmount, _redeem.mozAmount);
+        
         // remove redeem entry
         _deleteRedeemEntry(redeemIndex);
     }
@@ -351,11 +321,13 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         nonReentrant validateRedeem(msg.sender, redeemIndex) {
         XMozBalance storage balance = xMozBalances[msg.sender];
         RedeemInfo storage _redeem = userRedeems[msg.sender][redeemIndex];
+
         // make redeeming xMOZ available again
         balance.redeemingAmount = balance.redeemingAmount - _redeem.xMozAmount;
         _transfer(address(this), msg.sender, _redeem.xMozAmount);
 
         emit CancelRedeem(msg.sender, _redeem.xMozAmount);
+
         // remove redeem entry
         _deleteRedeemEntry(redeemIndex);
     }
@@ -371,6 +343,7 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         bytes calldata usageData
     ) external nonReentrant {
         _allocate(msg.sender, usageAddress, amount);
+
         // allocates xMOZ to usageContract
         IXMozaicTokenUsage(usageAddress).allocate(msg.sender, amount, usageData);
     }
@@ -398,6 +371,7 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         bytes calldata usageData
     ) external nonReentrant {
         _deallocate(msg.sender, usageAddress, amount);
+
         // deallocate xMOZ into usageContract
         IXMozaicTokenUsage(usageAddress).deallocate(msg.sender, amount, usageData);
     }
@@ -450,8 +424,10 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
     */
     function _convert(uint256 amount, address to) internal {
         require(amount != 0, "convert: amount cannot be null");
+
         // mint new xMOZ
         _mint(to, amount);
+
         emit Convert(msg.sender, to, amount);
         mozaicToken.safeTransferFrom(msg.sender, address(this), amount);
     }
@@ -468,11 +444,14 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         uint256 mozAmount
     ) internal {
         uint256 mozExcess = xMozAmount - mozAmount;
+
         // sends due MOZ tokens
         mozaicToken.safeTransfer(userAddress, mozAmount);
+
         // burns MOZ excess if any
         mozaicToken.burn(mozExcess);
         _burn(address(this), xMozAmount);
+
         emit FinalizeRedeem(userAddress, xMozAmount, mozAmount);
     }
 
@@ -486,17 +465,23 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         uint256 amount
     ) internal {
         require(amount > 0, "allocate: amount cannot be null");
+        
         XMozBalance storage balance = xMozBalances[userAddress];
+        
         // approval checks if allocation request amount has been approved by userAddress to be allocated to this usageAddress
         uint256 approvedXMoz = usageApprovals[userAddress][usageAddress];
         require(approvedXMoz >= amount, "allocate: non authorized amount");
+        
         // remove allocated amount from usage's approved amount
         usageApprovals[userAddress][usageAddress] = approvedXMoz - amount;
+        
         // update usage's allocatedAmount for userAddress
         usageAllocations[userAddress][usageAddress] += amount;
+        
         // adjust user's xMOZ balances
         balance.allocatedAmount = balance.allocatedAmount + amount;
         _transfer(userAddress, address(this), amount);
+        
         emit Allocate(userAddress, usageAddress, amount);
     }
 
@@ -511,19 +496,25 @@ contract XMozaicToken is Ownable, ReentrancyGuard, ERC20("Mozaic escrowed token"
         uint256 amount
     ) internal {
         require(amount > 0, "deallocate: amount cannot be null");
+        
         // check if there is enough allocated xMOZ to this usage to deallocate
         uint256 allocatedAmount = usageAllocations[userAddress][usageAddress];
         require(allocatedAmount >= amount, "deallocate: non authorized amount");
+        
         // remove deallocated amount from usage's allocation
         usageAllocations[userAddress][usageAddress] = allocatedAmount - amount;
+        
         uint256 deallocationFeeAmount = amount * usagesDeallocationFee[usageAddress] / 10000;
+        
         // adjust user's xMOZ balances
         XMozBalance storage balance = xMozBalances[userAddress];
         balance.allocatedAmount = balance.allocatedAmount - amount;
         _transfer(address(this), userAddress, amount - deallocationFeeAmount);
+        
         // burn corresponding MOZ and XMOZ
         mozaicToken.burn(deallocationFeeAmount);
         _burn(address(this), deallocationFeeAmount);
+        
         emit Deallocate(userAddress, usageAddress, amount, deallocationFeeAmount);
     }
 
